@@ -1,4 +1,4 @@
-import "@/css/satoshi.css";
+import "@/css/lemon-milk.css";
 import "@/css/style.css";
 
 import { Sidebar } from "@/components/Layouts/sidebar";

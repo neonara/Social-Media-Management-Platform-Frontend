@@ -7,7 +7,15 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Satoshi"', ...defaultTheme.fontFamily.sans],
+        sans: [
+          "Helvetica",
+          "Helvetica",
+          "Arial",
+          ...defaultTheme.fontFamily.sans,
+        ],
+        title: ["LEMON MILK", "sans-serif"],
+        lemon: ["LEMON MILK", "sans-serif"],
+        helvetica: ["Helvetica", "Helvetica", "Arial", "sans-serif"],
       },
       screens: {
         "2xsm": "375px",
@@ -18,7 +26,10 @@ const config: Config = {
         current: "currentColor",
         transparent: "transparent",
         white: "#FFFFFF",
-        primary: "#5750F1",
+        offwhite: "#F4F1E9",
+        primary: "#7d009f",
+        secondary: "#8a11df",
+        third: "#7a6cc5",
         stroke: "#E6EBF1",
         "stroke-dark": "#27303E",
         dark: {

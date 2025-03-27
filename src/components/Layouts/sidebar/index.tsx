@@ -63,7 +63,7 @@ export function Sidebar() {
         aria-hidden={!isOpen}
         inert={!isOpen}
       >
-        <div className="flex h-full flex-col py-10 pl-[25px] pr-[7px]">
+        <div className="flex h-full flex-col py-8 pl-[25px] pr-[7px]">
           <div className="relative pr-4.5">
             <Link
               href={"/"}

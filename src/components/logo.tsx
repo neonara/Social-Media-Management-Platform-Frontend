@@ -1,14 +1,15 @@
-import darkLogo from "@/assets/logos/dark.svg";
-import logo from "@/assets/logos/main.svg";
+import darkLogo from "@/assets/logos/logo_white.png";
+import logo from "@/assets/logos/logo_black.png";
+
 import Image from "next/image";
 
 export function Logo() {
   return (
-    <div className="relative h-8 max-w-[10.847rem]">
+    <div className="relative h-16 max-w-50">
       <Image
         src={logo}
         fill
-        className="dark:hidden"
+        className="object-contain object-left dark:hidden"
         alt="NextAdmin logo"
         role="presentation"
         quality={100}
@@ -17,7 +18,7 @@ export function Logo() {
       <Image
         src={darkLogo}
         fill
-        className="hidden dark:block"
+        className="hidden object-contain object-left dark:block"
         alt="NextAdmin logo"
         role="presentation"
         quality={100}
