@@ -11,7 +11,7 @@ export default function AuthLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
         <div
           style={{
             display: "flex",

@@ -9,8 +9,9 @@ import logo from "@/assets/logos/logo_black.png";
 import { Checkbox } from "@/components/FormElements/checkbox";
 import InputGroup from "@/components/FormElements/InputGroup";
 import { EmailIcon, PasswordIcon } from "@/assets/icons";
+import { loginUser } from "@/services/authService";
 
-export default function SignIn() {
+export default function Login() {
   const [data, setData] = useState({
     email: process.env.NEXT_PUBLIC_DEMO_USER_MAIL || "",
     password: process.env.NEXT_PUBLIC_DEMO_USER_PASS || "",
@@ -37,57 +38,21 @@ export default function SignIn() {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:8000/api/auth/login/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
-        credentials: "include", // Include cookies if needed
-      });
+      // Use the loginUser service function
+      await loginUser(data.email, data.password);
 
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        setError(responseData.message || "Login failed. Please try again.");
-        return;
-      }
-
-      // Store tokens securely in localStorage
-      localStorage.setItem("access_token", responseData.access_token);
-      localStorage.setItem("refresh_token", responseData.refresh_token);
-
-      // Determine user role and store it
-      const userRole = getUserRole(responseData);
-      localStorage.setItem("user_role", userRole);
-
-      // Redirect user based on role
-      if (userRole === "administrator") {
-        router.push("/");
-      } else if (userRole === "moderator") {
-        router.push("/");
-      } else if (userRole === "community_manager") {
-        router.push("/");
+      // Redirect to dashboard
+      router.push("/");
+    } catch (error) {
+      // Handle login errors
+      if (error instanceof Error) {
+        setError(error.message);
       } else {
-        router.push("/"); // Default dashboard for other roles
+        setError("Login failed. Please try again.");
       }
-    } catch {
-      setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  // Determine user role from API response
-  const getUserRole = (user: any) => {
-    if (user.is_administrator) return "administrator";
-    if (user.is_moderator) return "moderator";
-    if (user.is_community_manager) return "community_manager";
-    if (user.is_client) return "client";
-    return "unknown";
   };
 
   return (
@@ -163,7 +128,7 @@ export default function SignIn() {
 
             <div className="mt-6 text-center">
               <p>
-                Don’t have an account?{" "}
+                Don&apos;t have an account?
                 <Link href="/auth/sign-up" className="text-primary">
                   Sign Up
                 </Link>

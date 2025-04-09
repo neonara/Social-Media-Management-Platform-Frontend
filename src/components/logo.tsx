@@ -9,6 +9,8 @@ export function Logo() {
       <Image
         src={logo}
         fill
+        priority
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         className="object-contain object-left dark:hidden"
         alt="NextAdmin logo"
         role="presentation"
@@ -18,6 +20,8 @@ export function Logo() {
       <Image
         src={darkLogo}
         fill
+        priority
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         className="hidden object-contain object-left dark:block"
         alt="NextAdmin logo"
         role="presentation"
