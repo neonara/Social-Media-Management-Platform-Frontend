@@ -9,7 +9,7 @@ import { useState } from "react";
 export default function FirstResetPassword() {
   const searchParams = useSearchParams();
 
-  const email = searchParams.get("email") || "";
+  const [email, setEmail] = useState(searchParams.get("email") || "");
   const [tempPassword, setTempPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -109,13 +109,12 @@ export default function FirstResetPassword() {
                       </label>
                       <input
                         type="email"
-                        defaultValue={email}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email"
-                        // disabled
                         className="dark:border-form-strokedark dark:bg-form-input w-full rounded-md border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:focus:border-primary"
                       />
                     </div>
-
                     <div className="mb-4">
                       <label className="mb-2.5 block font-medium text-black dark:text-white">
                         Temporary Password
