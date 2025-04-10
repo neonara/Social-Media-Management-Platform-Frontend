@@ -2,7 +2,35 @@ import * as Icons from "../icons";
 
 export const NAV_DATA = [
   {
-    label: "MAIN MENU",
+    label: "DASHBOARD",
+    items: [
+      {
+        title: "Dashboard",
+        url: "/",
+        icon: Icons.HomeIcon,
+        items: [
+          {
+            title: "Create User",
+            url: "/create-user",
+          },
+        ],
+      },
+      {
+        title: "Login",
+        url: "/login",
+        icon: Icons.User,
+        items: [],
+      },
+      {
+        title: "First Reset Password",
+        url: "/first-reset-password",
+        icon: Icons.User,
+        items: [],
+      },
+    ],
+  },
+  {
+    label: "Template Pages",
     items: [
       {
         title: "Dashboard",

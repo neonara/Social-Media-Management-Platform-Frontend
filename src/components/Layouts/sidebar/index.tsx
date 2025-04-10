@@ -40,7 +40,7 @@ export function Sidebar() {
         });
       });
     });
-  }, [pathname]);
+  }, [expandedItems, pathname]);
 
   return (
     <>
