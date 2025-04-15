@@ -1,86 +1,171 @@
-import {
-  CallIcon,
-  EmailIcon,
-  PencilSquareIcon,
-  UserIcon,
-} from "@/assets/icons";
-import InputGroup from "@/components/FormElements/InputGroup";
-import { TextAreaGroup } from "@/components/FormElements/InputGroup/text-area";
+"use client";
+
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
+import axios from "axios";
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 
 export function PersonalInfoForm() {
+  const [formData, setFormData] = useState({
+    username: "",
+    full_name: "",
+    phone_number: "",
+    email: "" as string | undefined, // Allow email to be undefined
+  });
+  
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch the current user's information on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8000/api/users/me/", // Replace with your actual endpoint
+          { withCredentials: true }
+        );
+        const user = response.data;
+        setFormData({
+          username: user.username,
+          full_name: user.full_name,
+          phone_number: user.phone_number,
+          email: user.email,
+        });
+        setLoading(false); // Set loading to false once the data is fetched
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+        toast.error("Failed to fetch user data.");
+        setLoading(false); // Ensure loading is false if the fetch fails
+      }
+    };
+  
+    fetchUserData();
+  }, []); // Empty dependency array means this effect runs once on mount
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+  
+    const updatedData = { ...formData };
+  
+    // Check if the email is the same as before and remove it if not updated
+    if (formData.email === formData.email) {  // Update this condition as needed
+      delete updatedData.email;
+    }
+  
+    // Retrieve CSRF token from the cookies
+    const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1];
+    console.log("CSRF Token:", csrfToken); // Ensure CSRF token is extracted
+  
+    try {
+      const response = await axios.put(
+        "http://localhost:8000/api/users/update-profile/",  // Endpoint for profile update
+        updatedData,
+        {
+          withCredentials: true,  // Ensure cookies are sent for authentication
+          headers: {
+            'X-CSRFToken': csrfToken,  // Add CSRF token to headers
+          }
+        }
+      );
+      
+      toast.success("Profile updated successfully!");
+      console.log("Update success:", response.data);
+    } catch (error: unknown) {
+      const errMsg =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data?.message || "Update failed!"
+          : "An unexpected error occurred.";
+  
+      console.error("Update failed:", error);
+      toast.error(errMsg);
+    }
+  };
+  
+  
   return (
     <ShowcaseSection title="Personal Information" className="!p-7">
-      <form>
-        <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
-          <InputGroup
-            className="w-full sm:w-1/2"
+      <form onSubmit={handleSubmit}>
+        <div className="mb-5.5">
+          <label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-700 dark:text-white">
+            Username
+          </label>
+          <input
             type="text"
-            name="fullName"
-            label="Full Name"
-            placeholder="David Jhon"
-            defaultValue="David Jhon"
-            icon={<UserIcon />}
-            iconPosition="left"
-            height="sm"
-          />
-
-          <InputGroup
-            className="w-full sm:w-1/2"
-            type="text"
-            name="phoneNumber"
-            label="Phone Number"
-            placeholder="+990 3343 7865"
-            defaultValue={"+990 3343 7865"}
-            icon={<CallIcon />}
-            iconPosition="left"
-            height="sm"
+            id="username"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            placeholder="your_username"
+            className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
           />
         </div>
 
-        <InputGroup
-          className="mb-5.5"
-          type="email"
-          name="email"
-          label="Email Address"
-          placeholder="devidjond45@gmail.com"
-          defaultValue="devidjond45@gmail.com"
-          icon={<EmailIcon />}
-          iconPosition="left"
-          height="sm"
-        />
+        <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
+          <div className="w-full sm:w-1/2">
+            <label htmlFor="full_name" className="mb-2 block text-sm font-medium text-gray-700 dark:text-white">
+              Full Name
+            </label>
+            <input
+              type="text"
+              id="full_name"
+              name="full_name"
+              value={formData.full_name}
+              onChange={handleChange}
+              placeholder="David Jhon"
+              className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            />
+          </div>
 
-        <InputGroup
-          className="mb-5.5"
-          type="text"
-          name="username"
-          label="Username"
-          placeholder="devidjhon24"
-          defaultValue="devidjhon24"
-          icon={<UserIcon />}
-          iconPosition="left"
-          height="sm"
-        />
+          <div className="w-full sm:w-1/2">
+            <label htmlFor="phone_number" className="mb-2 block text-sm font-medium text-gray-700 dark:text-white">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              id="phone_number"
+              name="phone_number"
+              value={formData.phone_number}
+              onChange={handleChange}
+              placeholder="+990 3343 7865"
+              className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            />
+          </div>
+        </div>
 
-        <TextAreaGroup
-          className="mb-5.5"
-          label="BIO"
-          placeholder="Write your bio here"
-          icon={<PencilSquareIcon />}
-          defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam lacinia turpis tortor, consequat efficitur mi congue a. Curabitur cursus, ipsum ut lobortis sodales, enim arcu pellentesque lectus ac suscipit diam sem a felis. Cras sapien ex, blandit eu dui et suscipit gravida nunc. Sed sed est quis dui."
-        />
+        <div className="mb-5.5">
+          <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700 dark:text-white">
+            Email Address
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email ?? ""}
+            onChange={handleChange}
+            placeholder="devidjond45@gmail.com"
+            className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+          />
+        </div>
 
         <div className="flex justify-end gap-3">
           <button
-            className="rounded-lg border border-stroke px-6 py-[7px] font-medium text-dark hover:shadow-1 dark:border-dark-3 dark:text-white"
             type="button"
+            onClick={() => setFormData({ username: "", full_name: "", phone_number: "", email: undefined })}
+            className="rounded-lg border border-stroke px-6 py-[7px] font-medium text-dark hover:shadow-1 dark:border-dark-3 dark:text-white"
           >
             Cancel
           </button>
 
           <button
-            className="rounded-lg bg-primary px-6 py-[7px] font-medium text-gray-2 hover:bg-opacity-90"
             type="submit"
+            className="rounded-lg bg-primary px-6 py-[7px] font-medium text-gray-2 hover:bg-opacity-90"
           >
             Save
           </button>
