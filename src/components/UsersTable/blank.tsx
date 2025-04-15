@@ -151,119 +151,124 @@ export default function UsersTable() {
 
       {/* Table */}
       <table className="min-w-full table-auto mb-6">
-        <thead>
-          <tr>
-            <th className="px-4 py-2 border">Name</th>
-            <th className="px-4 py-2 border">Email</th>
-            <th className="px-4 py-2 border">Roles</th>
-            <th className="px-4 py-2 border">Assigned To</th>
-            <th className="px-4 py-2 border">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredUsers.map((user) => {
-            const pending = pendingAssignments.find((a) => a.userId === user.id);
-            return (
-              <tr key={user.id}>
-                <td className="px-4 py-2 border">{user.full_name}</td>
-                <td className="px-4 py-2 border">{user.email}</td>
-                <td className="px-4 py-2 border">{user.roles.join(", ")}</td>
-                <td
-                  className="px-4 py-2 border cursor-pointer"
-                  onClick={() => setExpandedRowId(user.id === expandedRowId ? null : user.id)}
-                >
-                  {pending ? (
-                    `Pending: ${pending.type === "moderator" ? "Moderator" : "CM"} - ${pending.assignedName || "No Assigned Name"}`
-                  ) : user.assigned_moderator ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Moderator: {user.assigned_moderator}</span>
-                      <button
-                        className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeAssignment(user);
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : user.assigned_communitymanagers ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <span>CM: {user.assigned_communitymanagers}</span>
-                      <button
-                        className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeAssignment(user);
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    "Not Assigned"
-                  )}
+      <thead>
+  <tr>
+    <th className="px-4 py-2 border font-bold text-black">Name</th>
+    <th className="px-4 py-2 border font-bold text-black">Email</th>
+    <th className="px-4 py-2 border font-bold text-black">Roles</th>
+    <th className="px-4 py-2 border font-bold text-black">Assigned To</th>
+    <th className="px-4 py-2 border font-bold text-black">Actions</th>
+  </tr>
+</thead>
+<tbody>
+  {filteredUsers.map((user) => {
+    const pending = pendingAssignments.find((a) => a.userId === user.id);
+    return (
+      <tr key={user.id}>
+        <td className="px-4 py-2 border text-gray-800">{user.full_name}</td>
+        <td className="px-4 py-2 border text-gray-800">{user.email}</td>
+        <td className="px-4 py-2 border text-gray-800">{user.roles.join(", ")}</td>
+        <td
+          className="px-4 py-2 border cursor-pointer text-gray-800"
+          onClick={() => setExpandedRowId(user.id === expandedRowId ? null : user.id)}
+        >
+          {pending ? (
+            `Pending: ${pending.type === "moderator" ? "Moderator" : "CM"} - ${pending.assignedName || "No Assigned Name"}`
+          ) : user.assigned_moderator ? (
+            <div className="flex items-center justify-between gap-2">
+              <span>Moderator: {user.assigned_moderator}</span>
+              <button
+                className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeAssignment(user);
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : user.assigned_communitymanagers ? (
+            <div className="flex items-center justify-between gap-2">
+              <span>CM: {user.assigned_communitymanagers}</span>
+              <button
+                className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeAssignment(user);
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            "Not Assigned"
+          )}
 
-                  {expandedRowId === user.id && (
-                    <div className="mt-2 p-2 bg-gray-100 rounded shadow text-sm">
-                      {user.roles.includes("moderator") ? (
-                        <>
-                          <strong>Assigned Community Managers:</strong>
-                          <ul className="list-disc list-inside">
-                            {user.assigned_communitymanagers
-                              ? user.assigned_communitymanagers.split(",").map((cm, idx) => {
-                                  const cmUser = users.find((u) => u.full_name === cm.trim());
-                                  return (
-                                    <li key={idx} className="flex justify-between items-center">
-                                      <span>{cm.trim()}</span>
-                                      {cmUser && (
-                                        <button
-                                          className="text-red-500 text-xs ml-2 hover:underline"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeAssignment(user, cmUser.id);
-                                          }}
-                                        >
-                                          Remove
-                                        </button>
-                                      )}
-                                    </li>
-                                  );
-                                })
-                              : <li>No community managers assigned</li>}
-                          </ul>
-                        </>
-                      ) : user.roles.includes("client") ? (
-                        <>
-                          <strong>Assigned Moderator:</strong>
-                          <p>{user.assigned_moderator || "No moderator assigned"}</p>
-                        </>
-                      ) : null}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-2 border">
-                  {user.roles.includes("moderator") && (
-                    <button
-                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                      onClick={() => openAssignModal(user, "cm")}
-                    >
-                      Assign CM
-                    </button>
-                  )}
-                  {user.roles.includes("client") && (
-                    <button
-                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                      onClick={() => openAssignModal(user, "moderator")}
-                    >
-                      Assign Moderator
-                    </button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
+          {expandedRowId === user.id && (
+            <div className="mt-2 p-2 bg-gray-100 rounded shadow text-sm text-gray-800">
+              {user.roles.includes("moderator") ? (
+                <>
+                  <strong>Assigned Community Managers:</strong>
+                  <ul className="list-disc list-inside">
+                    {user.assigned_communitymanagers
+                      ? user.assigned_communitymanagers.split(",").map((cm, idx) => {
+                          const cmUser = users.find((u) => u.full_name === cm.trim());
+                          return (
+                            <li key={idx} className="flex justify-between items-center">
+                              <span>{cm.trim()}</span>
+                              {cmUser && (
+                                <button
+                                  className="text-red-500 text-xs ml-2 hover:underline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeAssignment(user, cmUser.id);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })
+                      : <li>No community managers assigned</li>}
+                  </ul>
+                </>
+              ) : user.roles.includes("client") ? (
+                <>
+                  <strong>Assigned Moderator:</strong>
+                  <p>{user.assigned_moderator || "No moderator assigned"}</p>
+                </>
+              ) : null}
+            </div>
+          )}
+        </td>
+        <td className="px-4 py-2 border text-gray-800">
+        {user.roles.includes("moderator") && (
+  <button
+    className="px-4 py-2 text-white rounded-lg hover:bg-[#8a11df] hover:shadow-lg transition duration-300 ease-in-out"
+    style={{ backgroundColor: "#8a11df" }}
+    onClick={() => openAssignModal(user, "cm")}
+  >
+    Assign CM
+  </button>
+)}
+
+{user.roles.includes("client") && (
+  <button
+    className="px-4 py-2 text-white rounded-lg hover:bg-[#7a6cc5] hover:shadow-lg transition duration-300 ease-in-out"
+    style={{ backgroundColor: "#7a6cc5" }}
+    onClick={() => openAssignModal(user, "moderator")}
+  >
+    Assign Moderator
+  </button>
+)}
+
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
       </table>
 
       {/* Save Assignments */}
