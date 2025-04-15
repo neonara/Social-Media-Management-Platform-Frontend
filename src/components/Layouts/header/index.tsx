@@ -39,7 +39,7 @@ export function Header() {
           Dashboard
         </h1>
         <p className="font-medium">
-          Brand And Com Social Media Dashboard Solution
+          Brand And Com Social Media Management Dashboard Solution
         </p>
       </div>
 

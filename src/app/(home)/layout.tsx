@@ -15,8 +15,8 @@ import { SidebarProvider } from "@/components/Layouts/sidebar/sidebar-context";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | NextAdmin - Next.js Dashboard Kit",
-    default: "NextAdmin - Next.js Dashboard Kit",
+    template: "%s | Brand And Com Social Media Management",
+    default: "Brand And Com Social Media Management",
   },
   description:
     "Next.js admin dashboard toolkit with 200+ templates, UI components, and integrations for fast dashboard development.",
