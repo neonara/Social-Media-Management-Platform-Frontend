@@ -20,7 +20,7 @@ export function PersonalInfoForm() {
     const fetchUserData = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8000/api/users/me/", // Replace with your actual endpoint
+          "http://localhost:8000/api/users/", 
           { withCredentials: true }
         );
         const user = response.data;
@@ -30,17 +30,16 @@ export function PersonalInfoForm() {
           phone_number: user.phone_number,
           email: user.email,
         });
-        setLoading(false); // Set loading to false once the data is fetched
+        setLoading(false); 
       } catch (error) {
         console.error("Failed to fetch user data:", error);
         toast.error("Failed to fetch user data.");
-        setLoading(false); // Ensure loading is false if the fetch fails
+        setLoading(false); 
       }
     };
   
     fetchUserData();
-  }, []); // Empty dependency array means this effect runs once on mount
-  
+  }, []); 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -54,23 +53,21 @@ export function PersonalInfoForm() {
   
     const updatedData = { ...formData };
   
-    // Check if the email is the same as before and remove it if not updated
-    if (formData.email === formData.email) {  // Update this condition as needed
+   
+    if (formData.email === formData.email) {  
       delete updatedData.email;
     }
-  
-    // Retrieve CSRF token from the cookies
     const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1];
-    console.log("CSRF Token:", csrfToken); // Ensure CSRF token is extracted
+    console.log("CSRF Token:", csrfToken); 
   
     try {
       const response = await axios.put(
-        "http://localhost:8000/api/users/update-profile/",  // Endpoint for profile update
+        "http://localhost:8000/api/users/update-profile/",  
         updatedData,
         {
-          withCredentials: true,  // Ensure cookies are sent for authentication
+          withCredentials: true,  
           headers: {
-            'X-CSRFToken': csrfToken,  // Add CSRF token to headers
+            'X-CSRFToken': csrfToken, 
           }
         }
       );

@@ -190,15 +190,7 @@ export default function UsersTable() {
           ) : user.assigned_communitymanagers ? (
             <div className="flex items-center justify-between gap-2">
               <span>CM: {user.assigned_communitymanagers}</span>
-              <button
-                className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeAssignment(user);
-                }}
-              >
-                Remove
-              </button>
+              
             </div>
           ) : (
             "Not Assigned"
