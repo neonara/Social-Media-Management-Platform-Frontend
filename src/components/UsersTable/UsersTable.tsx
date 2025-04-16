@@ -96,10 +96,7 @@ export default function UsersTable() {
     <div className="p-6 bg-white rounded-xl shadow">
         <h1 className="mb-5.5 text-body-2xlg font-bold text-dark dark:text-white">
         USERS TABLE
-
-
       </h1>
-      
       {/* Tabs */}
       <div className="flex space-x-2 mb-6"> 
         {tabs.map((tab) => (
@@ -173,7 +170,7 @@ export default function UsersTable() {
         
       </table>
       <button
-        className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary-dark"
+        className="mb-4 px-4 py-2 bg-[#7a6cc5] text-white rounded-full transition duration-300 ease-in-out"
         onClick={() => router.push('/create-user')}
       >
         <FaPlus className="inline-block mr-2" /> Add User
