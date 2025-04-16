@@ -15,7 +15,7 @@ export function PersonalInfoForm() {
   
   const [loading, setLoading] = useState(true);
   
-  // Fetch the current user's information on component mount
+  
   useEffect(() => {
     const fetchUserData = async () => {
       try {

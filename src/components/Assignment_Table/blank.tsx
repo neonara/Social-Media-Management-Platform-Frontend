@@ -164,6 +164,11 @@ export default function UsersTable() {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow">
+      <h1 className="mb-5.5 text-body-2xlg font-bold text-dark dark:text-white">
+        Assignment Table
+
+
+      </h1>
       {/* Tabs */}
       <div className="flex space-x-2 mb-6">
         {tabs.map((tab) => (
@@ -188,9 +193,8 @@ export default function UsersTable() {
           <ul>
             {pendingRemovals.map((removal, index) => (
               <li key={index} className="text-yellow-600">
-                User: {users.find(u => u.id === removal.userId)?.full_name} - Removing{" "}
+                 {users.find(u => u.id === removal.userId)?.full_name} - Removing his assigned {" "}
                 {removal.type === "moderator" ? "Moderator" : "CM"}{" "}
-                {removal.assignedName && `(${removal.assignedName})`}
                 {removal.cmNameToRemove && ` (${removal.cmNameToRemove})`}
               </li>
             ))}
