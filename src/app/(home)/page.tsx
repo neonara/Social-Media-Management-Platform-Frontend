@@ -9,6 +9,9 @@ import { ChatsCard } from "./_components/chats-card";
 import { OverviewCardsGroup } from "./_components/overview-cards";
 import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
 import { RegionLabels } from "./_components/region-labels";
+import AssignmentTabs from "@/components/Assignment_Table/blank";
+import UsersTable from '@/components/UsersTable/UsersTable'; 
+
 
 type PropsType = {
   searchParams: Promise<{
@@ -56,6 +59,12 @@ export default async function Home({ searchParams }: PropsType) {
         <Suspense fallback={null}>
           <ChatsCard />
         </Suspense>
+        <div className="col-span-12 mt-6">
+          <AssignmentTabs />
+        </div>
+        <div className="col-span-12 mt-6">
+          <UsersTable />
+        </div>
       </div>
     </>
   );

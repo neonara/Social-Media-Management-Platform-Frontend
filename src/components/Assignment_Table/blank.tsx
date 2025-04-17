@@ -15,8 +15,11 @@ type User = {
 type PendingAssignment = {
   userId: number;
   type: "moderator" | "cm";
-  assignedId: number;
+  assignedId?: number | null;
   assignedName?: string;
+  remove?: boolean;
+  cmIdToRemove?: number;
+  cmNameToRemove?: string;
 };
 
 const tabs = ["All", "Administrator", "Moderator", "Community Manager", "Client"];
@@ -30,6 +33,9 @@ export default function UsersTable() {
   const [selectedAssignId, setSelectedAssignId] = useState<number | null>(null);
   const [pendingAssignments, setPendingAssignments] = useState<PendingAssignment[]>([]);
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
+  const [pendingRemovals, setPendingRemovals] = useState<
+    { userId: number; type: "moderator" | "cm"; assignedName?: string; cmIdToRemove?: number; cmNameToRemove?: string }[]
+  >([]);
 
   useEffect(() => {
     fetchUsers();
@@ -72,7 +78,7 @@ export default function UsersTable() {
 
     const updated = [...pendingAssignments];
     const existingIndex = updated.findIndex(
-      (item) => item.userId === selectedUser.id && item.type === assignmentType
+      (item) => item.userId === selectedUser.id && item.type === assignmentType && !item.remove
     );
 
     if (existingIndex !== -1) {
@@ -91,38 +97,58 @@ export default function UsersTable() {
     setShowModal(false);
   };
 
-  const removeAssignment = async (user: User, cmIdToRemove?: number) => {
-    try {
-      if (user.roles.includes("moderator") && cmIdToRemove) {
-        const url = `http://localhost:8000/api/moderators/${user.id}/community-manager/${cmIdToRemove}/remove/`;
-        await axios.delete(url);
-      } else if (user.roles.includes("client")) {
-        const url = `http://localhost:8000/api/clients/${user.id}/moderator/remove/`;
-        await axios.delete(url);
-      }
+  const queueRemoveAssignment = (user: User, cmToRemove?: User) => {
+    const type: "moderator" | "cm" = cmToRemove ? "cm" : "moderator";
+    const removalInfo = {
+      userId: user.id,
+      type: type,
+      assignedName: cmToRemove ? cmToRemove.full_name : user.assigned_moderator || undefined,
+      cmIdToRemove: cmToRemove?.id,
+      cmNameToRemove: cmToRemove?.full_name,
+    };
 
-      fetchUsers();
-      alert("Assignment removed successfully!");
-    } catch (err) {
-      console.error("Error removing assignment:", err);
-      alert("Failed to remove assignment.");
-    }
+    setPendingRemovals((prev) => {
+      const existing = prev.find(
+        (r) => r.userId === user.id && r.type === removalInfo.type && r.cmIdToRemove === removalInfo.cmIdToRemove
+      );
+      return existing ? prev : [...prev, removalInfo];
+    });
+
+    setPendingAssignments((prev) => {
+      const existing = prev.find(
+        (p) => p.userId === user.id && p.remove && p.type === type && p.cmIdToRemove === removalInfo.cmIdToRemove
+      );
+      return existing ? prev : [...prev, { userId: user.id, type: type, remove: true, cmIdToRemove: removalInfo.cmIdToRemove, cmNameToRemove: cmToRemove?.full_name }];
+    });
+
+    alert("Removal queued. Please review and save assignments to apply.");
   };
 
   const saveAllAssignments = async () => {
     try {
       for (const assignment of pendingAssignments) {
-        if (assignment.type === "moderator") {
-          const url = `http://localhost:8000/api/clients/${assignment.userId}/moderator/`;
-          await axios.put(url, { moderator_id: assignment.assignedId });
-        } else if (assignment.type === "cm") {
-          const url = `http://localhost:8000/api/moderators/${assignment.userId}/community-manager/`;
-          await axios.put(url, { cm_id: assignment.assignedId });
+        if (assignment.remove) {
+          if (assignment.type === "moderator") {
+            const url = `http://localhost:8000/api/clients/${assignment.userId}/moderator/remove/`;
+            await axios.delete(url);
+          } else if (assignment.type === "cm" && assignment.cmIdToRemove) {
+            const url = `http://localhost:8000/api/moderators/${assignment.userId}/community-manager/${assignment.cmIdToRemove}/remove/`;
+            await axios.delete(url);
+          }
+        } else {
+          if (assignment.type === "moderator" && assignment.assignedId) {
+            const url = `http://localhost:8000/api/clients/${assignment.userId}/moderator/`;
+            await axios.put(url, { moderator_id: assignment.assignedId });
+          } else if (assignment.type === "cm" && assignment.assignedId) {
+            const url = `http://localhost:8000/api/moderators/${assignment.userId}/community-manager/`;
+            await axios.put(url, { cm_id: assignment.assignedId });
+          }
         }
       }
 
       fetchUsers();
       setPendingAssignments([]);
+      setPendingRemovals([]);
       alert("Assignments saved successfully!");
     } catch (err) {
       console.error("Error saving assignments:", err);
@@ -130,8 +156,19 @@ export default function UsersTable() {
     }
   };
 
+  const clearPendingChanges = () => {
+    setPendingAssignments([]);
+    setPendingRemovals([]);
+    alert("Pending changes cleared.");
+  };
+
   return (
     <div className="p-6 bg-white rounded-xl shadow">
+      <h1 className="mb-5.5 text-body-2xlg font-bold text-dark dark:text-white">
+        Assignment Table
+
+
+      </h1>
       {/* Tabs */}
       <div className="flex space-x-2 mb-6">
         {tabs.map((tab) => (
@@ -149,15 +186,31 @@ export default function UsersTable() {
         ))}
       </div>
 
+      {/* Pending Removals Display */}
+      {pendingRemovals.length > 0 && (
+        <div className="mb-6 p-4 bg-yellow-100 rounded-md shadow-sm">
+          <h3 className="text-lg font-semibold mb-2 text-yellow-700">Pending Removals:</h3>
+          <ul>
+            {pendingRemovals.map((removal, index) => (
+              <li key={index} className="text-yellow-600">
+                 {users.find(u => u.id === removal.userId)?.full_name} - Removing his assigned {" "}
+                {removal.type === "moderator" ? "Moderator" : "CM"}{" "}
+                {removal.cmNameToRemove && ` (${removal.cmNameToRemove})`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Table */}
       <table className="min-w-full table-auto mb-6">
         <thead>
           <tr>
-            <th className="px-4 py-2 border">Name</th>
-            <th className="px-4 py-2 border">Email</th>
-            <th className="px-4 py-2 border">Roles</th>
-            <th className="px-4 py-2 border">Assigned To</th>
-            <th className="px-4 py-2 border">Actions</th>
+            <th className="px-4 py-2 border font-bold text-black">Name</th>
+            <th className="px-4 py-2 border font-bold text-black">Email</th>
+            <th className="px-4 py-2 border font-bold text-black">Roles</th>
+            <th className="px-4 py-2 border font-bold text-black">Assigned To</th>
+            <th className="px-4 py-2 border font-bold text-black">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -165,14 +218,16 @@ export default function UsersTable() {
             const pending = pendingAssignments.find((a) => a.userId === user.id);
             return (
               <tr key={user.id}>
-                <td className="px-4 py-2 border">{user.full_name}</td>
-                <td className="px-4 py-2 border">{user.email}</td>
-                <td className="px-4 py-2 border">{user.roles.join(", ")}</td>
+                <td className="px-4 py-2 border text-gray-800">{user.full_name}</td>
+                <td className="px-4 py-2 border text-gray-800">{user.email}</td>
+                <td className="px-4 py-2 border text-gray-800">{user.roles.join(", ")}</td>
                 <td
-                  className="px-4 py-2 border cursor-pointer"
+                  className="px-4 py-2 border cursor-pointer text-gray-800"
                   onClick={() => setExpandedRowId(user.id === expandedRowId ? null : user.id)}
                 >
-                  {pending ? (
+                  {pending?.remove ? (
+                    <span className="text-yellow-600 font-semibold">Pending Removal</span>
+                  ) : pending ? (
                     `Pending: ${pending.type === "moderator" ? "Moderator" : "CM"} - ${pending.assignedName || "No Assigned Name"}`
                   ) : user.assigned_moderator ? (
                     <div className="flex items-center justify-between gap-2">
@@ -181,7 +236,10 @@ export default function UsersTable() {
                         className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeAssignment(user);
+                          const moderatorToRemove = users.find((u) => u.full_name === user.assigned_moderator);
+                          if (moderatorToRemove) {
+                            queueRemoveAssignment(user, moderatorToRemove);
+                          }
                         }}
                       >
                         Remove
@@ -190,22 +248,13 @@ export default function UsersTable() {
                   ) : user.assigned_communitymanagers ? (
                     <div className="flex items-center justify-between gap-2">
                       <span>CM: {user.assigned_communitymanagers}</span>
-                      <button
-                        className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeAssignment(user);
-                        }}
-                      >
-                        Remove
-                      </button>
                     </div>
                   ) : (
                     "Not Assigned"
                   )}
 
                   {expandedRowId === user.id && (
-                    <div className="mt-2 p-2 bg-gray-100 rounded shadow text-sm">
+                    <div className="mt-2 p-2 bg-gray-100 rounded shadow text-sm text-gray-800">
                       {user.roles.includes("moderator") ? (
                         <>
                           <strong>Assigned Community Managers:</strong>
@@ -221,7 +270,7 @@ export default function UsersTable() {
                                           className="text-red-500 text-xs ml-2 hover:underline"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            removeAssignment(user, cmUser.id);
+                                            queueRemoveAssignment(user, cmUser);
                                           }}
                                         >
                                           Remove
@@ -242,18 +291,21 @@ export default function UsersTable() {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-2 border">
+                <td className="px-4 py-2 border text-gray-800">
                   {user.roles.includes("moderator") && (
                     <button
-                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      className="px-4 py-2 text-white rounded-lg hover:bg-[#8a11df] hover:shadow-lg transition duration-300 ease-in-out"
+                      style={{ backgroundColor: "#8a11df" }}
                       onClick={() => openAssignModal(user, "cm")}
                     >
                       Assign CM
                     </button>
                   )}
+
                   {user.roles.includes("client") && (
                     <button
-                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                      className="px-4 py-2 text-white rounded-lg hover:bg-[#7a6cc5] hover:shadow-lg transition duration-300 ease-in-out"
+                      style={{ backgroundColor: "#7a6cc5" }}
                       onClick={() => openAssignModal(user, "moderator")}
                     >
                       Assign Moderator
@@ -266,14 +318,22 @@ export default function UsersTable() {
         </tbody>
       </table>
 
-      {/* Save Assignments */}
-      {pendingAssignments.length > 0 && (
-        <button
-          className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary-dark"
-          onClick={saveAllAssignments}
-        >
-          Save All Assignments
-        </button>
+      {/* Save and Cancel Buttons */}
+      {(pendingAssignments.some((p) => p.assignedId !== undefined) || pendingRemovals.length > 0) && (
+        <div className="flex space-x-2">
+          <button
+            className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary-dark"
+            onClick={saveAllAssignments}
+          >
+            Save All Assignments
+          </button>
+          <button
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
+            onClick={clearPendingChanges}
+          >
+            Cancel
+          </button>
+        </div>
       )}
 
       {/* Assignment Modal */}
