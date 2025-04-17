@@ -164,10 +164,8 @@ export default function UsersTable() {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow">
-      <h1 className="mb-5.5 text-body-2xlg font-bold text-dark dark:text-white">
+      <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         Assignment Table
-
-
       </h1>
       {/* Tabs */}
       <div className="flex space-x-2 mb-6">

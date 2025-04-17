@@ -94,7 +94,7 @@ export default function UsersTable() {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow">
-        <h1 className="mb-5.5 text-body-2xlg font-bold text-dark dark:text-white">
+        <h1 className=" mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         USERS TABLE
       </h1>
       {/* Tabs */}
@@ -133,9 +133,9 @@ export default function UsersTable() {
       )}
 
       {/* Table */}
-      <table className="min-w-full table-auto mb-6"> {/* Reduced margin-bottom */}
+      <table className="min-w-full table-auto mb-6"> 
         <thead>
-          <tr > {/* Reduced font size in header */}
+          <tr >
             <th className="px-4 py-2 border font-bold text-black">Name</th>  
             <th className="px-4 py-2 border font-bold text-black">Email</th>  
             <th className="px-4 py-2 border font-bold text-black">Phone Number</th>  
@@ -154,13 +154,13 @@ export default function UsersTable() {
                 <td className="px-4 py-2 border text-gray-800">{user.roles.join(", ")}</td>  
                 <td className="px-4 py-2 border text-gray-800">  
                   <span
-                    className={`inline-flex items-center justify-center h-6 w-6 rounded-md cursor-pointer ${ // Using inline-flex for centering icon
+                    className={`inline-flex items-center justify-center h-6 w-6 rounded-md cursor-pointer ${
                       isPendingDelete ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-red-500 hover:bg-red-600 text-white"
                     }`}
                     onClick={() => queueDeleteUser(user.id)}
                     style={{ userSelect: "none" }}
                   >
-                    <FaTrash size={14} /> {/* Trash icon */}
+                    <FaTrash size={14} /> 
                   </span>
                 </td>
               </tr>
