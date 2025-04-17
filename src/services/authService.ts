@@ -1,5 +1,6 @@
 "use server";
 
+import { API_BASE_URL } from "@/config/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -11,7 +12,7 @@ type CreateUserData = {
 // This function now returns data for the client to store
 export async function loginUser(email: string, password: string) {
   try {
-    const response = await fetch("http://localhost:8000/api/auth/login/", {
+    const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -119,7 +120,7 @@ export async function createUser(data: CreateUserData) {
       return { error: "Authentication required" };
     }
 
-    const response = await fetch("http://localhost:8000/api/auth/register/", {
+    const response = await fetch(`${API_BASE_URL}/auth/register/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
