@@ -125,15 +125,6 @@ export default function Login() {
                 </button>
               </div>
             </form>
-
-            <div className="mt-6 text-center">
-              <p>
-                Don&apos;t have an account?
-                <Link href="/auth/sign-up" className="text-primary">
-                  Sign Up
-                </Link>
-              </p>
-            </div>
           </div>
         </div>
 

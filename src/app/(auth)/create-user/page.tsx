@@ -1,26 +1,25 @@
+// app/create-user/page.tsx
 "use client";
 import { EmailIcon, UserIcon } from "@/assets/icons";
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import InputGroup from "@/components/FormElements/InputGroup";
 import { Select } from "@/components/FormElements/select";
-import { createUser } from "@/services/authService";
 import { Alert } from "@/components/ui-elements/alert/index";
+import { handleCreateUser } from "@/actions/createUser";
+import { roles } from "@/types/user";
+import { useRouter } from "next/navigation";
 
 export default function CreateUser() {
-  const [data, setData] = useState({ email: "", role: "client" });
+  const [formData, setFormData] = useState({
+    email: "",
+    role: "client", // Set default value
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const router = useRouter();
 
-  const roles = [
-    { value: "client", label: "Client" },
-    { value: "moderator", label: "Moderator" },
-    { value: "community_manager", label: "Community Manager" },
-    { value: "administrator", label: "Administrator" },
-  ];
-
-  // Auto-dismiss alert after 3 seconds
   useEffect(() => {
     if (showAlert) {
       const timer = setTimeout(() => setShowAlert(false), 3000);
@@ -28,50 +27,36 @@ export default function CreateUser() {
     }
   }, [showAlert]);
 
-  const showSuccessAlert = (message: string) => {
-    setAlertMessage(message);
-    setShowAlert(true);
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setData({ ...data, email: e.target.value });
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
     setError("");
+
+    const formDataObj = new FormData();
+    formDataObj.append("email", formData.email);
+    formDataObj.append("role", formData.role);
+
+    const result = await handleCreateUser(formDataObj);
+
+    if (result?.error) {
+      setError(result.error);
+    } else if (result?.success) {
+      setAlertMessage(result.success);
+      setShowAlert(true);
+      setFormData({ email: "", role: "client" });
+    }
+
+    setLoading(false);
   };
 
   const handleRoleChange = (value: string) => {
-    setData({ ...data, role: value });
+    setFormData((prev) => ({ ...prev, role: value }));
     setError("");
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await createUser(data);
-
-      if (response.error) {
-        setError(response.error);
-      } else {
-        showSuccessAlert(
-          `Successfully created ${data.role} account for ${data.email}`,
-        );
-        setData({ email: "", role: "client" }); // Reset form
-      }
-    } catch (err) {
-      setError("An error occurred. Please try again.");
-      console.error("Submission error:", err);
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -88,8 +73,8 @@ export default function CreateUser() {
             className="mb-4 [&_input]:py-[15px]"
             placeholder="Enter email address"
             name="email"
-            handleChange={handleEmailChange}
-            value={data.email}
+            handleChange={handleChange}
+            value={formData.email}
             icon={<EmailIcon />}
           />
 
@@ -97,10 +82,10 @@ export default function CreateUser() {
             className="mb-8"
             label="Select Role"
             items={roles}
-            value={data.role}
+            value={formData.role}
             prefixIcon={<UserIcon />}
             placeholder="Select a role"
-            onChange={handleRoleChange}
+            onChange={(value) => handleRoleChange(value)}
           />
 
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
@@ -109,18 +94,24 @@ export default function CreateUser() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
+              className="mb-2.5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
             >
               Submit
               {loading && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
               )}
             </button>
+            <button
+              type="button"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gray-300 p-4 font-medium text-gray-700 transition hover:bg-gray-400 disabled:opacity-80"
+              onClick={() => router.push("/")} // Navigate back to the homepage (adjust path if needed)
+            >
+              Go Back
+            </button>
           </div>
         </form>
       </div>
 
-      {/* Success Alert */}
       {showAlert && (
         <div className="animate-fade-in fixed bottom-4 right-4 z-50">
           <Alert variant="success" title="Success" description={alertMessage} />

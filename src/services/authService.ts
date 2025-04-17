@@ -1,8 +1,8 @@
 "use server";
 
+import { API_BASE_URL } from "@/config/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { API_BASE_URL } from "../config/api";
 
 type CreateUserData = {
   email: string;
