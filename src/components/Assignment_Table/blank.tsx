@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 
 type User = {
   id: number;
@@ -43,12 +42,17 @@ export default function UsersTable() {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/users/");
-      setUsers(res.data);
+      const res = await fetch("http://localhost:8000/api/users/", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch users");
+      const data = await res.json();
+      setUsers(data);
     } catch (err) {
       console.error("Error fetching users:", err);
     }
   };
+  
 
   const filteredUsers =
     activeTab === "All"
@@ -130,22 +134,42 @@ export default function UsersTable() {
         if (assignment.remove) {
           if (assignment.type === "moderator") {
             const url = `http://localhost:8000/api/clients/${assignment.userId}/moderator/remove/`;
-            await axios.delete(url);
+            await fetch(url, {
+              method: "DELETE",
+              credentials: "include",
+            });
           } else if (assignment.type === "cm" && assignment.cmIdToRemove) {
             const url = `http://localhost:8000/api/moderators/${assignment.userId}/community-manager/${assignment.cmIdToRemove}/remove/`;
-            await axios.delete(url);
+            await fetch(url, {
+              method: "DELETE",
+              credentials: "include",
+            });
           }
         } else {
           if (assignment.type === "moderator" && assignment.assignedId) {
             const url = `http://localhost:8000/api/clients/${assignment.userId}/moderator/`;
-            await axios.put(url, { moderator_id: assignment.assignedId });
+            await fetch(url, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({ moderator_id: assignment.assignedId }),
+            });
           } else if (assignment.type === "cm" && assignment.assignedId) {
             const url = `http://localhost:8000/api/moderators/${assignment.userId}/community-manager/`;
-            await axios.put(url, { cm_id: assignment.assignedId });
+            await fetch(url, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({ cm_id: assignment.assignedId }),
+            });
           }
         }
       }
-
+  
       fetchUsers();
       setPendingAssignments([]);
       setPendingRemovals([]);
@@ -155,6 +179,7 @@ export default function UsersTable() {
       alert("Failed to save assignments.");
     }
   };
+  
 
   const clearPendingChanges = () => {
     setPendingAssignments([]);
@@ -164,10 +189,8 @@ export default function UsersTable() {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow">
-      <h1 className="mb-5.5 text-body-2xlg font-bold text-dark dark:text-white">
+      <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         Assignment Table
-
-
       </h1>
       {/* Tabs */}
       <div className="flex space-x-2 mb-6">

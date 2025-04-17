@@ -11,6 +11,7 @@ import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
 import { RegionLabels } from "./_components/region-labels";
 import AssignmentTabs from "@/components/Assignment_Table/blank";
 import UsersTable from '@/components/UsersTable/UsersTable'; 
+import { PostForm } from "@/app/(home)/post";
 
 
 type PropsType = {
@@ -62,6 +63,9 @@ export default async function Home({ searchParams }: PropsType) {
         <div className="col-span-12 mt-6">
           <AssignmentTabs />
         </div>
+        <div className="col-span-12 mt-6">
+          <PostForm/>
+      </div>
         <div className="col-span-12 mt-6">
           <UsersTable />
         </div>

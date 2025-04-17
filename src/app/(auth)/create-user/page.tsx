@@ -7,6 +7,7 @@ import { Select } from "@/components/FormElements/select";
 import { Alert } from "@/components/ui-elements/alert/index";
 import { handleCreateUser } from "@/actions/createUser";
 import { roles } from "@/types/user";
+import { useRouter } from "next/navigation";
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
@@ -17,6 +18,7 @@ export default function CreateUser() {
   const [loading, setLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     if (showAlert) {
@@ -92,12 +94,19 @@ export default function CreateUser() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
+              className="mb-2.5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
             >
               Submit
               {loading && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
               )}
+            </button>
+            <button
+              type="button"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gray-300 p-4 font-medium text-gray-700 transition hover:bg-gray-400 disabled:opacity-80"
+              onClick={() => router.push("/")} // Navigate back to the homepage (adjust path if needed)
+            >
+              Go Back
             </button>
           </div>
         </form>
