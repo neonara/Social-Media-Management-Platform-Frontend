@@ -5,6 +5,7 @@ import InputGroup from "@/components/FormElements/InputGroup";
 import { Select } from "@/components/FormElements/select";
 import { createUser } from "@/services/authService";
 import { Alert } from "@/components/ui-elements/alert/index";
+import { useRouter } from 'next/navigation'; 
 
 export default function CreateUser() {
   const [data, setData] = useState({ email: "", role: "client" });
@@ -12,6 +13,8 @@ export default function CreateUser() {
   const [loading, setLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const router = useRouter(); 
+  
 
   const roles = [
     { value: "client", label: "Client" },
@@ -109,13 +112,20 @@ export default function CreateUser() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
+              className="mb-2.5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
             >
               Submit
               {loading && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
               )}
             </button>
+           <button
+  type="button"
+  className=" flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gray-300 p-4 font-medium text-gray-700 transition hover:bg-gray-400 disabled:opacity-80"
+  onClick={() => router.push('/')} // Navigate back to the homepage (adjust path if needed)
+>
+  Go Back
+</button>
           </div>
         </form>
       </div>
