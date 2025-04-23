@@ -4,6 +4,8 @@ import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { useState, useEffect } from "react";
 import { updateUserProfile, getUserById } from "@/services/userService";
 import { getUserRole, UserRole } from "@/types/user";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 
 export function PersonalInfoForm() {
   const [formData, setFormData] = useState({
@@ -16,6 +18,8 @@ export function PersonalInfoForm() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false); // State for modal
+  const [onConfirm, setOnConfirm] = useState<() => void>(() => () => {}); // Callback for confirm action
 
   const id = 1;
 
@@ -44,10 +48,6 @@ export function PersonalInfoForm() {
     fetchUserData();
   }, []);
 
-  // const handleRoleChange = (value: string) => {
-  //   setFormData((prev) => ({ ...prev, role: value as UserRole }));
-  // };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -58,16 +58,23 @@ export function PersonalInfoForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    try {
-      await updateUserProfile(id, {
-        ...formData,
-        role: formData.role as UserRole,
-      });
-      // Add success notification here
-    } catch (error) {
-      console.error("Error updating user profile:", error);
-      // Add error notification here
-    }
+
+    // Show the confirmation modal
+    setOnConfirm(() => async () => {
+      try {
+        await updateUserProfile(id, {
+          id,
+          ...formData,
+          role: formData.role as UserRole,
+        });
+        // Add success notification here
+        setShowConfirmModal(false); // Close the modal
+      } catch (error) {
+        console.error("Error updating user profile:", error);
+        // Add error notification here
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   return (
@@ -114,18 +121,6 @@ export function PersonalInfoForm() {
             </div>
           </div>
           <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
-            {/* <div className="w-full sm:w-1/2">
-              <Select
-                className="mb-2"
-                label="Role"
-                items={roles}
-                value={formData.role}
-                prefixIcon={<UserIcon />}
-                placeholder="Select a role"
-                onChange={(value) => handleRoleChange(value)} // Use the reusable function
-              />
-            </div> */}
-
             <div className="w-full sm:w-1/2">
               <label
                 htmlFor="role"
@@ -135,7 +130,7 @@ export function PersonalInfoForm() {
               </label>
               <input
                 disabled
-                type="text"
+                type="phone"
                 id="role"
                 name="role"
                 value={formData.role}
@@ -144,22 +139,21 @@ export function PersonalInfoForm() {
               />
             </div>
             <div className="w-full sm:w-1/2">
-              <label
-                htmlFor="phone_number"
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-white"
-              >
-                Phone Number
-              </label>
-              <input
-                type="number"
-                id="phone_number"
-                name="phone_number"
-                value={formData.phone_number}
-                onChange={handleChange}
-                placeholder="+990 3343 7865"
-                className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-              />
-            </div>
+  <label
+    htmlFor="phone_number"
+    className="mb-2 block text-sm font-medium text-gray-700 dark:text-white"
+  >
+    Phone Number
+  </label>
+  <PhoneInput
+    country={"us"}
+    value={formData.phone_number}
+    onChange={(phone) =>
+      setFormData((prev) => ({ ...prev, phone_number: phone }))
+    }
+    inputClass="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+  />
+</div>
           </div>
 
           <div className="mb-5.5">
@@ -186,8 +180,8 @@ export function PersonalInfoForm() {
               onClick={() =>
                 setFormData((prev) => ({
                   ...prev,
-                  username: "",
-                  full_name: "",
+                  first_name: "",
+                  last_name: "",
                   phone_number: "",
                   email: "",
                 }))
@@ -205,6 +199,34 @@ export function PersonalInfoForm() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Confirm Changes
+            </h2>
+            <p className="text-sm text-gray-600 mt-2">
+              Are you sure you want to save these changes?
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </ShowcaseSection>
   );

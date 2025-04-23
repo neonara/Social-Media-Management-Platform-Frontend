@@ -159,3 +159,69 @@ export async function logout() {
   // Since this is a server action, we use redirect
   redirect("/login");
 }
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Backend error response:", errorData);
+      throw new Error(errorData.message || 'Failed to send reset email');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Forgot password error:', error);
+    throw error;
+  }
+}
+
+export async function resetPasswordConfirm(
+  uid: string,
+  token: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ message: string }> {
+  try {
+    if (!uid || !token) {
+      throw new Error("Invalid reset link.");
+    }
+
+    if (newPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters long.");
+    }
+
+    if (newPassword !== confirmPassword) {
+      throw new Error("Passwords do not match.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/reset-password-confirm/${uid}/${token}/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        new_password: newPassword,
+        confirm_password: confirmPassword, // Include confirm_password field
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Backend error response:", errorData);
+      throw new Error(errorData.message || "Failed to reset password.");
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error("Reset password error:", error);
+    throw error;
+  }
+}

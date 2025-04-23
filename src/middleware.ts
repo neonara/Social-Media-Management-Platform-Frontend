@@ -5,12 +5,14 @@ import type { NextRequest } from "next/server";
 const ADMIN_PATH_REGEX = /^\/create-user(\/|$)/i;
 const API_PATH_REGEX = /^\/api(\/|$)/i;
 const STATIC_PATH_REGEX = /^\/(_next|images|assets|favicon)/i;
-
+const RESET_PASSWORD_CONFIRM_REGEX = /^\/reset-password-confirm\/[^/]+\/[^/]+(\/|$)/i;
 // Cache public paths as Set for O(1) lookups
 const PUBLIC_PATHS = new Set([
   "/login",
   "/first-reset-password",
   "/password-reset",
+  "/forgot_password",
+  "/reset-password-confirm/[uid]/[token]",
 ]);
 
 export function middleware(request: NextRequest) {
@@ -22,12 +24,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check public paths
-  if (PUBLIC_PATHS.has(pathname)) {
-    if (token && pathname === "/login") {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-    return NextResponse.next();
+  // Allow access to specific public paths without a token
+  if (PUBLIC_PATHS.has(pathname) || RESET_PASSWORD_CONFIRM_REGEX.test(pathname)) {
+    return addSecurityHeaders(NextResponse.next(), request);
   }
 
   // Handle API routes separately
@@ -35,7 +34,7 @@ export function middleware(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request);
   }
 
-  // Authentication check
+  // Authentication check for other routes
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
