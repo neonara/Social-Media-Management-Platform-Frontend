@@ -13,7 +13,14 @@ export const NAV_DATA = [
             title: "Create User",
             url: "/create-user",
           },
+          
         ],
+      },
+      {
+        title: "create cm",
+        url: "/moderators/createCM",
+        icon: Icons.User,
+        items: [],
       },
       {
         title: "Login",
@@ -54,6 +61,7 @@ export const NAV_DATA = [
         icon: Icons.User,
         items: [],
       },
+     
       {
         title: "Forms",
         icon: Icons.Alphabet,

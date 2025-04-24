@@ -10,15 +10,22 @@ export interface User {
   is_community_manager: boolean;
   is_client: boolean;
   user_image?: string;
+  assigned_moderator?: string | null;
+  assigned_communitymanagers?: string | null;
+  roles: string[];
 }
 
 export interface GetUser {
+  id: number;
   email: string;
   first_name?: string;
   last_name?: string;
+  full_name?: string;
   phone_number?: string;
   role?: UserRole;
   user_image?: string;
+  assigned_moderator?: string | null;
+  assigned_communitymanagers?: string | null;
 }
 
 export type UserRole =
@@ -41,3 +48,15 @@ export const roles = [
   { value: "community_manager", label: "Community Manager" },
   { value: "administrator", label: "Administrator" },
 ];
+
+
+
+export type PendingAssignment = {
+  userId: number;
+  type: "moderator" | "cm";
+  assignedId?: number | null;
+  assignedName?: string;
+  remove?: boolean;
+  cmIdToRemove?: number;
+  cmNameToRemove?: string;
+};

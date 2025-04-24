@@ -13,8 +13,8 @@ import { loginUser } from "@/services/authService";
 
 export default function Login() {
   const [data, setData] = useState({
-    email: process.env.NEXT_PUBLIC_DEMO_USER_MAIL || "",
-    password: process.env.NEXT_PUBLIC_DEMO_USER_PASS || "",
+    email: process.env.NEXT_PUBLIC_DEMO_USER_MAIL || "", // Ensure consistent value
+    password: process.env.NEXT_PUBLIC_DEMO_USER_PASS || "", // Ensure consistent value
     remember: false,
   });
 
@@ -45,14 +45,15 @@ export default function Login() {
       router.push("/");
     } catch (error) {
       // Handle login errors
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Login failed. Please try again.");
-      }
+      setError(error instanceof Error ? error.message : "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    console.log("Navigating to /forgot_password");
+    router.push("/forgot_password");
   };
 
   return (
@@ -104,12 +105,13 @@ export default function Login() {
                   }
                 />
 
-                <Link
-                  href="/auth/forgot-password"
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
                   className="hover:text-primary dark:text-white dark:hover:text-primary"
                 >
                   Forgot Password?
-                </Link>
+                </button>
               </div>
 
               <div className="mb-4.5">
