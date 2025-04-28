@@ -1,8 +1,8 @@
 "use client";
 
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
-import { useState, useEffect } from "react";
-import { updateUserProfile, getUserById } from "@/services/userService";
+import { useState, useEffect, useRef } from "react";
+import { updateUserProfile, getCurrentUser } from "@/services/userService";
 import { getUserRole, UserRole } from "@/types/user";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -21,13 +21,12 @@ export function PersonalInfoForm() {
   const [showConfirmModal, setShowConfirmModal] = useState(false); // State for modal
   const [onConfirm, setOnConfirm] = useState<() => void>(() => () => {}); // Callback for confirm action
 
-  const id = 1;
-
+  const id = useRef(1);
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const userData = await getUserById(id);
+        const userData = await getCurrentUser();
         const role = getUserRole(userData);
         console.log("User data:", userData);
         setFormData({
@@ -38,6 +37,7 @@ export function PersonalInfoForm() {
           role: role || "",
           user_image: userData.user_image || "",
         });
+        id.current = userData.id; // Set the id from the fetched user data
       } catch (error) {
         console.error("Error fetching user data:", error);
       } finally {
@@ -62,8 +62,8 @@ export function PersonalInfoForm() {
     // Show the confirmation modal
     setOnConfirm(() => async () => {
       try {
-        await updateUserProfile(id, {
-          id,
+        await updateUserProfile(id.current, {
+          id: id.current,
           ...formData,
           role: formData.role as UserRole,
         });
