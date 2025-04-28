@@ -116,11 +116,23 @@ export async function getCurrentUser() {
       },
     });
 
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      console.error("Error parsing response JSON:", error);
+      throw new Error("Failed to parse response JSON");
+    }
+
     if (!response.ok) {
+      console.error("Error response details:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: data,
+      });
       throw new Error(`Error: ${response.statusText}`);
     }
 
-    const data = await response.json();
     console.log("profile: ", data);
     return data;
   } catch (error) {
@@ -129,7 +141,9 @@ export async function getCurrentUser() {
   }
 }
 
-export async function fetchAllUsersServer(): Promise<GetUser[] | { error: string }> {
+export async function fetchAllUsersServer(): Promise<
+  GetUser[] | { error: string }
+> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -160,7 +174,9 @@ export async function fetchAllUsersServer(): Promise<GetUser[] | { error: string
   }
 }
 
-export async function deleteUserServer(userId: number): Promise<boolean | { error: string }> {
+export async function deleteUserServer(
+  userId: number,
+): Promise<boolean | { error: string }> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -198,14 +214,19 @@ export async function removeModeratorServer(clientId: number) {
       return { error: "Authentication required" };
     }
 
-    const res = await fetch(`${API_BASE_URL}/clients/${clientId}/moderator/remove/`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const res = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/moderator/remove/`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    });
+    );
     if (!res.ok) {
-      console.error(`Error removing moderator for client ${clientId}: ${res.statusText}`);
+      console.error(
+        `Error removing moderator for client ${clientId}: ${res.statusText}`,
+      );
       return { error: `Failed to remove moderator for client ${clientId}` };
     }
     return { success: true };
@@ -215,7 +236,10 @@ export async function removeModeratorServer(clientId: number) {
   }
 }
 
-export async function assignModeratorServer(clientId: number, moderatorId: number) {
+export async function assignModeratorServer(
+  clientId: number,
+  moderatorId: number,
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -233,7 +257,9 @@ export async function assignModeratorServer(clientId: number, moderatorId: numbe
       body: JSON.stringify({ moderator_id: moderatorId }),
     });
     if (!res.ok) {
-      console.error(`Error assigning moderator ${moderatorId} to client ${clientId}: ${res.statusText}`);
+      console.error(
+        `Error assigning moderator ${moderatorId} to client ${clientId}: ${res.statusText}`,
+      );
       return { error: `Failed to assign moderator to client ${clientId}` };
     }
     return { success: true };
@@ -243,7 +269,10 @@ export async function assignModeratorServer(clientId: number, moderatorId: numbe
   }
 }
 
-export async function removeCommunityManagerServer(moderatorId: number, cmIdToRemove: number) {
+export async function removeCommunityManagerServer(
+  moderatorId: number,
+  cmIdToRemove: number,
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -252,14 +281,19 @@ export async function removeCommunityManagerServer(moderatorId: number, cmIdToRe
       return { error: "Authentication required" };
     }
 
-    const res = await fetch(`${API_BASE_URL}/moderators/${moderatorId}/community-manager/${cmIdToRemove}/remove/`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const res = await fetch(
+      `${API_BASE_URL}/moderators/${moderatorId}/community-manager/${cmIdToRemove}/remove/`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    });
+    );
     if (!res.ok) {
-      console.error(`Error removing CM ${cmIdToRemove} for moderator ${moderatorId}: ${res.statusText}`);
+      console.error(
+        `Error removing CM ${cmIdToRemove} for moderator ${moderatorId}: ${res.statusText}`,
+      );
       return { error: `Failed to remove CM for moderator ${moderatorId}` };
     }
     return { success: true };
@@ -269,7 +303,10 @@ export async function removeCommunityManagerServer(moderatorId: number, cmIdToRe
   }
 }
 
-export async function assignCommunityManagerServer(moderatorId: number, cmId: number) {
+export async function assignCommunityManagerServer(
+  moderatorId: number,
+  cmId: number,
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -278,16 +315,21 @@ export async function assignCommunityManagerServer(moderatorId: number, cmId: nu
       return { error: "Authentication required" };
     }
 
-    const res = await fetch(`${API_BASE_URL}/moderators/${moderatorId}/community-manager/`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const res = await fetch(
+      `${API_BASE_URL}/moderators/${moderatorId}/community-manager/`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cm_id: cmId }),
       },
-      body: JSON.stringify({ cm_id: cmId }),
-    });
+    );
     if (!res.ok) {
-      console.error(`Error assigning CM ${cmId} to moderator ${moderatorId}: ${res.statusText}`);
+      console.error(
+        `Error assigning CM ${cmId} to moderator ${moderatorId}: ${res.statusText}`,
+      );
       return { error: `Failed to assign CM to moderator ${moderatorId}` };
     }
     return { success: true };
@@ -297,7 +339,10 @@ export async function assignCommunityManagerServer(moderatorId: number, cmId: nu
   }
 }
 
-export async function assignCMToClientServerAction(clientId: number, cmId: number) {
+export async function assignCMToClientServerAction(
+  clientId: number,
+  cmId: number,
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -306,19 +351,27 @@ export async function assignCMToClientServerAction(clientId: number, cmId: numbe
       return { error: "Authentication required" };
     }
 
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/assign-cms/`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/assign-cms/`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cm_id: cmId }),
       },
-      body: JSON.stringify({ cm_id: cmId }),
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error(`Error assigning CM ${cmId} to client ${clientId}:`, errorData);
-      return { error: errorData.message || `Failed to assign CM to client ${clientId}` };
+      console.error(
+        `Error assigning CM ${cmId} to client ${clientId}:`,
+        errorData,
+      );
+      return {
+        error: errorData.message || `Failed to assign CM to client ${clientId}`,
+      };
     }
 
     const data = await response.json();
@@ -330,7 +383,7 @@ export async function assignCMToClientServerAction(clientId: number, cmId: numbe
 }
 
 export async function getClientAssignedCommunityManagersServerAction(
-  clientId: number
+  clientId: number,
 ): Promise<GetUser[] | { error: string }> {
   try {
     const cookieStore = await cookies();
@@ -340,19 +393,29 @@ export async function getClientAssignedCommunityManagersServerAction(
       return { error: "Authentication required" };
     }
 
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/assigned-cms/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/assigned-cms/`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error(`Error fetching assigned CMs for client ${clientId}:`, errorData);
-      return { error: errorData.message || `Failed to fetch assigned CMs for client ${clientId}` };
+      console.error(
+        `Error fetching assigned CMs for client ${clientId}:`,
+        errorData,
+      );
+      return {
+        error:
+          errorData.message ||
+          `Failed to fetch assigned CMs for client ${clientId}`,
+      };
     }
 
     const data = await response.json();
@@ -365,7 +428,7 @@ export async function getClientAssignedCommunityManagersServerAction(
 
 export async function removeClientCommunityManagerServerAction(
   clientId: number,
-  communityManagerIdToRemove: number
+  communityManagerIdToRemove: number,
 ): Promise<{ success?: boolean; error?: string; data?: any }> {
   try {
     const cookieStore = await cookies();
@@ -375,23 +438,31 @@ export async function removeClientCommunityManagerServerAction(
       return { error: "Authentication required" };
     }
 
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/community-managers/remove/`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/community-managers/remove/`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          community_manager_ids: [communityManagerIdToRemove],
+        }),
+        cache: "no-store",
       },
-      body: JSON.stringify({ community_manager_ids: [communityManagerIdToRemove] }),
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
       console.error(
         `Error removing CM ${communityManagerIdToRemove} from client ${clientId}:`,
-        errorData
+        errorData,
       );
-      return { error: errorData.message || `Failed to remove CM from client ${clientId}` };
+      return {
+        error:
+          errorData.message || `Failed to remove CM from client ${clientId}`,
+      };
     }
 
     const data = await response.json();
@@ -399,7 +470,7 @@ export async function removeClientCommunityManagerServerAction(
   } catch (error) {
     console.error(
       `Error removing CM ${communityManagerIdToRemove} from client ${clientId}:`,
-      error
+      error,
     );
     return { error: "Failed to remove CM from client" };
   }

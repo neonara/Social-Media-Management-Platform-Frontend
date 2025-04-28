@@ -10,10 +10,9 @@ import { OverviewCardsGroup } from "./_components/overview-cards";
 import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
 import { RegionLabels } from "./_components/region-labels";
 import AssignmentTabs from "@/components/Assignment_Table/blank";
-import UsersTable from '@/components/UsersTable/UsersTable'; 
-import { PostForm } from "@/app/(home)/post"; 
+import UsersTable from "@/components/UsersTable/UsersTable";
+import { PostForm } from "@/app/(home)/post";
 import ModeratorTable from "@/components/ModeratorTable/moderatorTable";
-
 
 type PropsType = {
   searchParams: Promise<{
@@ -65,15 +64,14 @@ export default async function Home({ searchParams }: PropsType) {
           <AssignmentTabs />
         </div>
         <div className="col-span-12 mt-6">
-          <PostForm/>
-      </div>
+          <PostForm />
+        </div>
         <div className="col-span-12 mt-6">
           <UsersTable />
         </div>
         <div className="col-span-12 mt-6">
           <ModeratorTable />
         </div>
-        
       </div>
     </>
   );
