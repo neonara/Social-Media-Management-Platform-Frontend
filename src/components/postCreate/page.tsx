@@ -109,7 +109,7 @@ export function PostForm() {
   const handleAddHashtag = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && hashtagInputRef.current) {
       event.preventDefault();
-      const newHashtag = hashtagInputRef.current.value.trim();
+      const newHashtag = hashtagInputRef.current.value.trim().replace(/\s+/g, "_"); // Replace spaces with underscores
       if (newHashtag) {
         const formattedHashtag = newHashtag.startsWith("#") ? newHashtag : `#${newHashtag}`;
         setState((prev) => ({
@@ -290,8 +290,9 @@ export function PostForm() {
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Hashtags</h2>
           <div className="flex items-center gap-2">
             <input
+              ref={hashtagInputRef}
               type="text"
-              placeholder="Type a hashtag and press Enter"
+              placeholder="Type a hashtag (no spaces) and press Enter"
               onKeyDown={handleAddHashtag}
               className="mt-2 block w-full rounded-md border-gray-300 shadow-sm"
             />
