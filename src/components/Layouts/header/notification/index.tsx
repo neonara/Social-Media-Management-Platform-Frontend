@@ -135,6 +135,10 @@ export function Notification() {
                   <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
                     {item.message}
                   </span>
+                  <br />
+                  <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
+                    {item.created_at.split("T")[0]}{" "}
+                  </span>
                 </div>
               </Link>
             </li>
