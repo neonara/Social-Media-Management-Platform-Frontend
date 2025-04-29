@@ -11,8 +11,9 @@ import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
 import { RegionLabels } from "./_components/region-labels";
 import AssignmentTabs from "@/components/Assignment_Table/blank";
 import UsersTable from '@/components/UsersTable/UsersTable'; 
-import { PostForm } from "@/app/(home)/post"; 
+import { PostForm } from "@/components/postCreate/page"; 
 import ModeratorTable from "@/components/ModeratorTable/moderatorTable";
+import DraftsPage from "@/components/DraftPosts/page"; // Adjust the import path as necessary
 
 
 type PropsType = {
@@ -61,15 +62,7 @@ export default async function Home({ searchParams }: PropsType) {
         <Suspense fallback={null}>
           <ChatsCard />
         </Suspense>
-        <div className="col-span-12 mt-6">
-          <AssignmentTabs />
-        </div>
-        <div className="col-span-12 mt-6">
-          <PostForm/>
-      </div>
-        <div className="col-span-12 mt-6">
-          <UsersTable />
-        </div>
+      
         <div className="col-span-12 mt-6">
           <ModeratorTable />
         </div>

@@ -246,15 +246,13 @@ export default function AssignedCommunityManagersTable() {
                 : "Not Assigned"}
             </td>
             <td className="px-4 py-2 border text-gray-800">
-              <button
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600"
-                onClick={() => {
-                  setSelectedClientToAssign(client.id);
-                  setShowAssignModal(true);
-                  setSelectedCMToAssign(null);
-                }}
-              >
-                Assign CM
+            <button
+    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600"
+    onClick={() => {
+      router.push(`/content/create?clientId=${client.id}`);
+    }}
+  >
+                Create Posts
               </button>
             </td>
           </tr>

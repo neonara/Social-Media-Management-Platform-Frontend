@@ -120,15 +120,12 @@ export default function UsersTable() {
     const alreadyPending = pendingDeletions.some((deletion) => deletion.userId === userId);
     if (!alreadyPending) {
       setPendingDeletions((prev) => [...prev, { userId }]);
-      alert("Deletion queued. Review pending deletions and save to confirm.");
     } else {
-      alert("This user is already marked for deletion.");
     }
   };
 
   const saveDeletions = async () => {
     if (pendingDeletions.length === 0) {
-      alert("No users are marked for deletion.");
       return;
     }
 
@@ -147,16 +144,13 @@ export default function UsersTable() {
       }
       setPendingDeletions([]);
       loadUsers(); // Reload users after successful deletion
-      alert("Selected users deleted successfully!");
     } catch (err: any) {
       console.error("Error deleting users:", err);
-      alert("Failed to delete selected users.");
     }
   };
 
   const clearPendingDeletions = () => {
     setPendingDeletions([]);
-    alert("Pending deletions cleared.");
   };
 
   const hasPendingDeletions = pendingDeletions.length > 0;

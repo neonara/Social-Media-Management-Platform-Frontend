@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 export async function getUsers() {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("access_token")?.value;
+    const token = (await cookieStore).get("access_token")?.value;
 
     if (!token) {
       return { error: "Authentication required" };
