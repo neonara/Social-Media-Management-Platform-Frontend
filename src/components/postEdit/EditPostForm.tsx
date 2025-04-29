@@ -88,7 +88,7 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
   const handleAddHashtag = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      const input = event.currentTarget.value.trim();
+      const input = event.currentTarget.value.trim().replace(/\s+/g, "_"); // Replace spaces with underscores
       if (input) {
         const formattedHashtag = input.startsWith("#") ? input : `#${input}`;
         setFormData((prev) => ({
@@ -332,8 +332,9 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
           <h2 className="text-lg font-semibold">Hashtags</h2>
           <div className="flex items-center gap-2">
             <input
+              ref={fileInputRef}
               type="text"
-              placeholder="Type a hashtag and press Enter"
+              placeholder="Type a hashtag (no spaces) and press Enter"
               onKeyDown={handleAddHashtag}
               className="mt-2 block w-full rounded-md border-gray-300 shadow-sm"
             />
