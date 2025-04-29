@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   format,
   isSameDay,
@@ -20,24 +20,25 @@ import {
   subMonths,
   subQuarters,
   eachMonthOfInterval,
-  differenceInWeeks,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, RefreshCw } from 'lucide-react';
+
+import * as postService from "@/services/postService";
+import { useRouter } from 'next/navigation';
+import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
+
+interface ScheduledPost {
+  id: string;
+  title: string;
+  platform: 'Facebook' | 'Instagram' | 'LinkedIn';
+  scheduled_for: string;
+}
 
 interface AnalyticsData {
   period: string;
   posts: number;
   engagement: number;
 }
-interface ContentItem {
-  id: string;
-  title: string;
-  platform: 'Facebook' | 'Instagram' | 'LinkedIn';
-  scheduledTime: Date;
-  durationInHours: number;
-  color?: string; // For visual differentiation
-}
-
 
 const AnalyticsGrid = ({ currentDate, calendarView }: { currentDate: Date; calendarView: 'week' | 'month' | 'quarter' | 'year' }) => {
   const generateAnalyticsData = (): AnalyticsData[] => {
@@ -185,8 +186,34 @@ const CalendarBox = () => {
   const [calendarView, setCalendarView] = useState<'week' | 'month' | 'quarter' | 'year'>('week');
   const [activeTab, setActiveTab] = useState<'calendar' | 'analytics' | 'content'>('calendar');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [searchYear, setSearchYear] = useState<string>(''); // State for search year
+  const [searchYear, setSearchYear] = useState<string>('');
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null);
   const frenchDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const router = useRouter();
+
+  const platformIcons = {
+    Facebook: <FaFacebook className="text-blue-600" />,
+    Instagram: <FaInstagram className="text-pink-500" />,
+    LinkedIn: <FaLinkedin className="text-blue-700" />,
+  };
+
+  const fetchScheduledPosts = async () => {
+    setLoadingPosts(true);
+    try {
+      const posts = await postService.getScheduledPosts();
+      setScheduledPosts(posts);
+    } catch (error) {
+      console.error('Error fetching scheduled posts:', error);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchScheduledPosts();
+  }, [currentDate, calendarView]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
     setCurrentDate(date);
@@ -282,7 +309,7 @@ const CalendarBox = () => {
             <div className="flex-1 overflow-auto">
               <div className="relative">
                 {Array.from({ length: 24 }).map((_, hour) => (
-                  <div 
+                  <div
                     key={hour}
                     className="h-24 border-b border-stroke dark:border-dark-3"
                   >
@@ -290,7 +317,94 @@ const CalendarBox = () => {
                       <div className="w-16 text-sm text-gray-500 dark:text-gray-400">
                         {format(new Date().setHours(hour), 'HH:mm')}
                       </div>
-                      <div className="ml-4 h-16 w-full rounded-lg bg-gray-100 dark:bg-gray-dark-1" />
+                      <div className="ml-4 h-16 w-full">
+                        {scheduledPosts
+                          .filter((post) => {
+                            const postDate = new Date(post.scheduled_for);
+                            return (
+                              isSameDay(postDate, selectedDate) &&
+                              isSameHour(postDate, new Date().setHours(hour))
+                            );
+                          })
+                          .map((post) => (
+                            <div
+                              key={post.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPost(post);
+                              }}
+                              className={`mb-2 flex items-center gap-2 rounded-lg p-2 text-sm cursor-pointer transition-all ${
+                                new Date(post.scheduled_for) < new Date()
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                  : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              } hover:shadow-md`}
+                            >
+                              {/* Icon */}
+                              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-white text-primary dark:bg-gray-700">
+                                {new Date(post.scheduled_for) < new Date() ? (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 16l-4-4m0 0l4-4m-4 4h16"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+
+                              {/* Post Title and Platform */}
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex-1 truncate">
+                                  <span className="font-medium">{post.title}</span>
+                                </div>
+                                <div
+                                  className={`rounded-full px-2 py-1 text-xs font-semibold flex items-center gap-2 ${
+                                    post.platform === "Facebook"
+                                      ? "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200"
+                                      : post.platform === "Instagram"
+                                      ? "bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200"
+                                      : "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                                  }`}
+                                >
+                                  {platformIcons[post.platform]}
+                                </div>
+                              </div>
+
+                              {/* Edit Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/editPost/${post.id}`);
+                                }}
+                                className="ml-2 rounded-md bg-primary px-2 py-1 text-xs font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -320,7 +434,7 @@ const CalendarBox = () => {
                     } ${
                       day && isSameDay(day, new Date()) ? 'bg-primary/10 dark:bg-primary-dark/20' : ''
                     } ${
-                      day && isSameDay(day, selectedDate) 
+                      day && isSameDay(day, selectedDate)
                         ? 'border-2 border-primary dark:border-primary-dark'
                         : ''
                     }`}
@@ -331,9 +445,25 @@ const CalendarBox = () => {
                           {format(day, 'd')}
                         </span>
                         <div className="mt-1 space-y-1">
-                          {[0, 1].map((i) => (
-                            <div key={i} className="h-4 rounded bg-gray-1 dark:bg-gray-dark-1" />
-                          ))}
+                          {scheduledPosts
+                            .filter((post) => isSameDay(new Date(post.scheduled_for), day))
+                            .slice(0, 2) // Limit to 2 posts per day
+                            .map((post) => (
+                              <div
+                                key={post.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPost(post);
+                                }}
+                                className={`h-4 truncate rounded text-xs cursor-pointer px-2 py-1 ${
+                                  new Date(post.scheduled_for) < new Date()
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                }`}
+                              >
+                                {post.title}
+                              </div>
+                            ))}
                         </div>
                       </>
                     )}
@@ -508,6 +638,14 @@ const CalendarBox = () => {
             <CalendarDays className="h-4 w-4" />
             <span className="hidden sm:block">Today</span>
           </button>
+          <button
+            onClick={fetchScheduledPosts}
+            disabled={loadingPosts}
+            className="ml-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-primary-dark dark:bg-primary-dark dark:hover:bg-primary"
+          >
+            <RefreshCw className={`h-4 w-4 ${loadingPosts ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:block">Refresh</span>
+          </button>
         </div>
 
         <h2 className="text-xl font-semibold dark:text-white sm:text-2xl">
@@ -531,7 +669,6 @@ const CalendarBox = () => {
         </div>
       </div>
 
-      {/* Search by Year */}
       <div className="mb-6 flex items-center gap-4">
         <input
           type="text"
@@ -570,7 +707,7 @@ const CalendarBox = () => {
             <table className="w-full">
               <thead>
                 <tr className="grid grid-cols-7 bg-primary text-white">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fr', 'Sat'].map((day) => (
                     <th key={day} className="p-3 text-sm font-medium">
                       {day}
                     </th>
@@ -588,6 +725,100 @@ const CalendarBox = () => {
           <ContentDashboard />
         )}
       </div>
+
+      {selectedPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-dark">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-dark-3">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                {selectedPost.title}
+              </h3>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {/* Platform */}
+              <p className="text-sm">
+                <span className="font-medium text-gray-600 dark:text-gray-300">Platform:</span>{" "}
+                <span className="flex items-center gap-2">
+                  {platformIcons[selectedPost.platform]}
+                  {selectedPost.platform}
+                </span>
+              </p>
+
+              {/* Scheduled For */}
+              <p className="text-sm">
+                <span className="font-medium text-gray-600 dark:text-gray-300">Scheduled for:</span>{" "}
+                <span className="font-semibold text-primary dark:text-primary-dark">
+                  {format(new Date(selectedPost.scheduled_for), "PPpp")}
+                </span>
+              </p>
+
+              {/* Status */}
+              <p className="text-sm">
+                <span className="font-medium text-gray-600 dark:text-gray-300">Status:</span>{" "}
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                    new Date(selectedPost.scheduled_for) < new Date()
+                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                  }`}
+                >
+                  {new Date(selectedPost.scheduled_for) < new Date()
+                    ? "Published"
+                    : "Scheduled"}
+                </span>
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 border-t border-gray-300 p-4 dark:border-dark-3">
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:border-dark-3 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-dark-2"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => router.push(`/editPost/${selectedPost?.id}`)}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                Edit Post
+              </button>
+              <button
+                onClick={async () => {
+                  if (selectedPost) {
+                    const confirmDelete = window.confirm(
+                      `Are you sure you want to delete the post titled "${selectedPost.title}"?`
+                    );
+                    if (confirmDelete) {
+                      try {
+                        await postService.deletePost(parseInt(selectedPost.id));
+                        
+                        setSelectedPost(null);
+                        fetchScheduledPosts(); // Refresh the scheduled posts
+                      } catch (error) {
+                        console.error("Error deleting post:", error);
+                        
+                      }
+                    }
+                  }
+                }}
+                className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8 border-t border-stroke pt-4 text-center dark:border-dark-3">
         <div className="text-sm text-gray-600 dark:text-gray-300">

@@ -286,12 +286,10 @@ export default function AssignedCommunityManagersTable() {
                     <button
                       className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-blue-600"
                       onClick={() => {
-                        setSelectedClientToAssign(client.id);
-                        setShowAssignModal(true);
-                        setSelectedCMToAssign(null);
+                        router.push(`/content/create?clientId=${client.id}`);
                       }}
                     >
-                      Assign CM
+                      Create Posts
                     </button>
                   </td>
                 </tr>

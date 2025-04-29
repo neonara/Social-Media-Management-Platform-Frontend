@@ -31,7 +31,11 @@ export async function loginUser(email: string, password: string) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Invalid email or password");
+      if (response.status === 403) {
+        throw new Error(errorData.message || "Authorization failed. Please check your credentials or account status.");
+      } else {
+        throw new Error(errorData.message || "Invalid email or password");
+      }
     }
 
     const data = await response.json();

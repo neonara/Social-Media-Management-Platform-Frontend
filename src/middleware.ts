@@ -13,6 +13,7 @@ const PUBLIC_PATHS = new Set([
   "/password-reset",
   "/forgot_password",
   "/reset-password-confirm/[uid]/[token]",
+  "/content",
 ]);
 
 export function middleware(request: NextRequest) {
