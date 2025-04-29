@@ -16,8 +16,14 @@ export const NAV_DATA = [
         ],
       },
       {
-        title: "Login",
-        url: "/login",
+        title:"Assignment Table",
+        url: "/assignmentTable",
+        icon: Icons.User,
+        items: [],
+      },
+      {
+        title:"Users Table",
+        url: "/usersTable",
         icon: Icons.User,
         items: [],
       },
@@ -27,6 +33,19 @@ export const NAV_DATA = [
         icon: Icons.User,
         items: [],
       },
+      {
+        title: "Draft Posts",
+        url: "/drafts",
+        icon: Icons.Alphabet, 
+        items: [],
+      },
+      {
+        title: "Create Post",
+        url: "/content",
+        icon: Icons.Table,
+        items: [],
+      },
+      
     ],
   },
   {
@@ -46,12 +65,6 @@ export const NAV_DATA = [
         title: "Calendar",
         url: "/calendar",
         icon: Icons.Calendar,
-        items: [],
-      },
-      {
-        title: "Profile",
-        url: "/profile",
-        icon: Icons.User,
         items: [],
       },
       {

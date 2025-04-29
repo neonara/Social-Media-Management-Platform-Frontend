@@ -10,6 +10,8 @@ import { OverviewCardsGroup } from "./_components/overview-cards";
 import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
 import { RegionLabels } from "./_components/region-labels";
 
+import ModeratorTable from "@/components/ModeratorTable/moderatorTable";
+
 type PropsType = {
   searchParams: Promise<{
     selected_time_frame?: string;
@@ -56,6 +58,10 @@ export default async function Home({ searchParams }: PropsType) {
         <Suspense fallback={null}>
           <ChatsCard />
         </Suspense>
+
+        <div className="col-span-12 mt-6">
+          <ModeratorTable />
+        </div>
       </div>
     </>
   );

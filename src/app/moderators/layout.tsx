@@ -15,8 +15,8 @@ import { SidebarProvider } from "@/components/Layouts/sidebar/sidebar-context";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Brand And Com Social Media Management",
-    default: "Brand And Com Social Media Management",
+    template: "%s | NextAdmin - Next.js Dashboard Kit",
+    default: "NextAdmin - Next.js Dashboard Kit",
   },
   description:
     "Next.js admin dashboard toolkit with 200+ templates, UI components, and integrations for fast dashboard development.",
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
               <div className="w-full bg-gray-2 dark:bg-[#020d1a]">
                 <Header />
 
-                <main className="isolate mx-auto w-full max-w-screen-2xl overflow-hidden p-4 md:p-6 2xl:p-10">
+                <main className="isolate mx-auto w-full max-w-screen-2xl overflow-hidden p-4 md:p-6 2xl:p-10 flex justify-center items-center h-screen">
                   {children}
                 </main>
               </div>

@@ -42,6 +42,7 @@ export function ContactForm() {
           label="Subject"
           placeholder="Select your subject"
           className="mb-4.5"
+          value="USA" // Default value
           items={[
             { label: "United States", value: "USA" },
             { label: "United Kingdom", value: "UK" },

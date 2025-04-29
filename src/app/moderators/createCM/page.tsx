@@ -1,19 +1,15 @@
-// app/create-user/page.tsx
 "use client";
-import { EmailIcon, UserIcon } from "@/assets/icons";
+import { EmailIcon } from "@/assets/icons";
 import { useEffect, useState } from "react";
 import InputGroup from "@/components/FormElements/InputGroup";
-import { Select } from "@/components/FormElements/select";
 import { Alert } from "@/components/ui-elements/alert/index";
-import { handleCreateUser } from "@/actions/createUser";
-import { roles } from "@/types/user";
+import { createCM } from "@/services/moderatorsService";
 import { useRouter } from "next/navigation";
+import { FormEvent, ChangeEvent } from 'react';
 
-export default function CreateUser() {
-  const [formData, setFormData] = useState({
-    email: "",
-    role: "client", 
-  });
+
+export default function CreateCM() {
+  const [formData, setFormData] = useState({ email: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -27,44 +23,41 @@ export default function CreateUser() {
     }
   }, [showAlert]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const formDataObj = new FormData();
-    formDataObj.append("email", formData.email);
-    formDataObj.append("role", formData.role);
+    try {
+      const result = await createCM({ email: formData.email, role: "community_manager" });
 
-    const result = await handleCreateUser(formDataObj);
-
-    if (result?.error) {
-      setError(result.error);
-    } else if (result?.success) {
-      setAlertMessage(result.success);
-      setShowAlert(true);
-      setFormData({ email: "", role: "client" });
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.success) {
+        setAlertMessage("Community Manager created successfully!");
+        setShowAlert(true);
+        setFormData({ email: "" });
+      }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-  const handleRoleChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, role: value }));
-    setError("");
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
     <>
+      {/* Your Create CM UI */}
       <div className="w-5/6 max-w-150 rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
         <form onSubmit={handleSubmit} className="w-full p-4 sm:p-8 xl:p-10">
           <h2 className="sm:text-title-xl2 mb-9 text-2xl font-bold text-black dark:text-white">
-            Create a new user account
+            Create a new Community Manager
           </h2>
           <InputGroup
             type="email"
@@ -76,19 +69,7 @@ export default function CreateUser() {
             value={formData.email}
             icon={<EmailIcon />}
           />
-
-          <Select
-            className="mb-8"
-            label="Select Role"
-            items={roles}
-            value={formData.role}
-            prefixIcon={<UserIcon />}
-            placeholder="Select a role"
-            onChange={(value) => handleRoleChange(value)}
-          />
-
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-
           <div className="mb-4.5">
             <button
               type="submit"
@@ -103,14 +84,13 @@ export default function CreateUser() {
             <button
               type="button"
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gray-300 p-4 font-medium text-gray-700 transition hover:bg-gray-400 disabled:opacity-80"
-              onClick={() => router.push("/")} // Navigate back to the homepage (adjust path if needed)
+              onClick={() => router.back()}
             >
               Go Back
             </button>
           </div>
         </form>
       </div>
-
       {showAlert && (
         <div className="animate-fade-in fixed bottom-4 right-4 z-50">
           <Alert variant="success" title="Success" description={alertMessage} />

@@ -1,5 +1,6 @@
 "use server";
 
+import { API_BASE_URL } from "@/config/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -8,13 +9,21 @@ type CreateUserData = {
   role: string;
 };
 
+export async function getCsrfToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get("csrftoken")?.value || null;
+}
+
 // This function now returns data for the client to store
 export async function loginUser(email: string, password: string) {
   try {
-    const response = await fetch("http://localhost:8000/api/auth/login/", {
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken || "", // Include the CSRF token
       },
       body: JSON.stringify({ email, password }),
       cache: "no-store",
@@ -22,7 +31,11 @@ export async function loginUser(email: string, password: string) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Invalid email or password");
+      if (response.status === 403) {
+        throw new Error(errorData.message || "Authorization failed. Please check your credentials or account status.");
+      } else {
+        throw new Error(errorData.message || "Invalid email or password");
+      }
     }
 
     const data = await response.json();
@@ -109,7 +122,7 @@ export async function isUserAdmin() {
   return cookieStore.get("is_administrator")?.value === "true";
 }
 
-// Modified to use localStorage instead of cookies
+// Modified to use API_BASE_URL
 export async function createUser(data: CreateUserData) {
   try {
     const cookieStore = await cookies();
@@ -119,7 +132,7 @@ export async function createUser(data: CreateUserData) {
       return { error: "Authentication required" };
     }
 
-    const response = await fetch("http://localhost:8000/api/auth/register/", {
+    const response = await fetch(`${API_BASE_URL}/auth/register/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -141,20 +154,105 @@ export async function createUser(data: CreateUserData) {
   }
 }
 
-// Server action for logout
+// Server action for logout with updated API_BASE_URL
 export async function logout() {
-  const cookieStore = await cookies();
+  try {
+    const cookieStore = await cookies();
+    const refreshToken = cookieStore.get("refresh_token")?.value;
 
-  // Clear all auth cookies
-  cookieStore.delete("access_token");
-  cookieStore.delete("refresh_token");
+    if (refreshToken) {
+      // Call the backend logout endpoint to invalidate the token
+      await fetch(`${API_BASE_URL}/auth/logout/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        cache: "no-store",
+      });
+    }
 
-  // Clear all role cookies
-  cookieStore.delete("is_administrator");
-  cookieStore.delete("is_moderator");
-  cookieStore.delete("is_community_manager");
-  cookieStore.delete("is_client");
+    // Clear all auth cookies
+    cookieStore.delete("access_token");
+    cookieStore.delete("refresh_token");
+    cookieStore.delete("csrfToken");
 
-  // Since this is a server action, we use redirect
-  redirect("/login");
+    // Clear all role cookies
+    cookieStore.delete("is_administrator");
+    cookieStore.delete("is_moderator");
+    cookieStore.delete("is_community_manager");
+    cookieStore.delete("is_client");
+
+    // Redirect to login page
+    redirect("/login");
+  } catch (error) {
+    console.error("Logout error:", error);
+    redirect("/login");
+  }
+}
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Backend error response:", errorData);
+      throw new Error(errorData.message || 'Failed to send reset email');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Forgot password error:', error);
+    throw error;
+  }
+}
+
+export async function resetPasswordConfirm(
+  uid: string,
+  token: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ message: string }> {
+  try {
+    if (!uid || !token) {
+      throw new Error("Invalid reset link.");
+    }
+
+    if (newPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters long.");
+    }
+
+    if (newPassword !== confirmPassword) {
+      throw new Error("Passwords do not match.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/reset-password-confirm/${uid}/${token}/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        new_password: newPassword,
+        confirm_password: confirmPassword, // Include confirm_password field
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Backend error response:", errorData);
+      throw new Error(errorData.message || "Failed to reset password.");
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error("Reset password error:", error);
+    throw error;
+  }
 }
