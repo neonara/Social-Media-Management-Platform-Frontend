@@ -306,7 +306,7 @@ export async function assignCMToClientServerAction(clientId: number, cmId: numbe
       return { error: "Authentication required" };
     }
 
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/assign-cms/`, {
+    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/assign-cm/`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

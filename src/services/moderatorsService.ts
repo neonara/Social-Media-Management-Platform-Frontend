@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 
 type CreateUserData = {
   email: string;
+  role: string;
 };
 
 type Client = {

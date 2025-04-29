@@ -1,4 +1,3 @@
-
 "use client";
 import { EmailIcon } from "@/assets/icons";
 import { useEffect, useState } from "react";
@@ -28,15 +27,23 @@ export default function CreateCM() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const result = await createCM(formData);
-    if (result?.error) {
-      setError(result.error);
-    } else if (result?.success) {
-      setAlertMessage("Community Manager created successfully!");
-      setShowAlert(true);
-      setFormData({ email: "" });
+
+    try {
+      const result = await createCM({ email: formData.email, role: "community_manager" });
+
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.success) {
+        setAlertMessage("Community Manager created successfully!");
+        setShowAlert(true);
+        setFormData({ email: "" });
+      }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
