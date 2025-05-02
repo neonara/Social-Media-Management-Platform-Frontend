@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { createPost, saveDraft } from "@/services/postService";
+import { createPost, saveDraft, getAssignedClients } from "@/services/postService";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { SimpleWysiwyg } from "@/components/SimpleWysiwyg";
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
+import { FaFacebook as Facebook, FaInstagram as Instagram, FaLinkedin as Linkedin } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { useSearchParams } from 'next/navigation';
+import { formatDistanceToNow } from "date-fns";
+import DOMPurify from 'dompurify';
 
 interface MediaFile {
   id: string;
@@ -16,6 +18,224 @@ interface MediaFile {
   name?: string;
 }
 
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+}
+
+
+// Preview Components
+const FacebookPostPreview = ({ content, media }: { content: string; media?: string[] }) => {
+  const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4 max-w-[500px]">
+      <div className="flex items-center gap-3 mb-2">
+        <Facebook className="w-8 h-8 text-blue-600" />
+        <div>
+          <div className="font-semibold text-gray-800">Facebook User</div>
+          <div className="text-xs text-gray-500">{timeAgo}</div>
+        </div>
+      </div>
+      <div 
+        className="text-gray-800 whitespace-pre-wrap break-words mb-2"
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
+      />
+      {media && media.length > 0 && (
+        <div className="mt-2 rounded-md overflow-hidden">
+          {media.length === 1 ? (
+            media[0].startsWith('data:video') || media[0].endsWith('.mp4') || media[0].endsWith('.mov') ? (
+              <video 
+                controls 
+                className="w-full max-h-[500px] object-contain"
+              >
+                <source src={media[0]} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <img src={media[0]} alt="Post Media" className="max-h-[500px] w-full object-contain" />
+            )
+          ) : (
+            <div className={`grid gap-0.5 ${media.length === 2 ? 'grid-cols-2' : media.length === 3 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+              {media.slice(0, 4).map((item, index) => (
+                <div key={index} className="relative aspect-square">
+                  {item.startsWith('data:video') || item.endsWith('.mp4') || item.endsWith('.mov') ? (
+                    <video 
+                      controls 
+                      className="w-full h-full object-cover"
+                    >
+                      <source src={item} type="video/mp4" />
+                    </video>
+                  ) : (
+                    <img src={item} alt={`Media ${index + 1}`} className="w-full h-full object-cover" />
+                  )}
+                  {index === 3 && media.length > 4 && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-2xl font-bold">
+                      +{media.length - 4}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-2 flex gap-4 text-sm text-gray-600">
+        <span>Like</span>
+        <span>Comment</span>
+        <span>Share</span>
+      </div>
+    </div>
+  );
+};
+
+const InstagramPostPreview = ({ content, media }: { content: string; media?: string[] }) => {
+  const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
+  return (
+    <div className="bg-white rounded-lg shadow-md max-w-[470px]">
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-3">
+          <Instagram className="w-8 h-8 text-pink-500" />
+          <div className="font-semibold text-gray-800">Instagram User</div>
+        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-6 w-6 text-gray-600"
+        >
+          <circle cx="12" cy="12" r="1.5"></circle>
+          <circle cx="6" cy="12" r="1.5"></circle>
+          <circle cx="18" cy="12" r="1.5"></circle>
+        </svg>
+      </div>
+      <div className="border border-gray-300 rounded-md">
+        {media && media.length > 0 ? (
+          <div className="relative">
+            {media.length === 1 ? (
+              media[0].startsWith('data:video') || media[0].endsWith('.mp4') || media[0].endsWith('.mov') ? (
+                <video 
+                  controls 
+                  className="w-full aspect-square object-cover"
+                >
+                  <source src={media[0]} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <img src={media[0]} alt="Post Media" className="w-full aspect-square object-cover" />
+              )
+            ) : (
+              <div className="relative aspect-square overflow-hidden">
+                {media[0].startsWith('data:video') || media[0].endsWith('.mp4') || media[0].endsWith('.mov') ? (
+                  <video 
+                    controls 
+                    className="w-full h-full object-cover"
+                  >
+                    <source src={media[0]} type="video/mp4" />
+                  </video>
+                ) : (
+                  <img src={media[0]} alt="Post Media" className="w-full h-full object-cover" />
+                )}
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1">
+                  {media.map((_, index) => (
+                    <div key={index} className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-gray-200 aspect-square rounded-t-md flex items-center justify-center text-gray-400">
+            Image/Video Placeholder
+          </div>
+        )}
+        <div className="p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Instagram className="w-5 h-5 text-pink-500" />
+            <span className="font-semibold text-gray-800">Instagram User</span>
+            <span className="text-xs text-gray-500 ml-1">{timeAgo}</span>
+          </div>
+          <div 
+            className="text-gray-800 whitespace-pre-wrap break-words"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
+          />
+          <div className="mt-2 text-sm text-gray-600">
+            <span>Like</span>
+            <span>Comment</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LinkedinPostPreview = ({ content, media }: { content: string; media?: string[] }) => {
+  const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4 max-w-[550px]">
+      <div className="flex items-center gap-3 mb-2">
+        <Linkedin className="w-8 h-8 text-blue-700" />
+        <div>
+          <div className="font-semibold text-gray-800">LinkedIn User</div>
+          <div className="text-xs text-gray-500">{timeAgo}</div>
+        </div>
+      </div>
+      <div 
+        className="text-gray-800 whitespace-pre-wrap break-words mb-2"
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
+      />
+      {media && media.length > 0 && (
+        <div className="mt-2 rounded-md overflow-hidden border border-gray-200">
+          {media.length === 1 ? (
+            media[0].startsWith('data:video') || media[0].endsWith('.mp4') || media[0].endsWith('.mov') ? (
+              <video 
+                controls 
+                className="w-full max-h-[500px] object-contain"
+              >
+                <source src={media[0]} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <img src={media[0]} alt="Post Media" className="w-full max-h-[500px] object-contain" />
+            )
+          ) : (
+            <div className={`grid gap-0.5 ${media.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+              {media.slice(0, 4).map((item, index) => (
+                <div key={index} className="relative aspect-square">
+                  {item.startsWith('data:video') || item.endsWith('.mp4') || item.endsWith('.mov') ? (
+                    <video 
+                      controls 
+                      className="w-full h-full object-cover"
+                    >
+                      <source src={item} type="video/mp4" />
+                    </video>
+                  ) : (
+                    <img src={item} alt={`Media ${index + 1}`} className="w-full h-full object-cover" />
+                  )}
+                  {index === 3 && media.length > 4 && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-2xl font-bold">
+                      +{media.length - 4}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-2 flex gap-4 text-sm text-gray-600">
+        <span>Like</span>
+        <span>Comment</span>
+        <span>Share</span>
+      </div>
+    </div>
+  );
+};
+
 export function PostForm() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get('clientId');
@@ -23,12 +243,13 @@ export function PostForm() {
   // Refs
   const titleRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const hashtagInputRef = useRef<HTMLInputElement>(null);
 
-  // Consolidated state
+  // State
   const [state, setState] = useState({
     mediaFiles: [] as MediaFile[],
-    caption: "<p>Start writing your post...</p>",
+    caption: "",
     selectedPlatforms: [] as string[],
     hashtags: [] as string[],
     scheduledAt: "",
@@ -38,6 +259,29 @@ export function PostForm() {
     isForClient: !!clientId,
     clientId: clientId || null
   });
+  
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+
+  // Fetch assigned clients on component mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      setIsLoadingClients(true);
+      try {
+        const response = await getAssignedClients();
+        setClients(response);
+      } catch (error) {
+        console.error("Failed to fetch clients:", error);
+        toast.error("Failed to load client list");
+      } finally {
+        setIsLoadingClients(false);
+      }
+    };
+
+    if (!clientId) {
+      fetchClients();
+    }
+  }, [clientId]);
 
   // Set client ID from URL params on mount
   useEffect(() => {
@@ -52,47 +296,54 @@ export function PostForm() {
 
   // Platform icons
   const platformIcons = {
-    facebook: <FaFacebook className="text-blue-600" />,
-    instagram: <FaInstagram className="text-pink-500" />,
-    linkedin: <FaLinkedin className="text-blue-700" />,
+    facebook: <Facebook className="text-blue-600" />,
+    instagram: <Instagram className="text-pink-500" />,
+    linkedin: <Linkedin className="text-blue-700" />,
   };
 
   // File handling
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const newMediaFiles: MediaFile[] = [];
-    
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          newMediaFiles.push({
-            id: URL.createObjectURL(file),
-            preview: event.target.result as string,
-            file,
-            name: file.name
-          });
-          
-          if (newMediaFiles.length === files.length) {
-            setState(prev => ({
-              ...prev,
-              mediaFiles: [...prev.mediaFiles, ...newMediaFiles]
-            }));
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }, []);
-
-  const handleRemoveMedia = useCallback((indexToRemove: number) => {
-    setState(prev => ({
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+  
+    const newMediaFiles = await Promise.all(
+      files.map(async (file) => {
+        const preview = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+        return {
+          id: URL.createObjectURL(file),
+          preview,
+          file,
+          name: file.name,
+        };
+      })
+    );
+  
+    setState((prev) => ({
       ...prev,
-      mediaFiles: prev.mediaFiles.filter((_, index) => index !== indexToRemove)
+      mediaFiles: [...prev.mediaFiles, ...newMediaFiles],
     }));
   }, []);
+
+const handleRemoveMedia = useCallback((indexToRemove: number) => {
+  setState((prev) => {
+    const removedFile = prev.mediaFiles[indexToRemove];
+    URL.revokeObjectURL(removedFile.id); // Revoke URL
+    return {
+      ...prev,
+      mediaFiles: prev.mediaFiles.filter((_, index) => index !== indexToRemove)
+    };
+  });
+}, []);
+useEffect(() => {
+  return () => {
+    // Cleanup all object URLs on component unmount
+    state.mediaFiles.forEach((file) => URL.revokeObjectURL(file.id));
+  };
+}, [state.mediaFiles]);
 
   // Drag and drop
   const onDragEnd = useCallback((result: DropResult) => {
@@ -109,14 +360,14 @@ export function PostForm() {
   const handleAddHashtag = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && hashtagInputRef.current) {
       event.preventDefault();
-      const newHashtag = hashtagInputRef.current.value.trim().replace(/\s+/g, "_"); // Replace spaces with underscores
+      const newHashtag = hashtagInputRef.current.value.trim().replace(/\s+/g, "_");
       if (newHashtag) {
         const formattedHashtag = newHashtag.startsWith("#") ? newHashtag : `#${newHashtag}`;
         setState((prev) => ({
           ...prev,
-          caption: `${prev.caption}\n${formattedHashtag}`, // Append hashtag to caption
+          caption: `${prev.caption}\n${formattedHashtag}`,
         }));
-        hashtagInputRef.current.value = ""; // Clear the input field
+        hashtagInputRef.current.value = "";
       }
     }
   }, []);
@@ -154,6 +405,11 @@ export function PostForm() {
       return;
     }
 
+    if (state.selectedPlatforms.includes("instagram") && state.mediaFiles.length === 0) {
+      setState((prev) => ({ ...prev, error: "Instagram posts must include at least one media file." }));
+      return;
+    }
+
     if (!state.isDrafting && !state.scheduledAt) {
       setState((prev) => ({ ...prev, error: "Please select a scheduled time" }));
       return;
@@ -168,7 +424,7 @@ export function PostForm() {
 
       const formData = new FormData();
       formData.append("title", title);
-      formData.append("description", updatedCaption); // Use updated caption
+      formData.append("description", updatedCaption);
       formData.append("platforms", JSON.stringify(state.selectedPlatforms));
       formData.append("status", state.isDrafting ? "draft" : "scheduled");
 
@@ -178,7 +434,7 @@ export function PostForm() {
 
       // Add client ID if present
       if (state.clientId) {
-        formData.append("client", state.clientId);
+        formData.append("client", state.clientId.toString());
       }
 
       state.mediaFiles.forEach((media) => {
@@ -247,46 +503,98 @@ export function PostForm() {
     fileInputRef.current?.click();
   }, []);
 
+  const renderPreview = () => {
+    if (state.selectedPlatforms.length === 0 && state.caption.trim() === "") {
+      return (
+        <div className="text-gray-400 text-center py-4">
+          Select a platform to preview your post.
+        </div>
+      );
+    }
+
+    return state.selectedPlatforms.map((platform) => {
+      const mediaArray = state.mediaFiles.length > 0 
+        ? state.mediaFiles.map(file => file.preview) 
+        : undefined;
+        
+      switch (platform) {
+        case "facebook":
+          return <FacebookPostPreview key="facebook" content={state.caption} media={mediaArray} />;
+        case "instagram":
+          return <InstagramPostPreview key="instagram" content={state.caption} media={mediaArray} />;
+        case "linkedin":
+          return <LinkedinPostPreview key="linkedin" content={state.caption} media={mediaArray} />;
+        default:
+          return null;
+      }
+    });
+  };
+
   return (
-    <ShowcaseSection title={state.isForClient ? "Create Post for Client" : "Create Post"} className="!p-7">
-      {state.isForClient && state.clientId && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <h3 className="text-lg font-medium text-blue-800">
-            Creating post for Client ID: {state.clientId}
-          </h3>
+<ShowcaseSection title={state.isForClient ? "Create Post for Client" : "Create Post"} className="!p-7">
+  <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8">
+    {/* Form Section */}
+    <div className="flex-1 space-y-8">
+      {/* Client Selection Dropdown */}
+      {!clientId && (
+        <div className="mb-6">
+          <label htmlFor="client-select" className="text-lg font-semibold text-gray-800 dark:text-white">
+            Select Client
+          </label>
+          <select
+            id="client-select"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            value={state.clientId || ''}
+            onChange={(e) => setState(prev => ({
+              ...prev,
+              clientId: e.target.value || null,
+              isForClient: !!e.target.value
+            }))}
+          >
+            <option value="">-- Select a Client--</option>
+            {isLoadingClients ? (
+              <option disabled>Loading clients...</option>
+            ) : (
+              clients.map(client => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))
+            )}
+          </select>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Post Details */}
-        <div>
+        <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Post Details</h2>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mt-4">
-            Title
-          </label>
-          <input
-            ref={titleRef}
-            type="text"
-            id="title"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            required
-          />
-        </div>
-
-        {/* Caption */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-            Caption
-          </label>
-          <SimpleWysiwyg
-            value={state.caption}
-            onChange={(value) => setState(prev => ({ ...prev, caption: value }))}
-            placeholder="Write your post content here..."
-          />
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+              Title
+            </label>
+            <input
+              ref={titleRef}
+              type="text"
+              id="title"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+              Caption
+            </label>
+            <SimpleWysiwyg
+  value={state.caption}
+  onChange={(value) => setState(prev => ({ ...prev, caption: value }))}
+  placeholder="Write your post content here..."
+/>
+          </div>
         </div>
 
         {/* Hashtags */}
-        <div>
+        <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Hashtags</h2>
           <div className="flex items-center gap-2">
             <input
@@ -294,7 +602,7 @@ export function PostForm() {
               type="text"
               placeholder="Type a hashtag (no spaces) and press Enter"
               onKeyDown={handleAddHashtag}
-              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm"
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
             <button
               type="button"
@@ -326,7 +634,7 @@ export function PostForm() {
         </div>
 
         {/* Scheduled At */}
-        <div>
+        <div className="space-y-4">
           <label htmlFor="scheduled_at" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Scheduled At
           </label>
@@ -341,7 +649,7 @@ export function PostForm() {
         </div>
 
         {/* Platforms */}
-        <div>
+        <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Platforms</h2>
           <div className="mt-4 flex space-x-4">
             {["facebook", "instagram", "linkedin"].map((platform) => (
@@ -363,7 +671,7 @@ export function PostForm() {
         </div>
 
         {/* Media */}
-        <div>
+        <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Media</h2>
           <DragDropContext onDragEnd={onDragEnd}>
             <Droppable droppableId="media-previews" direction="horizontal">
@@ -374,11 +682,7 @@ export function PostForm() {
                   className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
                 >
                   {state.mediaFiles.map((media, index) => (
-                    <Draggable
-                      key={media.id}
-                      draggableId={media.id}
-                      index={index}
-                    >
+                    <Draggable key={media.id} draggableId={media.id} index={index}>
                       {(provided) => (
                         <div
                           ref={provided.innerRef}
@@ -386,17 +690,21 @@ export function PostForm() {
                           {...provided.dragHandleProps}
                           className="relative h-40 w-40 border border-gray-300 rounded-lg shadow-md overflow-hidden bg-white dark:bg-gray-800"
                         >
-                          {media.preview.startsWith("data:image") || 
-                          /\.(jpg|jpeg|png|gif)$/i.test(media.preview) ? (
+                          {media.preview.startsWith("data:video") || /\.(mp4|mov)$/i.test(media.preview) ? (
+                            <video
+                              controls
+                              preload="auto"
+                              className="h-full w-full object-cover"
+                            >
+                              <source src={media.preview} type="video/mp4" />
+                              Your browser does not support the video tag.
+                            </video>
+                          ) : (
                             <img
                               src={media.preview}
                               alt={`Preview ${index}`}
                               className="h-full w-full object-cover"
                             />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                              {media.name || "Unsupported Media"}
-                            </div>
                           )}
                           <button
                             type="button"
@@ -415,24 +723,49 @@ export function PostForm() {
               )}
             </Droppable>
           </DragDropContext>
-          <button
-            type="button"
-            onClick={handleChooseFileClick}
-            className="mt-4 flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-            title="Add More Media"
-          >
-            +
-          </button>
-          <input
-            ref={fileInputRef}
-            id="media"
-            name="media"
-            type="file"
-            className="sr-only"
-            multiple
-            accept="image/*,video/*"
-            onChange={handleFileChange}
-          />
+
+          {/* Buttons for Adding Media */}
+          <div className="flex gap-4">
+            {/* Add Photos Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center justify-center px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              title="Add Photos"
+            >
+              Add Photos
+            </button>
+            <input
+              ref={fileInputRef}
+              id="photos"
+              name="photos"
+              type="file"
+              className="sr-only"
+              multiple
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+
+            {/* Add Videos Button */}
+            <button
+              type="button"
+              onClick={() => videoInputRef.current?.click()}
+              className="flex items-center justify-center px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              title="Add Videos"
+            >
+              Add Videos
+            </button>
+            <input
+              ref={videoInputRef}
+              id="videos"
+              name="videos"
+              type="file"
+              className="sr-only"
+              multiple
+              accept="video/*"
+              onChange={handleFileChange}
+            />
+          </div>
         </div>
 
         {/* Error Message */}
@@ -462,6 +795,14 @@ export function PostForm() {
           </button>
         </div>
       </form>
-    </ShowcaseSection>
+    </div>
+
+    {/* Preview Section */}
+    <div className="w-full lg:w-1/3 space-y-4">
+      <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Post Preview</h2>
+      <div className="space-y-4">{renderPreview()}</div>
+    </div>
+  </div>
+</ShowcaseSection>
   );
 }

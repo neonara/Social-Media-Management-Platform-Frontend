@@ -228,7 +228,6 @@ export default function UsersTable() {
           cmNameToRemove: cmNameToRemove,
         },
       ]);
-      alert(`Removal of ${type} assignment for ${user.full_name}${cmNameToRemove ? ` (${cmNameToRemove})` : ""} queued. Please review and save assignments to apply.`);
     }
   };
 
@@ -252,9 +251,6 @@ export default function UsersTable() {
           cmNameToRemoveFromClient: cmToRemove.full_name,
         },
       ]);
-      alert(
-        `Removal of CM ${cmToRemove.full_name} from client ${client.full_name} queued. Please review and save assignments to apply.`
-      );
     }
   };
 
@@ -385,11 +381,9 @@ export default function UsersTable() {
       }
 
       setPendingChanges([]);
-      alert("Assignments saved successfully!");
       fetchUsers(); // Re-fetch to ensure data is up-to-date after all changes
     } catch (err) {
       console.error("Error saving assignments:", err);
-      alert("Failed to save assignments.");
     }
   };
 

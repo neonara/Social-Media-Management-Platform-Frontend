@@ -13,6 +13,76 @@ interface ScheduledPost {
     status?: 'published' | 'scheduled' | 'failed';
 }
 
+// In your postService.ts
+export async function getAssignedClients(): Promise<Array<{id: string, name: string, email: string}>> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(`${API_BASE_URL}/clients/assigned/`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-CSRFToken': csrfToken,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch assigned clients');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching assigned clients:', error);
+    throw error;
+  }
+}
+
+export async function approvePost(postId: number): Promise<void> {
+    try {
+      const token = await getAuthToken();
+      const csrfToken = await getCsrfToken();
+  
+      const response = await fetch(`${API_BASE_URL}/content/posts/${postId}/approve/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to approve post");
+      }
+    } catch (error) {
+      console.error("Error approving post:", error);
+      throw error;
+    }
+  }
+  
+  export async function rejectPost(postId: number): Promise<void> {
+    try {
+      const token = await getAuthToken();
+      const csrfToken = await getCsrfToken();
+  
+      const response = await fetch(`${API_BASE_URL}/content/posts/${postId}/reject/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to reject post");
+      }
+    } catch (error) {
+      console.error("Error rejecting post:", error);
+      throw error;
+    }
+  }
+
 export interface DraftPost {
     id: number;
     title: string;
@@ -73,31 +143,48 @@ export async function createPost(formData: FormData): Promise<{success: boolean,
 
 export async function getScheduledPosts(): Promise<ScheduledPost[]> {
     try {
-        const token = await getAuthToken();
-        const csrfToken = await getCsrfToken();
-
-        const response = await fetch(`${API_BASE_URL}/content/posts/`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'X-CSRFToken': csrfToken,
-            },
-            cache: "no-store",
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch posts');
-
-        const posts: ScheduledPost[] = await response.json();
-        const now = new Date();
-        
-        return posts.map(post => ({
-            ...post,
-            status: new Date(post.scheduled_for) < now ? 'published' : 'scheduled'
-        }));
+      const token = await getAuthToken();
+      const csrfToken = await getCsrfToken();
+  
+      const response = await fetch(`${API_BASE_URL}/content/posts/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-CSRFToken': csrfToken,
+        },
+        cache: "no-store",
+      });
+  
+      if (!response.ok) throw new Error('Failed to fetch posts');
+  
+      const posts: ScheduledPost[] = await response.json();
+      const now = new Date();
+  
+      return posts.map(post => ({
+        ...post,
+        platform: mapPlatform(post.platform), // Map platform names if needed
+        status: new Date(post.scheduled_for) < now ? 'published' : 'scheduled',
+      }));
     } catch (error) {
-        console.error('Error fetching posts:', error);
-        return [];
+      console.error('Error fetching posts:', error);
+      return [];
     }
-}
+  }
+  
+  // Helper function to map platform names
+function mapPlatform(platform: string | undefined): 'Facebook' | 'Instagram' | 'LinkedIn' {
+    if (!platform) {
+      console.warn("Platform is undefined, defaulting to 'Facebook'");
+      return 'Facebook'; // Default to Facebook if platform is undefined
+    }
+  
+    const platformMap: Record<string, 'Facebook' | 'Instagram' | 'LinkedIn'> = {
+      facebook: 'Facebook',
+      instagram: 'Instagram',
+      linkedin: 'LinkedIn',
+    };
+  
+    return platformMap[platform.toLowerCase()] || 'Facebook'; // Default to Facebook if unknown
+  }
 
 export async function getDraftPosts(): Promise<DraftPost[]> {
   try {
@@ -137,8 +224,8 @@ export async function getDraftPosts(): Promise<DraftPost[]> {
 export async function saveDraft(formData: FormData): Promise<{
   success: boolean;
   data?: any;
-  error?: string;
-}> {
+  error?: string;}> 
+  {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();

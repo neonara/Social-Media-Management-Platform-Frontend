@@ -22,6 +22,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
+    "dompurify": "^3.2.5",
     "draft-js": "^0.11.7",
     "flatpickr": "^4.6.13",
     "jsvectormap": "^1.6.0",
@@ -46,6 +47,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/draft-js": "^0.11.18",
     "@types/node": "^22",
     "@types/react": "19.0.8",

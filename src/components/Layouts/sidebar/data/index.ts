@@ -28,12 +28,6 @@ export const NAV_DATA = [
         items: [],
       },
       {
-        title: "First Reset Password",
-        url: "/first-reset-password",
-        icon: Icons.User,
-        items: [],
-      },
-      {
         title: "Draft Posts",
         url: "/drafts",
         icon: Icons.Alphabet, 

@@ -26,19 +26,25 @@ import { ChevronLeft, ChevronRight, CalendarDays, RefreshCw } from 'lucide-react
 import * as postService from "@/services/postService";
 import { useRouter } from 'next/navigation';
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
+import { toast } from 'react-toastify';
 
 interface ScheduledPost {
   id: string;
   title: string;
   platform: 'Facebook' | 'Instagram' | 'LinkedIn';
   scheduled_for: string;
+  status?: 'published' | 'scheduled' | 'failed' | 'pending' | 'rejected';
 }
-
 interface AnalyticsData {
   period: string;
   posts: number;
   engagement: number;
 }
+const platformIcons = {
+  Facebook: <FaFacebook className="text-blue-600" />,
+  Instagram: <FaInstagram className="text-pink-500" />,
+  LinkedIn: <FaLinkedin className="text-blue-700" />,
+};
 
 const AnalyticsGrid = ({ currentDate, calendarView }: { currentDate: Date; calendarView: 'week' | 'month' | 'quarter' | 'year' }) => {
   const generateAnalyticsData = (): AnalyticsData[] => {
@@ -133,6 +139,206 @@ const AnalyticsGrid = ({ currentDate, calendarView }: { currentDate: Date; calen
   );
 };
 
+const PostTable = ({ posts, onRefresh, currentDate, calendarView }: { 
+  posts: ScheduledPost[], 
+  onRefresh: () => void,
+  currentDate: Date,
+  calendarView: 'week' | 'month' | 'quarter' | 'year'
+}) => {
+  // Filter posts based on the current calendar view and date
+  const filterPostsByDateRange = (post: ScheduledPost) => {
+    const postDate = new Date(post.scheduled_for);
+    
+    switch(calendarView) {
+      case 'week': {
+        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+        return postDate >= weekStart && postDate <= weekEnd;
+      }
+      case 'month': {
+        const monthStart = startOfMonth(currentDate);
+        const monthEnd = endOfMonth(currentDate);
+        return postDate >= monthStart && postDate <= monthEnd;
+      }
+      case 'quarter': {
+        const quarterStart = startOfQuarter(currentDate);
+        const quarterEnd = endOfQuarter(currentDate);
+        return postDate >= quarterStart && postDate <= quarterEnd;
+      }
+      case 'year': {
+        const yearStart = startOfYear(currentDate);
+        const yearEnd = endOfYear(currentDate);
+        return postDate >= yearStart && postDate <= yearEnd;
+      }
+      default:
+        return true;
+    }
+  };
+
+  const filteredPosts = posts.filter(filterPostsByDateRange);
+
+  const scheduledPosts = filteredPosts.filter((post) => post.status === 'scheduled');
+  const postedPosts = filteredPosts.filter((post) => post.status === 'published');
+  const pendingPosts = filteredPosts.filter((post) => post.status === 'pending');
+  const rejectedPosts = filteredPosts.filter((post) => post.status === 'rejected');
+
+  const handleApprove = async (postId: string) => {
+    try {
+      await postService.approvePost(parseInt(postId));
+      toast.success("Post approved successfully!");
+      onRefresh();
+    } catch (error) {
+      console.error("Error approving post:", error);
+      toast.error("Failed to approve post.");
+    }
+  };
+
+  const handleReject = async (postId: string) => {
+    try {
+      await postService.rejectPost(parseInt(postId));
+      toast.success("Post rejected successfully!");
+      onRefresh();
+    } catch (error) {
+      console.error("Error rejecting post:", error);
+      toast.error("Failed to reject post.");
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-4 gap-4">
+      {/* Pending Posts */}
+      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <h3 className="mb-4 text-lg font-semibold text-yellow-600 dark:text-yellow-300">
+          Pending ({pendingPosts.length})
+        </h3>
+        {pendingPosts.length > 0 ? (
+          pendingPosts.map((post) => (
+            <div
+              key={post.id}
+              className="mb-2 rounded-lg bg-yellow-100 p-3 text-sm text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+            >
+              <div className="flex justify-between">
+                <span>{post.title}</span>
+                <span className="text-xs">
+                  {format(new Date(post.scheduled_for), 'PPpp')}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                {platformIcons[post.platform]}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => handleApprove(post.id)}
+                  className="rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-600"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleReject(post.id)}
+                  className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            No pending posts.
+          </p>
+        )}
+      </div>
+
+      {/* Rejected Posts */}
+      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <h3 className="mb-4 text-lg font-semibold text-red-600 dark:text-red-300">
+          Rejected ({rejectedPosts.length})
+        </h3>
+        {rejectedPosts.length > 0 ? (
+          rejectedPosts.map((post) => (
+            <div
+              key={post.id}
+              className="mb-2 rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900 dark:text-red-200"
+            >
+              <div className="flex justify-between">
+                <span>{post.title}</span>
+                <span className="text-xs">
+                  {format(new Date(post.scheduled_for), 'PPpp')}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                {platformIcons[post.platform]}
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            No rejected posts.
+          </p>
+        )}
+      </div>
+
+      {/* Scheduled Posts */}
+      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <h3 className="mb-4 text-lg font-semibold text-primary dark:text-primary-dark">
+          Scheduled ({scheduledPosts.length})
+        </h3>
+        {scheduledPosts.length > 0 ? (
+          scheduledPosts.map((post) => (
+            <div
+              key={post.id}
+              className="mb-2 rounded-lg bg-blue-100 p-3 text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+            >
+              <div className="flex justify-between">
+                <span>{post.title}</span>
+                <span className="text-xs">
+                  {format(new Date(post.scheduled_for), 'PPpp')}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                {platformIcons[post.platform]}
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            No scheduled posts.
+          </p>
+        )}
+      </div>
+
+      {/* Posted Posts */}
+      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+        <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-300">
+          Posted ({postedPosts.length})
+        </h3>
+        {postedPosts.length > 0 ? (
+          postedPosts.map((post) => (
+            <div
+              key={post.id}
+              className="mb-2 rounded-lg bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900 dark:text-green-200"
+            >
+              <div className="flex justify-between">
+                <span>{post.title}</span>
+                <span className="text-xs">
+                  {format(new Date(post.scheduled_for), 'PPpp')}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                {platformIcons[post.platform]}
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            No posted posts.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ContentDashboard = () => (
   <div className="p-4">
     <div className="mb-6 flex gap-4">
@@ -141,7 +347,7 @@ const ContentDashboard = () => (
           key={platform}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white dark:bg-primary-dark"
         >
-          <span className="text-sm">{platform}</span>
+          {platformIcons[platform as keyof typeof platformIcons]}
         </button>
       ))}
     </div>
@@ -184,7 +390,7 @@ const ContentDashboard = () => (
 const CalendarBox = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<'week' | 'month' | 'quarter' | 'year'>('week');
-  const [activeTab, setActiveTab] = useState<'calendar' | 'analytics' | 'content'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'analytics' | 'content_studio' | 'post_table'>('calendar');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchYear, setSearchYear] = useState<string>('');
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
@@ -686,12 +892,12 @@ const CalendarBox = () => {
       </div>
 
       <div className="mb-6 flex gap-4 border-b border-stroke dark:border-dark-3">
-        {['Calendar', 'Analytics', 'Content Studio'].map((tab) => (
+        {['Calendar', 'Analytics', 'Content Studio', 'Posts Table'].map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab.toLowerCase() as any)}
+            onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '_') as any)}
             className={`pb-2 px-4 ${
-              activeTab === tab.toLowerCase()
+              activeTab === tab.toLowerCase().replace(' ', '_')
                 ? 'border-b-2 border-primary text-primary dark:border-primary-dark dark:text-primary-dark'
                 : 'text-dark hover:text-gray-600 dark:text-white'
             }`}
@@ -721,8 +927,15 @@ const CalendarBox = () => {
           )
         ) : activeTab === 'analytics' ? (
           <AnalyticsGrid currentDate={currentDate} calendarView={calendarView} />
-        ) : (
+        ) : activeTab === 'content_studio' ? (
           <ContentDashboard />
+        ) : (
+          <PostTable 
+  posts={scheduledPosts} 
+  onRefresh={fetchScheduledPosts} 
+  currentDate={currentDate}
+  calendarView={calendarView}
+/>
         )}
       </div>
 
@@ -749,7 +962,6 @@ const CalendarBox = () => {
                 <span className="font-medium text-gray-600 dark:text-gray-300">Platform:</span>{" "}
                 <span className="flex items-center gap-2">
                   {platformIcons[selectedPost.platform]}
-                  {selectedPost.platform}
                 </span>
               </p>
 
@@ -766,14 +978,16 @@ const CalendarBox = () => {
                 <span className="font-medium text-gray-600 dark:text-gray-300">Status:</span>{" "}
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                    new Date(selectedPost.scheduled_for) < new Date()
+                    selectedPost.status === "published"
                       ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                      : selectedPost.status === "scheduled"
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      : selectedPost.status === "pending"
+                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                      : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                   }`}
                 >
-                  {new Date(selectedPost.scheduled_for) < new Date()
-                    ? "Published"
-                    : "Scheduled"}
+                  {selectedPost.status ? selectedPost.status.charAt(0).toUpperCase() + selectedPost.status.slice(1) : 'Unknown'}
                 </span>
               </p>
             </div>
