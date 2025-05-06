@@ -12,6 +12,7 @@ export const NAV_DATA = [
           {
             title: "Create User",
             url: "/create-user",
+            items: [],
           },
         ],
       },

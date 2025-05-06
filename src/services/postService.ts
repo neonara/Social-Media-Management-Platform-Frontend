@@ -230,7 +230,7 @@ export async function saveDraft(formData: FormData): Promise<{
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
 
-    const response = await fetch(`${API_BASE_URL}/content/posts/create/`, {
+    const response = await fetch(`${API_BASE_URL}/content/posts/save-draft/`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -285,16 +285,14 @@ export async function getPostById(postId: number): Promise<DraftPost | null> {
       }
 
       const data = await response.json();
-      
-      // Convert to plain object and handle Dates
-      return {
+      return JSON.parse(JSON.stringify({
           ...data,
           scheduled_for: data.scheduled_for ? new Date(data.scheduled_for).toISOString() : null,
           media: data.media.map((mediaItem: any) => ({
               ...mediaItem,
               uploaded_at: new Date(mediaItem.uploaded_at).toISOString()
           }))
-      };
+      }));
   } catch (error) {
       console.error("Error fetching post:", error);
       return null;

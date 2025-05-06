@@ -9,6 +9,12 @@ type CreateUserData = {
   role: string;
 };
 
+export async function isUserAdminOrSuperAdmin(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const isAdmin = cookieStore.get("is_administrator")?.value === "true";
+  const isSuperAdmin = cookieStore.get("is_superadministrator")?.value === "true";
+  return isAdmin || isSuperAdmin;
+}
 export async function getCsrfToken(): Promise<string | null> {
   const cookieStore = await cookies();
   return cookieStore.get("csrftoken")?.value || null;
@@ -115,6 +121,7 @@ export async function loginUser(email: string, password: string) {
     throw error;
   }
 }
+
 
 // Server action to check if user is admin
 export async function isUserAdmin() {

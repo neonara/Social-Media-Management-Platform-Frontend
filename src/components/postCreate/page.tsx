@@ -393,83 +393,73 @@ useEffect(() => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const title = titleRef.current?.value.trim();
-
+  
     // Validation
     if (!title) {
       setState((prev) => ({ ...prev, error: "Please enter a title" }));
       return;
     }
-
+  
     if (!state.selectedPlatforms.length) {
       setState((prev) => ({ ...prev, error: "Please select at least one platform" }));
       return;
     }
-
+  
     if (state.selectedPlatforms.includes("instagram") && state.mediaFiles.length === 0) {
       setState((prev) => ({ ...prev, error: "Instagram posts must include at least one media file." }));
       return;
     }
-
-    if (!state.isDrafting && !state.scheduledAt) {
+  
+    if (!state.scheduledAt) {
       setState((prev) => ({ ...prev, error: "Please select a scheduled time" }));
       return;
     }
-
+  
     try {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
-
+  
       // Append hashtags to the caption
       const hashtagsString = state.hashtags.join(" ");
       const updatedCaption = `${state.caption}\n\n${hashtagsString}`;
-
+  
       const formData = new FormData();
       formData.append("title", title);
       formData.append("description", updatedCaption);
       formData.append("platforms", JSON.stringify(state.selectedPlatforms));
-      formData.append("status", state.isDrafting ? "draft" : "scheduled");
-
-      if (!state.isDrafting) {
-        formData.append("scheduled_for", state.scheduledAt);
-      }
-
+      formData.append("status", "scheduled");
+      formData.append("scheduled_for", state.scheduledAt);
+  
       // Add client ID if present
       if (state.clientId) {
         formData.append("client", state.clientId.toString());
       }
-
+  
       state.mediaFiles.forEach((media) => {
         if (media.file) {
           formData.append("media_files", media.file);
         }
       });
-
-      if (state.isDrafting) {
-        await saveDraft(formData);
-        toast.success("Draft saved successfully!");
-      } else {
-        await createPost(formData);
+  
+      const result = await createPost(formData);
+      
+      if (result.success) {
         toast.success(
           state.isForClient
             ? "Post created for client successfully!"
             : "Post created successfully!"
         );
+        resetForm();
+      } else {
+        throw new Error(result.error || "Failed to create post");
       }
-
-      resetForm();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Submission failed";
       setState((prev) => ({ ...prev, error: message }));
       toast.error(message);
     } finally {
-      setState((prev) => ({ ...prev, isLoading: false, isDrafting: false }));
+      setState((prev) => ({ ...prev, isLoading: false }));
     }
   };
-
-  const handleSaveAsDraft = useCallback(async () => {
-    setState(prev => ({ ...prev, isDrafting: true }));
-    await handleSubmit(new Event('submit') as unknown as React.FormEvent);
-  }, [handleSubmit]);
-
   const resetForm = useCallback(() => {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (titleRef.current) titleRef.current.value = "";
@@ -477,7 +467,7 @@ useEffect(() => {
     setState(prev => ({
       ...prev,
       mediaFiles: [],
-      caption: "<p>Start writing your post...</p>",
+      caption: "",
       selectedPlatforms: [],
       hashtags: [],
       scheduledAt: "",
@@ -489,6 +479,68 @@ useEffect(() => {
       clientId: prev.clientId
     }));
   }, []);
+
+  const handleSaveAsDraft = useCallback(async (event: React.MouseEvent) => {
+    event.preventDefault();
+    const title = titleRef.current?.value.trim();
+  
+    // Basic validation
+    if (!title) {
+      setState((prev) => ({ ...prev, error: "Please enter a title" }));
+      return;
+    }
+  
+    if (!state.selectedPlatforms.length) {
+      setState((prev) => ({ ...prev, error: "Please select at least one platform" }));
+      return;
+    }
+  
+    if (state.selectedPlatforms.includes("instagram") && state.mediaFiles.length === 0) {
+      setState((prev) => ({ ...prev, error: "Instagram posts must include at least one media file." }));
+      return;
+    }
+  
+    try {
+      setState((prev) => ({ ...prev, isLoading: true, error: null }));
+  
+      // Append hashtags to the caption
+      const hashtagsString = state.hashtags.join(" ");
+      const updatedCaption = `${state.caption}\n\n${hashtagsString}`;
+  
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", updatedCaption);
+      formData.append("platforms", JSON.stringify(state.selectedPlatforms));
+      formData.append("status", "draft");
+  
+      // Add client ID if present
+      if (state.clientId) {
+        formData.append("client", state.clientId.toString());
+      }
+  
+      state.mediaFiles.forEach((media) => {
+        if (media.file) {
+          formData.append("media_files", media.file);
+        }
+      });
+  
+      // Directly call saveDraft instead of going through handleSubmit
+      const result = await saveDraft(formData);
+      
+      if (result.success) {
+        toast.success("Draft saved successfully!");
+        resetForm();
+      } else {
+        throw new Error(result.error || "Failed to save draft");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save draft";
+      setState((prev) => ({ ...prev, error: message }));
+      toast.error(message);
+    } finally {
+      setState((prev) => ({ ...prev, isLoading: false, isDrafting: false }));
+    }
+  }, [state.caption, state.clientId, state.hashtags, state.mediaFiles, state.selectedPlatforms, resetForm]);
 
   const togglePlatform = useCallback((platform: string) => {
     setState(prev => ({
@@ -777,14 +829,14 @@ useEffect(() => {
 
         {/* Buttons */}
         <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            className="rounded-md border border-gray-300 bg-gray-500 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
-            onClick={handleSaveAsDraft}
-            disabled={state.isLoading}
-          >
-            {state.isLoading && state.isDrafting ? "Saving..." : "Save as Draft"}
-          </button>
+        <button
+  type="button"
+  className="rounded-md border border-gray-300 bg-gray-500 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+  onClick={handleSaveAsDraft}
+  disabled={state.isLoading}
+>
+  {state.isLoading ? "Saving..." : "Save as Draft"}
+</button>
 
           <button
             type="submit"

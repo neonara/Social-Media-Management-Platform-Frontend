@@ -244,7 +244,7 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
   
   const [formData, setFormData] = useState({
     title: "",
-    caption: "<p>Start writing your post...</p>",
+    caption: "",
     scheduledTime: "",
     selectedPlatforms: [] as string[],
     hashtags: [] as string[],
@@ -285,7 +285,7 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
 
         setFormData({
           title: post.title,
-          caption: post.description || "<p>Start writing your post...</p>",
+          caption: post.description || "",
           scheduledTime: post.scheduled_for || "",
           selectedPlatforms: post.platforms || [],
           hashtags: formattedHashtags, 
@@ -378,65 +378,69 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
   const handleUpdate = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-
+  
     // Validation
     if (!formData.title) {
       setError("Please enter a title");
       return;
     }
-
+  
     if (!formData.selectedPlatforms.length) {
       setError("Please select at least one platform");
       return;
     }
-
+  
     if (formData.selectedPlatforms.includes("instagram") && formData.mediaFiles.length === 0) {
       setError("Instagram posts must include at least one media file.");
       return;
     }
-
-    if (!isDrafting && !formData.scheduledTime) {
+  
+    if (!formData.scheduledTime) {
       setError("Please select a scheduled time");
       return;
     }
-
+  
     try {
       setUploadProgress(0);
-      const hashtagsString = formData.hashtags.join(" ");
-      const updatedCaption = `${formData.caption}\n\n${hashtagsString}`;
-
       const formDataToSend = new FormData();
+      
+      // Append all basic fields
       formDataToSend.append("title", formData.title);
-      formDataToSend.append("description", updatedCaption);
+      formDataToSend.append("description", formData.caption);
       formDataToSend.append("platforms", JSON.stringify(formData.selectedPlatforms));
-      formDataToSend.append("status", isDrafting ? "draft" : "scheduled");
-
-      if (!isDrafting) {
-        formDataToSend.append("scheduled_for", formData.scheduledTime);
-      }
-
-      formData.mediaFiles.forEach((media) => {
+      formDataToSend.append("status", "scheduled");
+      formDataToSend.append("scheduled_for", formData.scheduledTime);
+  
+      // Append existing media IDs
+      formData.mediaFiles.forEach(media => {
         if (media.id) {
           formDataToSend.append("existing_media", media.id.toString());
         }
+      });
+  
+      // Add this to ensure backend knows we're changing from draft to scheduled
+      formData.mediaFiles.forEach(media => {
         if (media.file) {
-          formDataToSend.append("media", media.file);
+          formDataToSend.append("media_files", media.file);
         }
       });
-
-      await updatePost(parseInt(postId), formDataToSend);
-
-      setUploadSuccess(true);
-      toast.success(isDrafting ? "Draft updated successfully!" : "Post updated successfully!");
-      if (!isDrafting) {
-        router.push("/posts");
+  
+  
+      const response = await updatePost(parseInt(postId), formDataToSend);
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update post status");
       }
+  
+      setUploadSuccess(true);
+      toast.success("Post scheduled successfully!");
+      router.push("/posts");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update post");
-      toast.error("Failed to update post");
+      setError(err instanceof Error ? err.message : "Failed to schedule post");
+      toast.error("Failed to schedule post");
     } finally {
       setUploadProgress(null);
-      setIsDrafting(false);
     }
   };
 
@@ -583,8 +587,8 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
             </div>
 
             {/* Scheduled Time */}
-            <div className="space-y-4">
-              <label htmlFor="scheduled_at" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <div className="space-y-4">
+              <label htmlFor="scheduled_at" className="text-lg font-semibold text-gray-800 dark:text-white">
                 Scheduled At
               </label>
               <input
@@ -593,8 +597,25 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
                 name="scheduled_at"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 value={formData.scheduledTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                onChange={(e) => {
+                  const selectedTime = new Date(e.target.value).getTime();
+                  const currentTime = new Date().getTime();
+            
+                  if (selectedTime < currentTime) {
+                    setError("The selected time cannot be in the past.");
+                  } else {
+                    setFormData((prev) => ({
+                      ...prev,
+                      scheduledTime: e.target.value,
+                    }));
+                    setError(null); // Clear the error if the time is valid
+                  }
+                }}
+                min={new Date().toISOString().slice(0, 16)} // Set the minimum date and time
               />
+              {error && (
+                <p className="text-sm text-red-500 mt-1">{error}</p>
+              )}
             </div>
 
             {/* Platforms */}

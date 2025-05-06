@@ -14,6 +14,7 @@ const PUBLIC_PATHS = new Set([
   "/forgot_password",
   "/reset-password-confirm/[uid]/[token]",
   "/content",
+  "/create-user"
 ]);
 
 export function middleware(request: NextRequest) {
