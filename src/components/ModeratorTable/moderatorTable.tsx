@@ -286,7 +286,7 @@ export default function AssignedCommunityManagersTable() {
                     <button
                       className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-blue-600"
                       onClick={() => {
-                        router.push(`/content/create?clientId=${client.id}`);
+                        router.push(`/content?clientId=${client.id}`);
                       }}
                     >
                       Create Posts

@@ -26,6 +26,7 @@ interface EditPostFormProps {
   postId: string;
 }
 
+//previews
 const FacebookPostPreview = ({ content, media }: { content: string; media?: string[] }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
@@ -446,8 +447,49 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
 
   const handleSaveAsDraft = useCallback(async () => {
     setIsDrafting(true);
-    await handleUpdate(new Event('submit') as unknown as React.FormEvent);
-  }, [handleUpdate]);
+    setError(null);
+
+    try {
+      const formDataToSend = new FormData();
+
+      // Append all basic fields
+      formDataToSend.append("title", formData.title);
+      formDataToSend.append("description", formData.caption);
+      formDataToSend.append("platforms", JSON.stringify(formData.selectedPlatforms));
+      formDataToSend.append("status", "draft"); // Set status to "draft"
+      formDataToSend.append("scheduled_for", formData.scheduledTime || "");
+
+      // Append existing media IDs
+      formData.mediaFiles.forEach((media) => {
+        if (media.id) {
+          formDataToSend.append("existing_media", media.id.toString());
+        }
+      });
+
+      // Append new media files
+      formData.mediaFiles.forEach((media) => {
+        if (media.file) {
+          formDataToSend.append("media_files", media.file);
+        }
+      });
+
+      // Call the updatePost API for saving as draft
+      const response = await updatePost(parseInt(postId), formDataToSend);
+
+      if (response.ok) {
+        toast.success("Draft saved successfully!");
+        setUploadSuccess(true);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save draft");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save draft");
+      toast.error("Failed to save draft");
+    } finally {
+      setIsDrafting(false);
+    }
+  }, [formData, postId]);
 
   const handleAddHashSymbol = useCallback(() => {
     if (hashtagInputRef.current) {

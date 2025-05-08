@@ -500,7 +500,7 @@ useEffect(() => {
       return;
     }
   
-    try {
+    try { 
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
   
       // Append hashtags to the caption

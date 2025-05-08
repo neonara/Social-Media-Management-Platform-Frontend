@@ -56,6 +56,7 @@ export async function loginUser(email: string, password: string) {
     const isModerator = data.is_moderator || false;
     const isCommunityManager = data.is_community_manager || false;
     const isClient = data.is_client || false;
+    const isSuperAdmin = data.is_superadministrator || false;
 
     // Set secure cookies on the server side (these will be HTTP-only)
     const cookieStore = await cookies();
@@ -76,6 +77,13 @@ export async function loginUser(email: string, password: string) {
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    cookieStore.set("is_superadministrator", String(isSuperAdmin), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 60 * 24, // 1 day
     });
 
     // Set role cookies
