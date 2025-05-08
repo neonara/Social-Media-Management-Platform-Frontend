@@ -28,12 +28,19 @@ import { useRouter } from 'next/navigation';
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from 'react-toastify';
 
+interface Creator {
+  id: string;
+  name: string;
+  type: 'client' | 'team_member';
+}
+
 interface ScheduledPost {
   id: string;
   title: string;
   platform: 'Facebook' | 'Instagram' | 'LinkedIn';
   scheduled_for: string;
   status?: 'published' | 'scheduled' | 'failed' | 'pending' | 'rejected';
+  creator?: Creator;
 }
 interface AnalyticsData {
   period: string;
@@ -148,10 +155,10 @@ const PostTable = ({ posts, onRefresh, currentDate, calendarView }: {
   // Filter posts based on the current calendar view and date
   const filterPostsByDateRange = (post: ScheduledPost) => {
     const postDate = new Date(post.scheduled_for);
-    
-    switch(calendarView) {
+
+    switch (calendarView) {
       case 'week': {
-        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Week starts on Monday
         const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
         return postDate >= weekStart && postDate <= weekEnd;
       }
@@ -277,7 +284,6 @@ const PostTable = ({ posts, onRefresh, currentDate, calendarView }: {
           </p>
         )}
       </div>
-
       {/* Scheduled Posts */}
       <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
         <h3 className="mb-4 text-lg font-semibold text-primary dark:text-primary-dark">
@@ -355,7 +361,7 @@ const ContentDashboard = () => (
     <div className="mb-6 rounded-lg border border-stroke p-4 dark:border-dark-3">
       <h3 className="mb-4 text-lg font-semibold dark:text-white">Content Approval Status</h3>
       <div className="grid grid-cols-3 gap-4">
-        {['Draft', 'Pending Approval', 'Approved'].map(status => (
+        {['Scheduled', 'Pending Approval', 'Approved'].map(status => (
           <div
             key={status}
             className="rounded-lg bg-gray-1 p-4 dark:bg-gray-dark-1"
@@ -480,146 +486,143 @@ const CalendarBox = () => {
     }
   };
 
-  const CalendarGridView = () => {
-    switch(calendarView) {
-      case 'week': {
-        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-        const days = eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
 
-        return (
-          <div className="flex h-[600px] border-t border-stroke dark:border-dark-3">
-            <div className="w-32 border-r border-stroke dark:border-dark-3">
-              {days.map((day, index) => (
-                <div
-                  key={index}
-                  onClick={() => {
-                    setSelectedDate(day);
-                    console.log('Selected day:', format(day, 'yyyy-MM-dd'));
-                  }}
-                  className={`h-24 p-3 text-center cursor-pointer transition-colors ${
-                    isSameDay(day, new Date())
-                      ? 'bg-primary/10 text-primary dark:text-primary-dark'
-                      : 'text-dark dark:text-white'
-                  } ${
-                    isSameDay(day, selectedDate)
-                      ? 'border-2 border-primary dark:border-primary-dark bg-primary/5'
-                      : 'hover:bg-gray-100 dark:hover:bg-dark-2'
-                  }`}
-                >
-                  <div className="text-sm font-medium">{frenchDays[index]}</div>
-                  <div className="mt-1 text-2xl font-bold">{format(day, 'd')}</div>
+      const CalendarGridView = () => {
+        switch(calendarView) {
+           case 'week': {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const days = eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
+
+      return (
+        <div className="flex h-[600px] border-t border-stroke dark:border-dark-3">
+          <div className="w-32 border-r border-stroke dark:border-dark-3">
+            {days.map((day, index) => (
+              <div
+                key={index}
+                onClick={() => {
+                  setSelectedDate(day);
+                }}
+                className={`h-24 p-3 text-center cursor-pointer transition-colors ${
+                  isSameDay(day, new Date())
+                    ? 'bg-primary/10 text-primary dark:text-primary-dark'
+                    : 'text-dark dark:text-white'
+                } ${
+                  isSameDay(day, selectedDate)
+                    ? 'border-2 border-primary dark:border-primary-dark bg-primary/5'
+                    : 'hover:bg-gray-100 dark:hover:bg-dark-2'
+                }`}
+              >
+                <div className="text-sm font-medium">{format(day, 'EEE')}</div>
+                <div className="mt-1 text-2xl font-bold">{format(day, 'd')}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            <div className="relative">
+            {Array.from({ length: 24 }).map((_, hour) => (
+  <div key={hour} className="h-24 border-b border-stroke dark:border-dark-3">
+    <div className="flex h-full items-center px-4">
+      <div className="w-16 text-sm text-gray-500 dark:text-gray-400">
+        {format(new Date().setHours(hour), 'HH:mm')}
+      </div>
+      <div className="ml-4 h-16 w-full">
+        {scheduledPosts
+          .filter((post) => {
+            const postDate = new Date(post.scheduled_for);
+            return (
+              isSameDay(postDate, selectedDate) && 
+              postDate.getHours() === hour && // Compare with the current grid hour
+              (post.status === 'scheduled' || post.status === 'published')
+            );
+          })
+          .map((post) => (
+                          <div
+                            key={post.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPost(post);
+                            }}
+                            className={`mb-2 flex items-center gap-2 rounded-lg p-2 text-sm cursor-pointer transition-all ${
+                              post.status === 'published'
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            } hover:shadow-md`}
+                          >
+                            {/* Icon */}
+                            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-white text-primary dark:bg-gray-700">
+                              {post.status === 'published' ? (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 16l-4-4m0 0l4-4m-4 4h16"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+
+                            {/* Post Title and Platform */}
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex-1 truncate">
+                                <span className="font-medium">{post.title}</span>
+                              </div>
+                              <div
+                                className={`rounded-full px-2 py-1 text-xs font-semibold flex items-center gap-2 ${
+                                  post.platform === "Facebook"
+                                    ? "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200"
+                                    : post.platform === "Instagram"
+                                    ? "bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200"
+                                    : "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                                }`}
+                              >
+                                {platformIcons[post.platform]}
+                              </div>
+                            </div>
+
+                            {/* Edit Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/editPost/${post.id}`);
+                              }}
+                              className="ml-2 rounded-md bg-primary px-2 py-1 text-xs font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-
-            <div className="flex-1 overflow-auto">
-              <div className="relative">
-                {Array.from({ length: 24 }).map((_, hour) => (
-                  <div
-                    key={hour}
-                    className="h-24 border-b border-stroke dark:border-dark-3"
-                  >
-                    <div className="flex h-full items-center px-4">
-                      <div className="w-16 text-sm text-gray-500 dark:text-gray-400">
-                        {format(new Date().setHours(hour), 'HH:mm')}
-                      </div>
-                      <div className="ml-4 h-16 w-full">
-                        {scheduledPosts
-                          .filter((post) => {
-                            const postDate = new Date(post.scheduled_for);
-                            return (
-                              isSameDay(postDate, selectedDate) &&
-                              isSameHour(postDate, new Date().setHours(hour))
-                            );
-                          })
-                          .map((post) => (
-                            <div
-                              key={post.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPost(post);
-                              }}
-                              className={`mb-2 flex items-center gap-2 rounded-lg p-2 text-sm cursor-pointer transition-all ${
-                                new Date(post.scheduled_for) < new Date()
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                              } hover:shadow-md`}
-                            >
-                              {/* Icon */}
-                              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-white text-primary dark:bg-gray-700">
-                                {new Date(post.scheduled_for) < new Date() ? (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M8 16l-4-4m0 0l4-4m-4 4h16"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-
-                              {/* Post Title and Platform */}
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex-1 truncate">
-                                  <span className="font-medium">{post.title}</span>
-                                </div>
-                                <div
-                                  className={`rounded-full px-2 py-1 text-xs font-semibold flex items-center gap-2 ${
-                                    post.platform === "Facebook"
-                                      ? "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200"
-                                      : post.platform === "Instagram"
-                                      ? "bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200"
-                                      : "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                                  }`}
-                                >
-                                  {platformIcons[post.platform]}
-                                </div>
-                              </div>
-
-                              {/* Edit Button */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  router.push(`/editPost/${post.id}`);
-                                }}
-                                className="ml-2 rounded-md bg-primary px-2 py-1 text-xs font-medium text-white shadow-sm hover:bg-primary-dark focus:outline-none"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
-        );
-      }
-
+        </div>
+      );
+    }
       case 'month': {
         const firstDayOfMonth = startOfMonth(currentDate);
         const lastDayOfMonth = endOfMonth(currentDate);
@@ -990,6 +993,16 @@ const CalendarBox = () => {
                   {selectedPost.status ? selectedPost.status.charAt(0).toUpperCase() + selectedPost.status.slice(1) : 'Unknown'}
                 </span>
               </p>
+
+              {/* Creator */}
+              {selectedPost.creator && (
+                <p className="text-sm">
+                  <span className="font-medium text-gray-600 dark:text-gray-300">Creator:</span>{" "}
+                  <span className="font-semibold text-dark dark:text-white">
+                    {selectedPost.creator.name} ({selectedPost.creator.type})
+                  </span>
+                </p>
+              )}
             </div>
 
             {/* Modal Footer */}
