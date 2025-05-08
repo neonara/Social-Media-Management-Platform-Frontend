@@ -182,6 +182,7 @@ const PostTable = ({ posts, onRefresh, currentDate, calendarView }: {
     }
   };
 
+  // Apply the filter and then group by status
   const filteredPosts = posts.filter(filterPostsByDateRange);
 
   const scheduledPosts = filteredPosts.filter((post) => post.status === 'scheduled');
@@ -189,6 +190,7 @@ const PostTable = ({ posts, onRefresh, currentDate, calendarView }: {
   const pendingPosts = filteredPosts.filter((post) => post.status === 'pending');
   const rejectedPosts = filteredPosts.filter((post) => post.status === 'rejected');
 
+  // Rest of your component remains the same...
   const handleApprove = async (postId: string) => {
     try {
       await postService.approvePost(parseInt(postId));
@@ -434,25 +436,35 @@ const CalendarBox = () => {
   };
 
   const goToPrevious = () => {
-    setCurrentDate(prev => {
-      switch(calendarView) {
-        case 'week': return addWeeks(prev, -1);
-        case 'month': return new Date(prev.setMonth(prev.getMonth() - 1));
-        case 'quarter': return new Date(prev.setMonth(prev.getMonth() - 3));
-        case 'year': return new Date(prev.setFullYear(prev.getFullYear() - 1));
-        default: return prev;
+    setCurrentDate((prev) => {
+      switch (calendarView) {
+        case 'week':
+          return addWeeks(prev, -1);
+        case 'month':
+          return subMonths(prev, 1); // Use subMonths instead of setMonth
+        case 'quarter':
+          return subQuarters(prev, 1); // Use subQuarters instead of setMonth
+        case 'year':
+          return subYears(prev, 1); // Use subYears instead of setFullYear
+        default:
+          return prev;
       }
     });
   };
-
+  
   const goToNext = () => {
-    setCurrentDate(prev => {
-      switch(calendarView) {
-        case 'week': return addWeeks(prev, 1);
-        case 'month': return new Date(prev.setMonth(prev.getMonth() + 1));
-        case 'quarter': return new Date(prev.setMonth(prev.getMonth() + 3));
-        case 'year': return new Date(prev.setFullYear(prev.getFullYear() + 1));
-        default: return prev;
+    setCurrentDate((prev) => {
+      switch (calendarView) {
+        case 'week':
+          return addWeeks(prev, 1);
+        case 'month':
+          return addMonths(prev, 1); // Use addMonths instead of setMonth
+        case 'quarter':
+          return addQuarters(prev, 1); // Use addQuarters instead of setMonth
+        case 'year':
+          return addYears(prev, 1); // Use addYears instead of setFullYear
+        default:
+          return prev;
       }
     });
   };
@@ -729,15 +741,14 @@ const CalendarBox = () => {
       }
 
       case 'year': {
+            function subDays(date: Date, amount: number): Date {
+              const newDate = new Date(date);
+              newDate.setDate(newDate.getDate() - amount);
+              return newDate;
+            }
+
         return (
           <table className="w-full">
-            <thead>
-              <tr>
-                <th colSpan={4} className="p-4 text-center text-xl font-semibold dark:text-white">
-                  {format(currentDate, 'yyyy')}
-                </th>
-              </tr>
-            </thead>
             <tbody>
               {[0, 1, 2, 3].map((row) => (
                 <tr key={row} className="border-b border-stroke last:border-b-0 dark:border-dark-3">
@@ -745,17 +756,28 @@ const CalendarBox = () => {
                     const monthIndex = row * 3 + col;
                     if (monthIndex >= 12) return null;
                     
-                    const monthDate = addMonths(startOfYear(currentDate), monthIndex);
+                    const monthDate: Date = addMonths(startOfYear(currentDate), monthIndex);
                     const monthStart = startOfMonth(monthDate);
                     const monthEnd = endOfMonth(monthDate);
-                    const weeks = eachDayOfInterval({ start: monthStart, end: monthEnd }).filter(
-                      (day) => day.getDay() === 0
-                    );
+                    
+                    // Get first day of month and calculate offset for week start
+                    const firstDay = monthStart.getDay(); // 0 (Sun) to 6 (Sat)
+                    const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Adjust for Monday start
+                    
+                    // Create complete weeks array (6 weeks to cover all possibilities)
+                    const weeks = [];
+                    let weekStartDate = subDays(monthStart, startOffset);
+                    
+                    for (let i = 0; i < 6; i++) {
+                      weeks.push(weekStartDate);
+                      weekStartDate = addDays(weekStartDate, 7);
+                    }
       
                     function isSameMonth(date1: Date, date2: Date): boolean {
-                      return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth();
+                      return date1.getFullYear() === date2.getFullYear() && 
+                             date1.getMonth() === date2.getMonth();
                     }
-
+      
                     return (
                       <td
                         key={monthIndex}
@@ -772,7 +794,7 @@ const CalendarBox = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="text-xs">
-                              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                              {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
                                 <th key={day} className="h-8 text-center font-medium">
                                   {day}
                                 </th>
@@ -1064,4 +1086,21 @@ const CalendarBox = () => {
   );
 };
 
+function subYears(date: Date, amount: number): Date {
+  const newDate = new Date(date);
+  newDate.setFullYear(newDate.getFullYear() - amount);
+  return newDate;
+}
+
 export default CalendarBox;
+function addQuarters(date: Date, amount: number): Date {
+  const newDate = new Date(date);
+  newDate.setMonth(newDate.getMonth() + amount * 3);
+  return newDate;
+}
+function addYears(date: Date, amount: number): Date {
+  const newDate = new Date(date);
+  newDate.setFullYear(newDate.getFullYear() + amount);
+  return newDate;
+}
+
