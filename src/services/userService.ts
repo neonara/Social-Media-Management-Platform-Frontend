@@ -99,7 +99,7 @@ export async function updateUserProfile(id: number, userData: GetUser) {
   }
 }
 
-export async function getCurrentUser() {
+export async function getCurrentUser(bypassCache: boolean = false) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -107,13 +107,24 @@ export async function getCurrentUser() {
       return { error: "Authentication required" };
     }
 
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    // Add cache control headers if we want to bypass cache
+    if (bypassCache) {
+      headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      headers["Pragma"] = "no-cache";
+    }
+
     const response = await fetch(`${API_BASE_URL}/user/profile/`, {
       credentials: "include",
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
+      // Only set cache: 'no-store' when bypassing cache
+      cache: bypassCache ? "no-store" : "default",
+      next: bypassCache ? { revalidate: 0 } : undefined,
     });
 
     let data;
@@ -133,7 +144,6 @@ export async function getCurrentUser() {
       throw new Error(`Error: ${response.statusText}`);
     }
 
-    console.log("profile: ", data);
     return data;
   } catch (error) {
     console.error("Error getting user profile:", error);
