@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   format,
   isSameDay,
-  isSameHour,
   startOfWeek,
   endOfWeek,
   addWeeks,
@@ -28,11 +27,7 @@ import { useRouter } from 'next/navigation';
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from 'react-toastify';
 
-interface Creator {
-  id: string;
-  name: string;
-  type: 'client' | 'team_member';
-}
+
 
 interface ScheduledPost {
   id: string;
@@ -40,7 +35,15 @@ interface ScheduledPost {
   platform: 'Facebook' | 'Instagram' | 'LinkedIn';
   scheduled_for: string;
   status?: 'published' | 'scheduled' | 'failed' | 'pending' | 'rejected';
-  creator?: Creator;
+  creator?: {
+    full_name?: string;
+    [key: string]: any;
+  };
+  client?: {
+    id?: string;
+    name?: string;
+    [key: string]: any;
+  };
 }
 interface AnalyticsData {
   period: string;
@@ -404,8 +407,12 @@ const CalendarBox = () => {
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null);
+  const [filterCreator, setFilterCreator] = useState<string | null>(null);
+  const [filterClient, setFilterClient] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const frenchDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   const router = useRouter();
+  
 
   const platformIcons = {
     Facebook: <FaFacebook className="text-blue-600" />,
@@ -413,21 +420,58 @@ const CalendarBox = () => {
     LinkedIn: <FaLinkedin className="text-blue-700" />,
   };
 
-  const fetchScheduledPosts = async () => {
-    setLoadingPosts(true);
-    try {
-      const posts = await postService.getScheduledPosts();
-      setScheduledPosts(posts);
-    } catch (error) {
-      console.error('Error fetching scheduled posts:', error);
-    } finally {
-      setLoadingPosts(false);
-    }
-  };
+const fetchScheduledPosts = async (creatorFilter?: string | null, statusFilter?: string | null, clientFilter?: string | null) => {
+  setLoadingPosts(true);
+  try {
+    const posts = await postService.getScheduledPosts();
+    // Apply filters if they exist
+    const filteredPosts = posts.filter(post => {
+      const matchesCreator = creatorFilter ? post.creator?.full_name === creatorFilter : true;
+      const matchesStatus = statusFilter ? post.status === statusFilter : true;
+      const matchesClient = clientFilter ? post.client?.full_name === clientFilter : true;
+      return matchesCreator && matchesStatus && matchesClient;
+    });
+    setScheduledPosts(filteredPosts);
+  } catch (error) {
+    console.error('Error fetching scheduled posts:', error);
+  } finally {
+    setLoadingPosts(false);
+  }
+};
+useEffect(() => {
+  fetchScheduledPosts(filterCreator, filterStatus);
+}, [filterCreator, filterStatus,filterClient ,currentDate, calendarView]);
+
+  const applyFilters = (posts: ScheduledPost[]) => {
+  return posts.filter((post) => {
+    const matchesStatus = filterStatus 
+      ? post.status === filterStatus 
+      : true;
+    const matchesCreator = filterCreator ? 
+    post.creator?.full_name === filterCreator 
+    : true;
+    const matchesClient = filterClient ?
+    post.client?.name === filterClient
+    : true;
+    return matchesStatus && matchesCreator;
+  });
+};
 
   useEffect(() => {
-    fetchScheduledPosts();
-  }, [currentDate, calendarView]);
+    const fetchFilteredPosts = async () => {
+      setLoadingPosts(true);
+      try {
+        const posts = await postService.getScheduledPosts();
+        setScheduledPosts(applyFilters(posts));
+      } catch (error) {
+        console.error('Error fetching scheduled posts:', error);
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+
+    fetchFilteredPosts();
+  }, [filterStatus, currentDate, calendarView]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
     setCurrentDate(date);
@@ -870,7 +914,7 @@ const CalendarBox = () => {
             <span className="hidden sm:block">Today</span>
           </button>
           <button
-            onClick={fetchScheduledPosts}
+            onClick={() => fetchScheduledPosts()}
             disabled={loadingPosts}
             className="ml-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-primary-dark dark:bg-primary-dark dark:hover:bg-primary"
           >
@@ -916,6 +960,50 @@ const CalendarBox = () => {
         </button>
       </div>
 
+      <div className="mb-6 flex gap-4">
+  {/* Filter by Status */}
+        <select
+          value={filterStatus || ''}
+          onChange={(e) => setFilterStatus(e.target.value || null)}
+          className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-gray-dark-2 dark:text-white"
+        >
+          <option value="">All Statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="published">Published</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <select
+  value={filterCreator || ''}
+  onChange={(e) => setFilterCreator(e.target.value || null)}
+  className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-gray-dark-2 dark:text-white"
+>
+  <option value="">All Creators</option>
+  {Array.from(new Set(scheduledPosts.map(post => post.creator?.full_name).filter(Boolean)))
+    .map((creatorName) => (
+      <option key={creatorName} value={creatorName}>
+        {creatorName}
+      </option>
+    ))}
+</select>
+{/* Filter by Client */}
+<select
+  value={filterClient || ''}
+  onChange={(e) => setFilterClient(e.target.value || null)}
+  className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-gray-dark-2 dark:text-white"
+>
+  <option value="">All Clients</option>
+  {Array.from(new Set(scheduledPosts.map(post => post.client?.full_name).filter(Boolean)))
+    .map((clientName) => (
+      <option key={clientName} value={clientName}>
+        {clientName}
+      </option>
+    ))}
+</select>
+        
+      
+      </div>
+
       <div className="mb-6 flex gap-4 border-b border-stroke dark:border-dark-3">
         {['Calendar', 'Analytics', 'Content Studio', 'Posts Table'].map((tab) => (
           <button
@@ -931,7 +1019,7 @@ const CalendarBox = () => {
           </button>
         ))}
       </div>
-
+      {/*el views mta3 table*/}
       <div className="overflow-hidden rounded-xl bg-white shadow-lg dark:bg-gray-dark dark:shadow-card">
         {activeTab === 'calendar' ? (
           calendarView === 'month' ? (
@@ -1015,16 +1103,14 @@ const CalendarBox = () => {
                   {selectedPost.status ? selectedPost.status.charAt(0).toUpperCase() + selectedPost.status.slice(1) : 'Unknown'}
                 </span>
               </p>
-
               {/* Creator */}
-              {selectedPost.creator && (
-                <p className="text-sm">
-                  <span className="font-medium text-gray-600 dark:text-gray-300">Creator:</span>{" "}
-                  <span className="font-semibold text-dark dark:text-white">
-                    {selectedPost.creator.name} ({selectedPost.creator.type})
-                  </span>
-                </p>
-              )}
+              
+  <p className="text-sm">
+    <span className="font-medium text-gray-600 dark:text-gray-300">Creator:</span>{" "}
+    <span className="font-semibold text-dark dark:text-white">
+      {selectedPost.creator?.full_name || "Unknown"}
+    </span>
+  </p>
             </div>
 
             {/* Modal Footer */}

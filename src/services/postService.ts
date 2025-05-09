@@ -17,13 +17,13 @@ export interface DraftPost {
 }
 interface Creator {
   id: string;
-  name: string;
+  full_name: string;
   type: 'client' | 'team_member';
 }
 
 interface Client {
   id: string;
-  name: string;
+  full_name: string;
 }
 
 interface ScheduledPost {
@@ -33,14 +33,9 @@ interface ScheduledPost {
   scheduled_for: string;
   status?: 'published' | 'scheduled' | 'failed' | 'pending' | 'rejected';
   creator?: Creator;
-  client?: Client;
+  client?: Client | undefined;
 }
 
-interface AnalyticsData {
-  period: string;
-  posts: number;
-  engagement: number;
-}
 
 // In your postService.ts
 export async function getAssignedClients(): Promise<Array<{id: string, name: string, email: string}>> {
@@ -211,17 +206,31 @@ export async function getScheduledPosts(): Promise<ScheduledPost[]> {
       ...post,
       platform: mapPlatform(post.platform),
       status: new Date(post.scheduled_for) < now ? 'published' : post.status || 'scheduled',
-      creator: post.creator || { 
-        id: post.client?.id || 'unknown', 
-        name: post.client?.name || 'Unknown', 
-        type: post.client ? 'client' : 'team_member' 
-      }
+      creator: post.creator ? {
+        id: (post.creator as Creator).id || 'unknown',
+        full_name: (post.creator as Creator).full_name || 'Unknown',
+        type: (post.creator as Creator).type || 'team_member'
+      } : {
+        id: 'unknown',
+        full_name: 'Unknown',
+        type: 'team_member'
+      },
+      client: post.client
+        ? {
+            id: post.client.id || 'unknown',
+            full_name: post.client.full_name || 'Unknown'
+          }
+        : {
+            id: 'unknown',
+            full_name: 'Unknown'
+          }
     }));
   } catch (error) {
     console.error('Error fetching posts:', error);
     return [];
   }
 }
+
   // Helper function to map platform names
 function mapPlatform(platform: string | undefined): 'Facebook' | 'Instagram' | 'LinkedIn' {
     if (!platform) {
