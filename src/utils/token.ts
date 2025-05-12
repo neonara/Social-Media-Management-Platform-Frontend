@@ -6,3 +6,9 @@ export async function getToken() {
   const token = (await cookieStore).get("access_token")?.value;
   return token;
 }
+
+export async function deleteToken() {
+  const cookieStore = await cookies();
+  cookieStore.delete("access_token");
+  console.log("Token deleted.");
+}

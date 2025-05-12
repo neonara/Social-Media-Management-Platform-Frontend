@@ -39,13 +39,17 @@ export default function Login() {
 
     try {
       // Use the loginUser service function
-      await loginUser(data.email, data.password);
+      await loginUser(data.email, data.password, data.remember); // Include the remember field
 
       // Redirect to dashboard
       router.push("/");
     } catch (error) {
       // Handle login errors
-      setError(error instanceof Error ? error.message : "Login failed. Please try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Login failed. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

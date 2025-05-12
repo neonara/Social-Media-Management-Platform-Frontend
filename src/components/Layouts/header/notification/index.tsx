@@ -18,7 +18,7 @@ import {
   revalidateNotificationsCache,
 } from "@/services/notificationService";
 import type { Notification as NotificationType } from "@/types/notification";
-import { getToken } from "@/utils/getToken";
+import { getToken } from "@/utils/token";
 import { useNotification } from "@/context/NotificationContext";
 
 export function Notification() {
@@ -316,30 +316,35 @@ export function Notification() {
             </div>
           ) : (
             notifications.map((item, index) => (
-              <li key={index} role="menuitem">
+              <li
+                key={index}
+                role="menuitem"
+                className="border-b border-gray-100 last:border-none dark:border-dark-4"
+              >
                 <Link
-                  href="#"
+                  href={item.url}
                   onClick={() => {
                     handleMarkAsRead(item.id);
                     setIsOpen(false);
                   }}
-                  className="relative flex items-center gap-4 rounded-lg px-2 py-1.5 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3"
+                  className="relative flex w-full items-center gap-4 rounded-lg px-2 py-1.5 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3"
                 >
                   <div>
                     <strong className="block text-sm font-medium text-dark dark:text-white">
                       {item.title}
                     </strong>
-                    <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
+                    <span className="w-full break-words text-sm font-medium text-dark-5 dark:text-dark-6">
                       {item.message}
                     </span>
                     <br />
                     <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
                       {new Date(item.created_at).toLocaleTimeString([], {
-                        year: "2-digit",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
+                        year: "numeric",
+                        month: "short", // 'May', 'Jan'
+                        day: "numeric",
+                        hour: "numeric",
                         minute: "2-digit",
+                        hour12: true,
                       })}
                     </span>
                   </div>

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import jwt, { JwtPayload } from "jsonwebtoken"; // Import JWT library
 
 // Pre-compiled regex for path matching
 const ADMIN_PATH_REGEX = /^\/create-user(\/|$)/i;
 const API_PATH_REGEX = /^\/api(\/|$)/i;
 const STATIC_PATH_REGEX = /^\/(_next|images|assets|favicon)/i;
-const RESET_PASSWORD_CONFIRM_REGEX = /^\/reset-password-confirm\/[^/]+\/[^/]+(\/|$)/i;
+const RESET_PASSWORD_CONFIRM_REGEX =
+  /^\/reset-password-confirm\/[^/]+\/[^/]+(\/|$)/i;
 // Cache public paths as Set for O(1) lookups
 const PUBLIC_PATHS = new Set([
   "/login",
@@ -14,7 +16,7 @@ const PUBLIC_PATHS = new Set([
   "/forgot_password",
   "/reset-password-confirm/[uid]/[token]",
   "/content",
-  "/create-user"
+  "/create-user",
 ]);
 
 export function middleware(request: NextRequest) {
@@ -26,8 +28,27 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Redirect logged-in users from the login page to the dashboard
+  if (pathname === "/login" && token) {
+    try {
+      const decodedToken = jwt.decode(token) as JwtPayload;
+      if (
+        decodedToken &&
+        decodedToken.exp &&
+        decodedToken.exp * 1000 > Date.now()
+      ) {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
+    } catch (error) {
+      console.error("Token validation error on login page:", error);
+    }
+  }
+
   // Allow access to specific public paths without a token
-  if (PUBLIC_PATHS.has(pathname) || RESET_PASSWORD_CONFIRM_REGEX.test(pathname)) {
+  if (
+    PUBLIC_PATHS.has(pathname) ||
+    RESET_PASSWORD_CONFIRM_REGEX.test(pathname)
+  ) {
     return addSecurityHeaders(NextResponse.next(), request);
   }
 
@@ -38,6 +59,21 @@ export function middleware(request: NextRequest) {
 
   // Authentication check for other routes
   if (!token) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Check token expiration
+  try {
+    const decodedToken = jwt.decode(token) as JwtPayload;
+    if (
+      decodedToken &&
+      decodedToken.exp &&
+      decodedToken.exp * 1000 < Date.now()
+    ) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  } catch (error) {
+    console.error("Token validation error:", error);
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

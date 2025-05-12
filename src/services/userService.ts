@@ -100,13 +100,15 @@ export async function updateUserProfile(id: number, userData: GetUser) {
 }
 
 export async function getCurrentUser(bypassCache: boolean = false) {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("access_token")?.value;
-    if (!token) {
-      return { error: "Authentication required" };
-    }
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
 
+  // Return early if no valid token is found
+  if (!token) {
+    return null; // Explicitly return null to indicate no user is logged in
+  }
+
+  try {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
@@ -439,7 +441,11 @@ export async function getClientAssignedCommunityManagersServerAction(
 export async function removeClientCommunityManagerServerAction(
   clientId: number,
   communityManagerIdToRemove: number,
-): Promise<{ success?: boolean; error?: string; data?: any }> {
+): Promise<{
+  success?: boolean;
+  error?: string;
+  data?: Record<string, unknown>;
+}> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;

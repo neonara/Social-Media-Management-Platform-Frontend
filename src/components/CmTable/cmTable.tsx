@@ -39,11 +39,11 @@ export default function CmAssignmentsTable() {
   }, []);
 
   const filteredClients = clients.filter((client) =>
-    client.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+    client.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const filteredModerators = moderators.filter((moderator) =>
-    moderator.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+    moderator.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (loading) {
@@ -119,7 +119,7 @@ export default function CmAssignmentsTable() {
                   <td className="border px-4 py-2 text-gray-800">
                     <Link
                       href={`/content?clientId=${client.id}`}
-                      className="flex items-center justify-center gap-1 rounded bg-primary px-3 py-1 text-white hover:bg-primary-dark"
+                      className="hover:bg-primary-dark flex items-center justify-center gap-1 rounded bg-primary px-3 py-1 text-white"
                     >
                       <FaPlus size={12} />
                       <span>Create Post</span>

@@ -23,7 +23,11 @@ const nextConfig = {
         port: ""
       }
     ]
-  }
+  },experimental: {
+    serverActions: {
+      bodySizeLimit: "200mb", // Set the limit to 10 MB or any desired size
+    },
+  },
 };
 
 export default nextConfig;

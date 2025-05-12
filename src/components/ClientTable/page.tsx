@@ -38,7 +38,7 @@ export default function ClientAssignmentsTable() {
   }, []);
 
   const filteredCommunityManagers = communityManagers.filter((cm) =>
-    cm.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+    cm.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (loading) {
@@ -52,7 +52,9 @@ export default function ClientAssignmentsTable() {
   return (
     <div className="rounded-xl bg-white p-6 shadow">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
-        {activeTab === "Moderators" ? "Assigned Moderator" : "Assigned Community Managers"}
+        {activeTab === "Moderators"
+          ? "Assigned Moderator"
+          : "Assigned Community Managers"}
       </h1>
 
       <div className="mb-4 flex items-center justify-between">
@@ -90,15 +92,25 @@ export default function ClientAssignmentsTable() {
             <table className="mb-6 min-w-full table-auto">
               <thead>
                 <tr>
-                  <th className="border px-4 py-2 font-bold text-black">Name</th>
-                  <th className="border px-4 py-2 font-bold text-black">Email</th>
-                  <th className="border px-4 py-2 font-bold text-black">Phone Number</th>
+                  <th className="border px-4 py-2 font-bold text-black">
+                    Name
+                  </th>
+                  <th className="border px-4 py-2 font-bold text-black">
+                    Email
+                  </th>
+                  <th className="border px-4 py-2 font-bold text-black">
+                    Phone Number
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border px-4 py-2 text-gray-800">{moderator.full_name}</td>
-                  <td className="border px-4 py-2 text-gray-800">{moderator.email}</td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {moderator.full_name}
+                  </td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {moderator.email}
+                  </td>
                   <td className="border px-4 py-2 text-gray-800">
                     {moderator.phone_number || "N/A"}
                   </td>
@@ -118,13 +130,17 @@ export default function ClientAssignmentsTable() {
               <tr>
                 <th className="border px-4 py-2 font-bold text-black">Name</th>
                 <th className="border px-4 py-2 font-bold text-black">Email</th>
-                <th className="border px-4 py-2 font-bold text-black">Phone Number</th>
+                <th className="border px-4 py-2 font-bold text-black">
+                  Phone Number
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredCommunityManagers.map((cm) => (
                 <tr key={cm.id}>
-                  <td className="border px-4 py-2 text-gray-800">{cm.full_name}</td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {cm.full_name}
+                  </td>
                   <td className="border px-4 py-2 text-gray-800">{cm.email}</td>
                   <td className="border px-4 py-2 text-gray-800">
                     {cm.phone_number || "N/A"}
