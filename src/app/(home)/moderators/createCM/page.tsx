@@ -5,8 +5,8 @@ import InputGroup from "@/components/FormElements/InputGroup";
 import { Alert } from "@/components/ui-elements/alert/index";
 import { createCM } from "@/services/moderatorsService";
 import { useRouter } from "next/navigation";
-import { FormEvent, ChangeEvent } from 'react';
-
+import { FormEvent, ChangeEvent } from "react";
+import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 
 export default function CreateCM() {
   const [formData, setFormData] = useState({ email: "" });
@@ -29,7 +29,10 @@ export default function CreateCM() {
     setError("");
 
     try {
-      const result = await createCM({ email: formData.email, role: "community_manager" });
+      const result = await createCM({
+        email: formData.email,
+        role: "community_manager",
+      });
 
       if (result?.error) {
         setError(result.error);
@@ -53,8 +56,9 @@ export default function CreateCM() {
 
   return (
     <>
+      <Breadcrumb pageName="Create CM" />
       {/* Your Create CM UI */}
-      <div className="w-5/6 max-w-150 rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
+      <div className="m-auto w-5/6 max-w-150 rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
         <form onSubmit={handleSubmit} className="w-full p-4 sm:p-8 xl:p-10">
           <h2 className="sm:text-title-xl2 mb-9 text-2xl font-bold text-black dark:text-white">
             Create a new Community Manager

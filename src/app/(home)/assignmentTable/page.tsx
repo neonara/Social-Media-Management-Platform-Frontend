@@ -14,7 +14,7 @@ const UserAssignmentPage = () => {
     <>
       <Breadcrumb pageName="Post" />
       {role === "administrator" && <AssignmentTabs />}
-      {(role === "moderator" || role === "administrator") && (
+      {role === "moderator" && (
         <div className="col-span-12 mt-6">
           <ModeratorTable />
         </div>

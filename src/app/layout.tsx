@@ -8,6 +8,7 @@ import NextTopLoader from "nextjs-toploader";
 import type { PropsWithChildren } from "react";
 import { ThemeProvider } from "next-themes";
 import { UserProvider } from "@/context/UserContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 export const metadata: Metadata = {
   title: {
@@ -24,8 +25,10 @@ export default function RootLayout({ children }: PropsWithChildren) {
       <body suppressHydrationWarning>
         <ThemeProvider defaultTheme="light" attribute="class">
           <UserProvider>
-            <NextTopLoader color="#5750F1" showSpinner={false} />
-            {children}
+            <NotificationProvider>
+              <NextTopLoader color="#5750F1" showSpinner={false} />
+              {children}
+            </NotificationProvider>
           </UserProvider>
         </ThemeProvider>
       </body>

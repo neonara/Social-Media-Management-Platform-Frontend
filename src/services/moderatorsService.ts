@@ -4,7 +4,6 @@ import { API_BASE_URL } from "@/config/api";
 import { GetUser } from "@/types/user";
 import { cookies } from "next/headers";
 
-
 type CreateUserData = {
   email: string;
   role: string;
@@ -16,7 +15,9 @@ type Client = {
   // ... other client properties as needed
 };
 
- export async function getAssignedCommunityManagers(): Promise<GetUser[] | { error: string }> {
+export async function getAssignedCommunityManagers(): Promise<
+  GetUser[] | { error: string }
+> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -89,14 +90,18 @@ export async function getClients(): Promise<Client[] | { error: string }> {
       return { error: "Authentication required" };
     }
 
-    const response = await fetch(`${API_BASE_URL}/moderators/assignedClients/`, { // <--- ADDED THE FORWARD SLASH
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/moderators/assignedClients/`,
+      {
+        // <--- ADDED THE FORWARD SLASH
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
       const message = `Error fetching clients: ${response.statusText}`;
@@ -113,7 +118,10 @@ export async function getClients(): Promise<Client[] | { error: string }> {
 }
 
 // Function to assign a community manager to a client
-export async function assignCommunityManagerToClient(cmId: number, clientId: number): Promise<{ success: boolean } | { error: string }> {
+export async function assignCommunityManagerToClient(
+  cmId: number,
+  clientId: number,
+): Promise<{ success: boolean } | { error: string }> {
   try {
     const cookieStore = await cookies(); // Get cookies from the server context
     const token = cookieStore.get("access_token")?.value;
@@ -123,15 +131,18 @@ export async function assignCommunityManagerToClient(cmId: number, clientId: num
     }
 
     // Adjust the API endpoint to match the Django URL you defined
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/assign-cm/`, {
-      method: "PUT", // Or "POST" depending on your Django URL configuration
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/assign-cm/`,
+      {
+        method: "PUT", // Or "POST" depending on your Django URL configuration
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cm_id: cmId }), // Send the CM ID in the request body
+        cache: "no-store",
       },
-      body: JSON.stringify({ cm_id: cmId }), // Send the CM ID in the request body
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();

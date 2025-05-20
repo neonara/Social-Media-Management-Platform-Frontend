@@ -80,7 +80,7 @@ export const NAV_DATA = [
   //       items: [
   //         {
   //           title: "Settings",
-  //           url: "/pages/settings",
+  //           url: "/settings",
   //         },
   //       ],
   //     },

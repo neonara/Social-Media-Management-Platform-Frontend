@@ -9,13 +9,6 @@ type CreateUserData = {
   role: string;
 };
 
-export async function isUserAdminOrSuperAdmin(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const isAdmin = cookieStore.get("is_administrator")?.value === "true";
-  const isSuperAdmin =
-    cookieStore.get("is_superadministrator")?.value === "true";
-  return isAdmin || isSuperAdmin;
-}
 export async function getCsrfToken(): Promise<string | null> {
   const cookieStore = await cookies();
   return cookieStore.get("csrftoken")?.value || null;
@@ -64,7 +57,6 @@ export async function loginUser(
     const isModerator = data.is_moderator || false;
     const isCommunityManager = data.is_community_manager || false;
     const isClient = data.is_client || false;
-    const isSuperAdmin = data.is_superadministrator || false;
 
     // Set secure cookies on the server side (these will be HTTP-only)
     const cookieStore = await cookies();
@@ -85,13 +77,6 @@ export async function loginUser(
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-    cookieStore.set("is_superadministrator", String(isSuperAdmin), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
     });
 
     // Set role cookies
@@ -202,7 +187,6 @@ export async function logout() {
 
     // Clear all role cookies
     cookieStore.delete("is_administrator");
-    cookieStore.delete("is_superadministrator");
     cookieStore.delete("is_moderator");
     cookieStore.delete("is_community_manager");
     cookieStore.delete("is_client");

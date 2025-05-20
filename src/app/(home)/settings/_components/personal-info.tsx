@@ -3,7 +3,7 @@
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { useState, useEffect, useRef } from "react";
 import { updateUserProfile } from "@/services/userService";
-import { getUserRole, User, UserRole } from "@/types/user";
+import { UserRole } from "@/types/user";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { useNotification } from "@/context/NotificationContext";
@@ -25,11 +25,11 @@ export function PersonalInfoForm() {
 
   const { showNotification } = useNotification();
   const { userProfile, refreshUserProfile } = useUser();
+  const { role } = useUser();
   const id = useRef(1);
 
   useEffect(() => {
     if (userProfile) {
-      const role = getUserRole(userProfile as User);
       setFormData({
         email: userProfile.email || "",
         first_name: userProfile.first_name || "",
@@ -41,7 +41,7 @@ export function PersonalInfoForm() {
       id.current = userProfile.id;
       setLoading(false);
     }
-  }, [userProfile]);
+  }, [role, userProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -62,6 +62,10 @@ export function PersonalInfoForm() {
           id: id.current,
           ...formData,
           role: formData.role as UserRole,
+          full_name: "",
+          assigned_moderator: null,
+          assigned_communitymanagers: null,
+          assigned_clients: null,
         });
 
         // Refresh user profile to get updated data (bypassCache=true)

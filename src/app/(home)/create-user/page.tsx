@@ -6,13 +6,15 @@ import InputGroup from "@/components/FormElements/InputGroup";
 import { Select } from "@/components/FormElements/select";
 import { Alert } from "@/components/ui-elements/alert/index";
 import { handleCreateUser } from "@/actions/createUser";
-import { roles } from "@/types/user";
+// import { roles } from "@/types/user";
 import { useRouter } from "next/navigation";
+import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { useUser } from "@/context/UserContext";
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
     email: "",
-    role: "client", 
+    role: "client",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,25 @@ export default function CreateUser() {
       return () => clearTimeout(timer);
     }
   }, [showAlert]);
+
+  const { role } = useUser();
+
+  const roles = [
+    { value: "client", label: "Client" },
+    { value: "community_manager", label: "Community Manager" },
+    { value: "moderator", label: "Moderator" },
+    { value: "administrator", label: "Administrator" },
+  ];
+
+  // Check if the user is an administrator or moderator
+  if (role !== "administrator" && role !== "moderator") {
+    router.push("/");
+    return null;
+  }
+  if (role === "moderator") {
+    roles.splice(0, 1); // Remove Client role
+    roles.splice(1, 3); // Remove Rest of the roles
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,7 +82,8 @@ export default function CreateUser() {
 
   return (
     <>
-      <div className="w-5/6 max-w-150 rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
+      <Breadcrumb pageName="Create New User" />
+      <div className="m-auto w-5/6 max-w-150 rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
         <form onSubmit={handleSubmit} className="w-full p-4 sm:p-8 xl:p-10">
           <h2 className="sm:text-title-xl2 mb-9 text-2xl font-bold text-black dark:text-white">
             Create a new user account
@@ -103,7 +125,7 @@ export default function CreateUser() {
             <button
               type="button"
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gray-300 p-4 font-medium text-gray-700 transition hover:bg-gray-400 disabled:opacity-80"
-              onClick={() => router.push("/")} // Navigate back to the homepage (adjust path if needed)
+              onClick={() => router.push("/")}
             >
               Go Back
             </button>

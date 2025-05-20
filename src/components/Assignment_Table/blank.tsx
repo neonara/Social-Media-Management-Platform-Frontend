@@ -375,6 +375,7 @@ export default function UsersTable() {
             }
 
             // Optimistically update the local users state
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             (prevUsers: User[]): User[] =>
               prevUsers.map((user: User): User => {
                 if (user.id === change.clientForCMAssignmentId) {
@@ -810,7 +811,7 @@ export default function UsersTable() {
                           key={cm.id}
                           className="flex items-center justify-between gap-2"
                         >
-                          <span>{cm.full_name}</span>
+                          <span>{cm.full_name || cm.email}</span>
                           <button
                             className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                             onClick={() => queueRemoveClientCM(user, cm)}
@@ -833,7 +834,9 @@ export default function UsersTable() {
                               key={index}
                               className="flex items-center justify-between gap-2"
                             >
-                              <span>{cm.trim()}</span>
+                              <span>
+                                {cm.trim() || communityManager?.email}
+                              </span>
                               {communityManager && (
                                 <button
                                   className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
