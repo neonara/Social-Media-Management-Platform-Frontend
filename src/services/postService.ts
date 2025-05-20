@@ -15,7 +15,7 @@ export interface DraftPost {
     media: { id: number; file: string; name: string; uploaded_at: string; file_type: string }[];
     hashtags: string[];
 }
-interface Creator {
+interface Creator { 
   id: string;
   full_name: string;
   type: 'client' | 'team_member';

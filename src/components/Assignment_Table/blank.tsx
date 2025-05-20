@@ -526,7 +526,7 @@ export default function UsersTable() {
 
       {/* Table */}
       <table className="min-w-full table-auto mb-6">
-        <thead>
+         <thead>
           <tr>
             <th
               className="px-4 py-2 border font-bold text-black cursor-pointer"
@@ -541,17 +541,7 @@ export default function UsersTable() {
             </th>
             <th className="px-4 py-2 border font-bold text-black">Email</th>
             <th className="px-4 py-2 border font-bold text-black">Roles</th>
-            <th
-              className="px-4 py-2 border font-bold text-black cursor-pointer"
-              onClick={() => sortUsers("assignedClient")}
-            >
-              <div className="flex items-center gap-1">
-                Assigned Client
-                {sortColumn === "assignedClient" && sortDirection === "asc" && <FaSortUp />}
-                {sortColumn === "assignedClient" && sortDirection === "desc" && <FaSortDown />}
-                {sortColumn !== "assignedClient" && <FaSort />}
-              </div>
-            </th>
+            {/* Removed Assigned Client column */}
             <th
               className="px-4 py-2 border font-bold text-black cursor-pointer"
               onClick={() => sortUsers("assignedModerators")}
@@ -577,6 +567,7 @@ export default function UsersTable() {
             <th className="px-4 py-2 border font-bold text-black">Actions</th>
           </tr>
         </thead>
+       
         <tbody>
           {sortedFilteredUsers.map((user) => {
             const pending = pendingChanges.find((a) => a.userId === user.id && !a.remove && a.type !== 'cm_to_client');
@@ -593,13 +584,20 @@ export default function UsersTable() {
                 <td className="px-4 py-2 border text-gray-800">{user.full_name}</td>
                 <td className="px-4 py-2 border text-gray-800">{user.email}</td>
                 <td className="px-4 py-2 border text-gray-800">{user.roles.join(", ")}</td>
+                {/* Removed Assigned Client cell */}
                 <td className="px-4 py-2 border text-gray-800">
-                  {user.assigned_client ? (
+                  {user.roles.includes("community_manager") ? (
+                    user.assigned_moderator ? (
+                      <span>{user.assigned_moderator}</span>
+                    ) : (
+                      <span className="text-gray-500">No Assigned Moderator</span>
+                    )
+                  ) : user.assigned_moderator ? (
                     <div className="flex items-center justify-between gap-2">
-                      <span>{user.assigned_client}</span>
+                      <span>{user.assigned_moderator}</span>
                       <button
                         className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                        onClick={() => queueRemoveAssignment(user, "client")}
+                        onClick={() => queueRemoveAssignment(user, "moderator")}
                       >
                         Remove
                       </button>
@@ -607,41 +605,15 @@ export default function UsersTable() {
                   ) : (
                     <span className="text-gray-500">No Assignment</span>
                   )}
-                  {pending?.type === "client" && (
+                  {pending?.type === "moderator" && (
                     <span className="text-yellow-600 font-semibold">Pending: {pending.assignedName}</span>
                   )}
-                  {pendingRemoval?.type === "client" && (
+                  {pendingRemoval?.type === "moderator" && (
                     <span className="text-red-600 font-semibold">Pending Removal</span>
                   )}
                 </td>
                 <td className="px-4 py-2 border text-gray-800">
-  {user.roles.includes("community_manager") ? (
-    user.assigned_moderator ? (
-      <span>{user.assigned_moderator}</span>
-    ) : (
-      <span className="text-gray-500">No Assigned Moderator</span>
-    )
-  ) : user.assigned_moderator ? (
-    <div className="flex items-center justify-between gap-2">
-      <span>{user.assigned_moderator}</span>
-      <button
-        className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-        onClick={() => queueRemoveAssignment(user, "moderator")}
-      >
-        Remove
-      </button>
-    </div>
-  ) : (
-    <span className="text-gray-500">No Assignment</span>
-  )}
-  {pending?.type === "moderator" && (
-    <span className="text-yellow-600 font-semibold">Pending: {pending.assignedName}</span>
-  )}
-  {pendingRemoval?.type === "moderator" && (
-    <span className="text-red-600 font-semibold">Pending Removal</span>
-  )}
-</td>
-                <td className="px-4 py-2 border text-gray-800">
+                  {/* ...existing Assigned CM(s) cell code... */}
                   {user.roles.includes("client") && user.clientAssignedCommunityManagers && user.clientAssignedCommunityManagers.length > 0 ? (
                     <ul className="list-disc list-inside">
                       {user.clientAssignedCommunityManagers.map((cm) => (
@@ -692,6 +664,7 @@ export default function UsersTable() {
                   )}
                 </td>
                 <td className="px-4 py-2 border text-gray-800">
+                  {/* ...existing Actions cell code... */}
                   {user.roles.includes("moderator") && (
                     <button
                       className="px-4 py-2 text-white rounded-lg hover:bg-[#8a11df] hover:shadow-lg transition duration-300 ease-in-out mb-2 block"
