@@ -5,56 +5,43 @@ export const NAV_DATA = [
     label: "DASHBOARD",
     items: [
       {
-        title: "Dashboard",
+        title: "Assignment Table",
         url: "/",
         icon: Icons.HomeIcon,
-        items: [
-          {
-            title: "Create User",
-            url: "/create-user",
-            items: [],
-          },
-        ],
-      },
-      {
-        title:"Assignment Table",
-        url: "/assignmentTable",
-        icon: Icons.User,
         items: [],
       },
       {
-        title:"Users Table",
+        title: "Create User",
+        url: "/create-user",
+        icon: Icons.User,
+        items: [],
+        roles: ["administrator", "super_administrator", "moderator"], // Only admins can see this
+      },
+      // {
+      //   title: "Assignment Table",
+      //   url: "/assignmentTable",
+      //   icon: Icons.User,
+      //   items: [],
+      //   roles: [], // Admins and managers can see this
+      // },
+      {
+        title: "Users Table",
         url: "/usersTable",
         icon: Icons.User,
         items: [],
+        roles: ["administrator", "super_administrator"], // Only admins can see this
       },
-      {
-        title: "Draft Posts",
-        url: "/drafts",
-        icon: Icons.Alphabet, 
-        items: [],
-      },
-      {
-        title: "Create Post",
-        url: "/content",
-        icon: Icons.Table,
-        items: [],
-      },
-      
     ],
   },
   {
-    label: "Template Pages",
+    label: "Content",
     items: [
       {
-        title: "Dashboard",
-        icon: Icons.HomeIcon,
-        items: [
-          {
-            title: "eCommerce",
-            url: "/",
-          },
-        ],
+        title: "Draft Posts",
+        url: "/drafts",
+        icon: Icons.Alphabet,
+        items: [],
+        roles: ["moderator", "community_manager"], // Only admins and managers can see this
       },
       {
         title: "Calendar",
@@ -62,80 +49,61 @@ export const NAV_DATA = [
         icon: Icons.Calendar,
         items: [],
       },
-      {
-        title: "Forms",
-        icon: Icons.Alphabet,
-        items: [
-          {
-            title: "Form Elements",
-            url: "/forms/form-elements",
-          },
-          {
-            title: "Form Layout",
-            url: "/forms/form-layout",
-          },
-        ],
-      },
-      {
-        title: "Tables",
-        url: "/tables",
-        icon: Icons.Table,
-        items: [
-          {
-            title: "Tables",
-            url: "/tables",
-          },
-        ],
-      },
-      {
-        title: "Pages",
-        icon: Icons.Alphabet,
-        items: [
-          {
-            title: "Settings",
-            url: "/pages/settings",
-          },
-        ],
-      },
     ],
   },
-  {
-    label: "OTHERS",
-    items: [
-      {
-        title: "Charts",
-        icon: Icons.PieChart,
-        items: [
-          {
-            title: "Basic Chart",
-            url: "/charts/basic-chart",
-          },
-        ],
-      },
-      {
-        title: "UI Elements",
-        icon: Icons.FourCircle,
-        items: [
-          {
-            title: "Alerts",
-            url: "/ui-elements/alerts",
-          },
-          {
-            title: "Buttons",
-            url: "/ui-elements/buttons",
-          },
-        ],
-      },
-      {
-        title: "Authentication",
-        icon: Icons.Authentication,
-        items: [
-          {
-            title: "Sign In",
-            url: "/auth/sign-in",
-          },
-        ],
-      },
-    ],
-  },
+  // {
+  //   label: "Template Pages",
+  //   items: [
+  //     {
+  //       title: "Forms",
+  //       icon: Icons.Alphabet,
+  //       items: [
+  //         {
+  //           title: "Form Elements",
+  //           url: "/forms/form-elements",
+  //         },
+  //         {
+  //           title: "Form Layout",
+  //           url: "/forms/form-layout",
+  //         },
+  //       ],
+  //     },
+  //     {
+  //       title: "Tables",
+  //       url: "/tables",
+  //       icon: Icons.Table,
+  //       items: [
+  //         {
+  //           title: "Tables",
+  //           url: "/tables",
+  //         },
+  //       ],
+  //     },
+  //     {
+  //       title: "Pages",
+  //       icon: Icons.Alphabet,
+  //       items: [
+  //         {
+  //           title: "Settings",
+  //           url: "/settings",
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
+  // {
+  //   label: "OTHERS",
+  //   items: [
+  //     {
+  //       title: "Charts",
+  //       icon: Icons.PieChart,
+  //       items: [
+  //         {
+  //           title: "Basic Chart",
+  //           url: "/charts/basic-chart",
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
 ];

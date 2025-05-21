@@ -8,32 +8,37 @@ import {
 } from "@/services/moderatorsService";
 import { FaSearch, FaPlus } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import { GetUser } from "@/types/user";
 
-type User = {
-  id: number;
-  email: string;
-  full_name: string;
-  phone_number: string;
-  roles: string[];
-};
+// type User = {
+//   id: number;
+//   email: string;
+//   full_name: string;
+//   phone_number: string;
+//   roles: string[];
+//   assigned_clients?: {
+//     id: number;
+//     full_name: string;
+//   };
+// };
 
-type Client = {
-  id: number;
-  email: string;
-  full_name: string;
-  phone_number: string;
-  roles: string[];
-  assigned_community_manager?: {
-    id: number;
-    full_name: string;
-  };
-};
+// type Client = {
+//   id: number;
+//   email: string;
+//   full_name: string;
+//   phone_number: string;
+//   roles: string[];
+//   assigned_community_manager?: {
+//     id: number;
+//     full_name: string;
+//   };
+// };
 
 const tabs = ["Community Managers", "Clients"];
 
 export default function AssignedCommunityManagersTable() {
-  const [assignedCMs, setAssignedCMs] = useState<User[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [assignedCMs, setAssignedCMs] = useState<GetUser[]>([]);
+  const [clients, setClients] = useState<GetUser[]>([]);
   const [activeTab, setActiveTab] = useState("Community Managers");
   const [isLoadingCMs, setIsLoadingCMs] = useState(true);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
@@ -44,7 +49,7 @@ export default function AssignedCommunityManagersTable() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedCMToAssign, setSelectedCMToAssign] = useState<User | null>(
+  const [selectedCMToAssign, setSelectedCMToAssign] = useState<GetUser | null>(
     null,
   );
   const [selectedClientToAssign, setSelectedClientToAssign] = useState<
@@ -89,7 +94,7 @@ export default function AssignedCommunityManagersTable() {
         console.error("Error fetching clients:", data.error);
         return;
       }
-      setClients(data as Client[]);
+      setClients(data as GetUser[]);
     } catch (error: any) {
       setFetchClientsError(`An unexpected error occurred: ${error.message}`);
       console.error("Unexpected error fetching clients:", error);
@@ -111,40 +116,41 @@ export default function AssignedCommunityManagersTable() {
   );
 
   const handleAssignCMToClient = async () => {
-    if (!selectedCMToAssign || !selectedClientToAssign) {
-      setAssignError("Please select a client to assign to.");
-      return;
-    }
+  if (!selectedCMToAssign || !selectedClientToAssign) {
+    setAssignError("Please select a client to assign to.");
+    return;
+  }
 
-    // Show the confirmation modal
-    setOnConfirm(() => async () => {
-      setIsAssigning(true);
-      setAssignError(null);
+  // Show the confirmation modal
+  setOnConfirm(() => async () => {
+    setIsAssigning(true);
+    setAssignError(null);
 
-      try {
-        const data = await assignCommunityManagerToClient(
-          selectedCMToAssign.id,
-          selectedClientToAssign,
-        );
-        if ("error" in data) {
-          setAssignError(data.error);
-          console.error("Error assigning CM to client:", data.error);
-          return;
-        }
-        setShowAssignModal(false);
-        setSelectedCMToAssign(null);
-        setSelectedClientToAssign(null);
-        loadAssignedCMs(); // Refresh CM list after assignment
-      } catch (error: any) {
-        setAssignError(`An unexpected error occurred: ${error.message}`);
-        console.error("Unexpected error assigning CM to client:", error);
-      } finally {
-        setIsAssigning(false);
-        setShowConfirmModal(false); // Close the modal
+    try {
+      const data = await assignCommunityManagerToClient(
+        selectedCMToAssign.id,
+        selectedClientToAssign,
+      );
+      if ("error" in data) {
+        setAssignError(data.error);
+        console.error("Error assigning CM to client:", data.error);
+        return;
       }
-    });
-    setShowConfirmModal(true);
-  };
+      setShowAssignModal(false);
+      setSelectedCMToAssign(null);
+      setSelectedClientToAssign(null);
+      await loadAssignedCMs(); // Refresh CM list after assignment
+      await loadClients();     // Refresh client list to update assigned CM
+    } catch (error: any) {
+      setAssignError(`An unexpected error occurred: ${error.message}`);
+      console.error("Unexpected error assigning CM to client:", error);
+    } finally {
+      setIsAssigning(false);
+      setShowConfirmModal(false); // Close the modal
+    }
+  });
+  setShowConfirmModal(true);
+};
 
   if (isLoadingCMs || isLoadingClients) {
     return <div>Loading data...</div>;
@@ -153,6 +159,12 @@ export default function AssignedCommunityManagersTable() {
   if (fetchCMsError || fetchClientsError) {
     return <div>Error loading data: {fetchCMsError || fetchClientsError}</div>;
   }
+  console.log(
+    "Assigned Client:",
+    assignedCMs.map((cm) => cm.assigned_clients?.full_name),
+    "Clients:",
+    clients.map((client) => client.assigned_communitymanagers?.full_name),
+  );
 
   return (
     <div className="rounded-xl bg-white p-6 shadow">
@@ -177,12 +189,12 @@ export default function AssignedCommunityManagersTable() {
             </button>
           ))}
         </div>
-        <div className="ml-4 flex items-center">
-          <FaSearch className="mr-2 text-gray-500" />
+        <div className="ml-4 flex items-center rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          <FaSearch className="ml-2 text-gray-500" />
           <input
             type="text"
             placeholder={`Search by Name in ${activeTab}`}
-            className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="block w-48 p-3 sm:text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -208,6 +220,9 @@ export default function AssignedCommunityManagersTable() {
                   Phone Number
                 </th>
                 <th className="border px-4 py-2 font-bold text-black">
+                  Assigned Client
+                </th>
+                <th className="border px-4 py-2 font-bold text-black">
                   Actions
                 </th>
               </tr>
@@ -223,6 +238,11 @@ export default function AssignedCommunityManagersTable() {
                     {cm.phone_number}
                   </td>
                   <td className="border px-4 py-2 text-gray-800">
+                    {cm.assigned_clients
+                      ? cm.assigned_clients.full_name
+                      : "Not Assigned"}
+                  </td>
+                  <td className="border px-4 py-2 text-gray-800">
                     <button
                       className="rounded-lg px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#8a11df] hover:shadow-lg"
                       style={{ backgroundColor: "#8a11df" }}
@@ -232,7 +252,7 @@ export default function AssignedCommunityManagersTable() {
                         setSelectedClientToAssign(null);
                       }}
                     >
-                      Assign to Client
+                      {cm.assigned_clients ? "Edit Assign" : "Assign to Client"}
                     </button>
                   </td>
                 </tr>
@@ -278,15 +298,16 @@ export default function AssignedCommunityManagersTable() {
                     {client.phone_number}
                   </td>
                   <td className="border px-4 py-2 text-gray-800">
-                    {client.assigned_community_manager
-                      ? client.assigned_community_manager.full_name
+                    {client.assigned_communitymanagers
+                      ? client.assigned_communitymanagers.full_name ||
+                        client.assigned_communitymanagers.email
                       : "Not Assigned"}
                   </td>
                   <td className="border px-4 py-2 text-gray-800">
                     <button
                       className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-blue-600"
                       onClick={() => {
-                        router.push(`/content/create?clientId=${client.id}`);
+                        router.push(`/content?clientId=${client.id}`);
                       }}
                     >
                       Create Posts

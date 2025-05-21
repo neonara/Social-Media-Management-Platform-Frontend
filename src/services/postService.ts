@@ -4,14 +4,38 @@ import { API_BASE_URL } from "@/config/api";
 import { cookies } from "next/headers";
 
 
+export interface DraftPost {
+    id: number;
+    title: string;
+    description: string;
+    scheduled_for: string | null;
+    creator_id: number;
+    status: 'draft';
+    platforms: string[];
+    media: { id: number; file: string; name: string; uploaded_at: string; file_type: string }[];
+    hashtags: string[];
+}
+interface Creator { 
+  id: string;
+  full_name: string;
+  type: 'client' | 'team_member';
+}
+
+interface Client {
+  id: string;
+  full_name: string;
+}
 
 interface ScheduledPost {
-    id: string;
-    title: string;
-    platform: 'Facebook' | 'Instagram' | 'LinkedIn';
-    scheduled_for: string;
-    status?: 'published' | 'scheduled' | 'failed';
+  id: string;
+  title: string;
+  platform: 'Facebook' | 'Instagram' | 'LinkedIn';
+  scheduled_for: string;
+  status?: 'published' | 'scheduled' | 'failed' | 'pending' | 'rejected';
+  creator?: Creator;
+  client?: Client | undefined;
 }
+
 
 // In your postService.ts
 export async function getAssignedClients(): Promise<Array<{id: string, name: string, email: string}>> {
@@ -83,16 +107,35 @@ export async function approvePost(postId: number): Promise<void> {
     }
   }
 
-export interface DraftPost {
-    id: number;
-    title: string;
-    description: string;
-    scheduled_for: string | null;
-    creator_id: number;
-    status: 'draft';
-    platforms: string[];
-    media: { id: number; file: string; name: string; uploaded_at: string; file_type: string }[];
-    hashtags: string[];
+export async function updatePostToDraft(postId: number, formData: FormData): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+}> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(`${API_BASE_URL}/content/posts/${postId}/update-to-draft/`, {
+      method: "PATCH",
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-CSRFToken": csrfToken,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return { success: false, error: errorData.message || "Failed to update post to draft" };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error updating post to draft:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Network error" };
+  }
 }
 
 async function getAuthToken() {
@@ -142,34 +185,52 @@ export async function createPost(formData: FormData): Promise<{success: boolean,
 }
 
 export async function getScheduledPosts(): Promise<ScheduledPost[]> {
-    try {
-      const token = await getAuthToken();
-      const csrfToken = await getCsrfToken();
-  
-      const response = await fetch(`${API_BASE_URL}/content/posts/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-CSRFToken': csrfToken,
-        },
-        cache: "no-store",
-      });
-  
-      if (!response.ok) throw new Error('Failed to fetch posts');
-  
-      const posts: ScheduledPost[] = await response.json();
-      const now = new Date();
-  
-      return posts.map(post => ({
-        ...post,
-        platform: mapPlatform(post.platform), // Map platform names if needed
-        status: new Date(post.scheduled_for) < now ? 'published' : 'scheduled',
-      }));
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      return [];
-    }
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(`${API_BASE_URL}/content/posts/`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-CSRFToken': csrfToken,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch posts');
+
+    const posts: ScheduledPost[] = await response.json();
+    const now = new Date();
+
+    return posts.map(post => ({
+      ...post,
+      platform: mapPlatform(post.platform),
+      status: new Date(post.scheduled_for) < now ? 'published' : post.status || 'scheduled',
+      creator: post.creator ? {
+        id: (post.creator as Creator).id || 'unknown',
+        full_name: (post.creator as Creator).full_name || 'Unknown',
+        type: (post.creator as Creator).type || 'team_member'
+      } : {
+        id: 'unknown',
+        full_name: 'Unknown',
+        type: 'team_member'
+      },
+      client: post.client
+        ? {
+            id: post.client.id || 'unknown',
+            full_name: post.client.full_name || 'Unknown'
+          }
+        : {
+            id: 'unknown',
+            full_name: 'Unknown'
+          }
+    }));
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    return [];
   }
-  
+}
+
   // Helper function to map platform names
 function mapPlatform(platform: string | undefined): 'Facebook' | 'Instagram' | 'LinkedIn' {
     if (!platform) {

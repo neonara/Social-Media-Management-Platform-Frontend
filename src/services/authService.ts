@@ -9,19 +9,17 @@ type CreateUserData = {
   role: string;
 };
 
-export async function isUserAdminOrSuperAdmin(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const isAdmin = cookieStore.get("is_administrator")?.value === "true";
-  const isSuperAdmin = cookieStore.get("is_superadministrator")?.value === "true";
-  return isAdmin || isSuperAdmin;
-}
 export async function getCsrfToken(): Promise<string | null> {
   const cookieStore = await cookies();
   return cookieStore.get("csrftoken")?.value || null;
 }
 
 // This function now returns data for the client to store
-export async function loginUser(email: string, password: string) {
+export async function loginUser(
+  email: string,
+  password: string,
+  remember: boolean,
+) {
   try {
     const csrfToken = await getCsrfToken();
 
@@ -31,14 +29,17 @@ export async function loginUser(email: string, password: string) {
         "Content-Type": "application/json",
         "X-CSRFToken": csrfToken || "", // Include the CSRF token
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, remember }), // Include remember in the request body
       cache: "no-store",
     });
 
     if (!response.ok) {
       const errorData = await response.json();
       if (response.status === 403) {
-        throw new Error(errorData.message || "Authorization failed. Please check your credentials or account status.");
+        throw new Error(
+          errorData.message ||
+            "Authorization failed. Please check your credentials or account status.",
+        );
       } else {
         throw new Error(errorData.message || "Invalid email or password");
       }
@@ -56,6 +57,7 @@ export async function loginUser(email: string, password: string) {
     const isModerator = data.is_moderator || false;
     const isCommunityManager = data.is_community_manager || false;
     const isClient = data.is_client || false;
+    const isSuperAdmin = data.is_superadministrator || false;
 
     // Set secure cookies on the server side (these will be HTTP-only)
     const cookieStore = await cookies();
@@ -76,6 +78,14 @@ export async function loginUser(email: string, password: string) {
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    cookieStore.set("is_superadministrator", String(isSuperAdmin), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 60 * 24, // 1 day
     });
 
     // Set role cookies
@@ -117,16 +127,19 @@ export async function loginUser(email: string, password: string) {
       profile: data.profile || {},
     };
   } catch (error) {
-    console.error("Login error:", error);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred");
   }
 }
 
-
 // Server action to check if user is admin
-export async function isUserAdmin() {
+export async function isUserAdminOrSuperAdmin(): Promise<boolean> {
   const cookieStore = await cookies();
-  return cookieStore.get("is_administrator")?.value === "true";
+  const isAdmin = cookieStore.get("is_administrator")?.value === "true";
+  const isSuperAdmin =
+    cookieStore.get("is_superadministrator")?.value === "true";
+  return isAdmin || isSuperAdmin;
 }
 
 // Modified to use API_BASE_URL
@@ -186,6 +199,7 @@ export async function logout() {
 
     // Clear all role cookies
     cookieStore.delete("is_administrator");
+    cookieStore.delete("is_superadministrator");
     cookieStore.delete("is_moderator");
     cookieStore.delete("is_community_manager");
     cookieStore.delete("is_client");
@@ -198,12 +212,14 @@ export async function logout() {
   }
 }
 
-export async function forgotPassword(email: string): Promise<{ message: string }> {
+export async function forgotPassword(
+  email: string,
+): Promise<{ message: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password/`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ email }),
     });
@@ -211,13 +227,15 @@ export async function forgotPassword(email: string): Promise<{ message: string }
     if (!response.ok) {
       const errorData = await response.json();
       console.error("Backend error response:", errorData);
-      throw new Error(errorData.message || 'Failed to send reset email');
+      throw new Error(errorData.message || "Failed to send reset email");
     }
 
     return await response.json();
-  } catch (error: any) {
-    console.error('Forgot password error:', error);
-    throw error;
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred");
   }
 }
 
@@ -225,7 +243,7 @@ export async function resetPasswordConfirm(
   uid: string,
   token: string,
   newPassword: string,
-  confirmPassword: string
+  confirmPassword: string,
 ): Promise<{ message: string }> {
   try {
     if (!uid || !token) {
@@ -240,16 +258,19 @@ export async function resetPasswordConfirm(
       throw new Error("Passwords do not match.");
     }
 
-    const response = await fetch(`${API_BASE_URL}/reset-password-confirm/${uid}/${token}/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${API_BASE_URL}/reset-password-confirm/${uid}/${token}/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          new_password: newPassword,
+          confirm_password: confirmPassword, // Include confirm_password field
+        }),
       },
-      body: JSON.stringify({
-        new_password: newPassword,
-        confirm_password: confirmPassword, // Include confirm_password field
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -258,8 +279,10 @@ export async function resetPasswordConfirm(
     }
 
     return await response.json();
-  } catch (error: any) {
+  } catch (error) {
     console.error("Reset password error:", error);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error("An unknown error occurred");
   }
 }

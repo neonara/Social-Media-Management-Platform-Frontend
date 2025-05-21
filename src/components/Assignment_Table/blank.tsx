@@ -49,22 +49,38 @@ type PendingChange = {
   cmNameToRemoveFromClient?: string | null; // Name of the CM to remove from the client (for display)
 };
 
-const tabs = ["All", "Administrator", "Moderator", "Community Manager", "Client"];
+const tabs = [
+  "All",
+  "Administrator",
+  "Moderator",
+  "Community Manager",
+  "Client",
+];
 
 export default function UsersTable() {
   const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [assignmentType, setAssignmentType] = useState<"moderator" | "cm" | "client" | null>(null);
+  const [assignmentType, setAssignmentType] = useState<
+    "moderator" | "cm" | "client" | null
+  >(null);
   const [selectedAssignId, setSelectedAssignId] = useState<number | null>(null);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
-  const [sortColumn, setSortColumn] = useState<"name" | "assignedClient" | "assignedModerators" | "assignedCMs" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
+    null,
+  );
+  const [sortColumn, setSortColumn] = useState<
+    "name" | "assignedClient" | "assignedModerators" | "assignedCMs" | null
+  >(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAssignCMToClientModal, setShowAssignCMToClientModal] = useState(false);
-  const [selectedClientForCMAssignment, setSelectedClientForCMAssignment] = useState<User | null>(null);
-  const [selectedCMToAssignToClient, setSelectedCMToAssignToClient] = useState<number | null>(null);
+  const [showAssignCMToClientModal, setShowAssignCMToClientModal] =
+    useState(false);
+  const [selectedClientForCMAssignment, setSelectedClientForCMAssignment] =
+    useState<User | null>(null);
+  const [selectedCMToAssignToClient, setSelectedCMToAssignToClient] = useState<
+    number | null
+  >(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false); // State for modal
   const [onConfirm, setOnConfirm] = useState<() => void>(() => () => {}); // Callback for confirm action
 
@@ -75,16 +91,23 @@ export default function UsersTable() {
         const usersWithAssignedCMs = await Promise.all(
           fetchedUsers.map(async (user: User) => {
             if (user.roles.includes("client")) {
-              const assignedCMsResult = await getClientAssignedCommunityManagersServerAction(user.id);
+              const assignedCMsResult =
+                await getClientAssignedCommunityManagersServerAction(user.id);
               if (Array.isArray(assignedCMsResult)) {
-                return { ...user, clientAssignedCommunityManagers: assignedCMsResult };
-              } else if ('error' in assignedCMsResult) {
-                console.error(`Error fetching assigned CMs for client ${user.full_name} (ID: ${user.id}):`, assignedCMsResult.error);
+                return {
+                  ...user,
+                  clientAssignedCommunityManagers: assignedCMsResult,
+                };
+              } else if ("error" in assignedCMsResult) {
+                console.error(
+                  `Error fetching assigned CMs for client ${user.full_name} (ID: ${user.id}):`,
+                  assignedCMsResult.error,
+                );
                 return { ...user, clientAssignedCommunityManagers: [] };
               }
             }
             return user;
-          })
+          }),
         );
         setUsers(usersWithAssignedCMs as User[]);
       } else if (fetchedUsers?.error) {
@@ -104,7 +127,9 @@ export default function UsersTable() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const sortUsers = (column: "name" | "assignedClient" | "assignedModerators" | "assignedCMs") => {
+  const sortUsers = (
+    column: "name" | "assignedClient" | "assignedModerators" | "assignedCMs",
+  ) => {
     let newSortDirection: "asc" | "desc";
     if (sortColumn === column && sortDirection === "asc") {
       newSortDirection = "desc";
@@ -129,8 +154,14 @@ export default function UsersTable() {
         valueB = b.assigned_moderator?.toLowerCase();
       } else if (column === "assignedCMs") {
         const getCMs = (user: User): string => {
-          if (user.roles.includes("client") && user.clientAssignedCommunityManagers) {
-            return user.clientAssignedCommunityManagers.map(cm => cm.full_name).join(", ").toLowerCase();
+          if (
+            user.roles.includes("client") &&
+            user.clientAssignedCommunityManagers
+          ) {
+            return user.clientAssignedCommunityManagers
+              .map((cm) => cm.full_name)
+              .join(", ")
+              .toLowerCase();
           } else if (user.assigned_communitymanagers) {
             return user.assigned_communitymanagers.toLowerCase();
           }
@@ -164,11 +195,11 @@ export default function UsersTable() {
                 ? "Community Manager"
                 : role.charAt(0).toUpperCase() + role.slice(1);
             return formattedRole === activeTab;
-          })
+          }),
         );
 
-  const filteredByName = filteredByRole.filter(user =>
-    user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredByName = filteredByRole.filter((user) =>
+    user.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const openAssignModal = (user: User, type: "moderator" | "cm" | "client") => {
@@ -181,12 +212,17 @@ export default function UsersTable() {
   const confirmAssignment = () => {
     if (!selectedUser || !assignmentType || !selectedAssignId) return;
 
-    const selectedAssignUser = users.find((user) => user.id === selectedAssignId);
+    const selectedAssignUser = users.find(
+      (user) => user.id === selectedAssignId,
+    );
     if (!selectedAssignUser) return;
 
     const updated = [...pendingChanges];
     const existingIndex = updated.findIndex(
-      (item) => item.userId === selectedUser.id && item.type === assignmentType && !item.remove
+      (item) =>
+        item.userId === selectedUser.id &&
+        item.type === assignmentType &&
+        !item.remove,
     );
 
     if (existingIndex !== -1) {
@@ -205,7 +241,11 @@ export default function UsersTable() {
     setShowModal(false);
   };
 
-  const queueRemoveAssignment = (user: User, type: "moderator" | "cm" | "client", userToRemove?: GetUser | null) => {
+  const queueRemoveAssignment = (
+    user: User,
+    type: "moderator" | "cm" | "client",
+    userToRemove?: GetUser | null,
+  ) => {
     const cmIdToRemove = userToRemove?.id;
     const cmNameToRemove = userToRemove?.full_name;
 
@@ -214,7 +254,7 @@ export default function UsersTable() {
         change.userId === user.id &&
         change.type === type &&
         change.remove === true &&
-        change.cmIdToRemove === cmIdToRemove
+        change.cmIdToRemove === cmIdToRemove,
     );
 
     if (!existingRemoval) {
@@ -236,7 +276,7 @@ export default function UsersTable() {
       (change) =>
         change.type === "remove_client_cm" &&
         change.clientToRemoveCMFromId === client.id &&
-        change.cmToRemoveFromClientId === cmToRemove.id
+        change.cmToRemoveFromClientId === cmToRemove.id,
     );
 
     if (!existingRemoval) {
@@ -261,20 +301,35 @@ export default function UsersTable() {
           if (change.type === "moderator") {
             const result = await removeModeratorServer(change.userId);
             if (result?.error) {
-              console.error(`Error removing moderator for user ${change.userId}:`, result.error);
-              alert(`Error removing moderator for user ${change.userId}: ${result.error}`);
+              console.error(
+                `Error removing moderator for user ${change.userId}:`,
+                result.error,
+              );
+              alert(
+                `Error removing moderator for user ${change.userId}: ${result.error}`,
+              );
               return;
             }
           } else if (change.type === "cm" && change.cmIdToRemove) {
-            const result = await removeCommunityManagerServer(change.userId, change.cmIdToRemove);
+            const result = await removeCommunityManagerServer(
+              change.userId,
+              change.cmIdToRemove,
+            );
             if (result?.error) {
-              console.error(`Error removing CM ${change.cmNameToRemove} for moderator ${change.userId}:`, result.error);
-              alert(`Error removing CM ${change.cmNameToRemove} for moderator ${change.userId}: ${result.error}`);
+              console.error(
+                `Error removing CM ${change.cmNameToRemove} for moderator ${change.userId}:`,
+                result.error,
+              );
+              alert(
+                `Error removing CM ${change.cmNameToRemove} for moderator ${change.userId}: ${result.error}`,
+              );
               return;
             }
           } else if (change.type === "client") {
             // Assuming you have a removeClientServer function
-            console.log("Calling removeClientServer (not implemented in this example)");
+            console.log(
+              "Calling removeClientServer (not implemented in this example)",
+            );
             // const result = await removeClientServer(change.userId);
             // if (result?.error) { ... }
           } else if (
@@ -284,15 +339,15 @@ export default function UsersTable() {
           ) {
             const result = await removeClientCommunityManagerServerAction(
               change.clientToRemoveCMFromId,
-              change.cmToRemoveFromClientId
+              change.cmToRemoveFromClientId,
             );
             if (result?.error) {
               console.error(
                 `Error removing CM ${change.cmNameToRemoveFromClient} from client ${change.clientToRemoveCMFromId}:`,
-                result.error
+                result.error,
               );
               alert(
-                `Error removing CM ${change.cmNameToRemoveFromClient} from client ${change.clientToRemoveCMFromId}: ${result.error}`
+                `Error removing CM ${change.cmNameToRemoveFromClient} from client ${change.clientToRemoveCMFromId}: ${result.error}`,
               );
               return;
             }
@@ -306,75 +361,106 @@ export default function UsersTable() {
           ) {
             const result = await assignCMToClientServerAction(
               change.clientForCMAssignmentId,
-              change.cmToAssignToClientId
+              change.cmToAssignToClientId,
             );
             if (result?.error) {
               console.error(
                 `Error assigning CM ${change.cmToAssignToClientName} to client ${change.clientForCMAssignmentId}:`,
-                result.error
+                result.error,
               );
               alert(
-                `Error assigning CM ${change.cmToAssignToClientName} to client ${change.clientForCMAssignmentId}: ${result.error}`
+                `Error assigning CM ${change.cmToAssignToClientName} to client ${change.clientForCMAssignmentId}: ${result.error}`,
               );
               return;
             }
 
             // Optimistically update the local users state
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             (prevUsers: User[]): User[] =>
               prevUsers.map((user: User): User => {
-              if (user.id === change.clientForCMAssignmentId) {
-                return {
-                ...user,
-                clientAssignedCommunityManagers: [
-                  ...(user.clientAssignedCommunityManagers || []),
-                  {
-                  id: change.cmToAssignToClientId ?? 0, // Default to 0 if null/undefined
-                  full_name: change.cmToAssignToClientName || "Unknown", // Handle null/undefined
-                  email: "", // Add other fields if necessary
-                  } as GetUser,
-                ],
-                };
-              }
-              return user;
+                if (user.id === change.clientForCMAssignmentId) {
+                  return {
+                    ...user,
+                    clientAssignedCommunityManagers: [
+                      ...(user.clientAssignedCommunityManagers || []),
+                      {
+                        id: change.cmToAssignToClientId ?? 0, // Default to 0 if null/undefined
+                        full_name: change.cmToAssignToClientName || "Unknown", // Handle null/undefined
+                        email: "", // Add other fields if necessary
+                      } as GetUser,
+                    ],
+                  };
+                }
+                return user;
               });
           }
         } else if (change.assignedId) {
           if (change.type === "moderator") {
-            const result = await assignModeratorServer(change.userId, change.assignedId);
+            const result = await assignModeratorServer(
+              change.userId,
+              change.assignedId,
+            );
             if (result?.error) {
-              console.error(`Error assigning moderator ${change.assignedName} to user ${change.userId}:`, result.error);
-              alert(`Error assigning moderator ${change.assignedName} to user ${change.userId}: ${result.error}`);
+              console.error(
+                `Error assigning moderator ${change.assignedName} to user ${change.userId}:`,
+                result.error,
+              );
+              alert(
+                `Error assigning moderator ${change.assignedName} to user ${change.userId}: ${result.error}`,
+              );
               return;
             }
             // Optimistically update the local users state
             setUsers((prevUsers) =>
               prevUsers.map((user) =>
-                user.id === change.userId ? { ...user, assigned_moderator: change.assignedName } : user
-              )
+                user.id === change.userId
+                  ? { ...user, assigned_moderator: change.assignedName }
+                  : user,
+              ),
             );
           } else if (change.type === "cm" && change.assignedId) {
-            const result = await assignCommunityManagerServer(change.userId, change.assignedId);
+            const result = await assignCommunityManagerServer(
+              change.userId,
+              change.assignedId,
+            );
             if (result?.error) {
-              console.error(`Error assigning CM ${change.assignedName} to moderator ${change.userId}:`, result.error);
-              alert(`Error assigning CM ${change.assignedName} to moderator ${change.userId}: ${result.error}`);
+              console.error(
+                `Error assigning CM ${change.assignedName} to moderator ${change.userId}:`,
+                result.error,
+              );
+              alert(
+                `Error assigning CM ${change.assignedName} to moderator ${change.userId}: ${result.error}`,
+              );
               return;
             }
             // Optimistically update the local users state
             setUsers((prevUsers) =>
               prevUsers.map((user) =>
-                user.id === change.userId ? { ...user, assigned_communitymanagers: user.assigned_communitymanagers ? `${user.assigned_communitymanagers}, ${change.assignedName}` : change.assignedName } : user
-              )
+                user.id === change.userId
+                  ? {
+                      ...user,
+                      assigned_communitymanagers:
+                        user.assigned_communitymanagers
+                          ? `${user.assigned_communitymanagers}, ${change.assignedName}`
+                          : change.assignedName,
+                    }
+                  : user,
+              ),
             );
           } else if (change.type === "client" && change.assignedId) {
             // Assuming you have an assignClientServer function
-            console.log("Calling assignClientServer (not implemented in this example)");
+            console.log(
+              "Calling assignClientServer (not implemented in this example)",
+            );
             // const result = await assignClientServer(change.userId, change.assignedId);
             // if (result?.error) { ... }
             // Optimistically update the local users state
             setUsers((prevUsers) =>
               prevUsers.map((user) =>
-                user.id === change.userId ? { ...user, assigned_client: change.assignedName } : user
-              )
+                user.id === change.userId
+                  ? { ...user, assigned_client: change.assignedName }
+                  : user,
+              ),
             );
           }
         }
@@ -403,7 +489,7 @@ export default function UsersTable() {
       return;
     }
 
-    const cmToAssign = users.find(u => u.id === selectedCMToAssignToClient);
+    const cmToAssign = users.find((u) => u.id === selectedCMToAssignToClient);
     if (!cmToAssign) {
       alert("Selected community manager not found.");
       return;
@@ -420,7 +506,9 @@ export default function UsersTable() {
 
     setPendingChanges(updated);
     setShowAssignCMToClientModal(false);
-    alert(`Assignment of CM ${cmToAssign.full_name} to client ${selectedClientForCMAssignment.full_name} queued. Please save assignments.`);
+    alert(
+      `Assignment of CM ${cmToAssign.full_name} to client ${selectedClientForCMAssignment.full_name} queued. Please save assignments.`,
+    );
   };
 
   const handleSaveAssignments = () => {
@@ -445,15 +533,22 @@ export default function UsersTable() {
         if (sortColumn === "name") {
           valueA = a.full_name?.toLowerCase();
           valueB = b.full_name?.toLowerCase();
-        } else if (sortColumn === "assignedClient") {valueA = a.assigned_client?.toLowerCase() ?? "";
+        } else if (sortColumn === "assignedClient") {
+          valueA = a.assigned_client?.toLowerCase() ?? "";
           valueB = b.assigned_client?.toLowerCase() ?? "";
         } else if (sortColumn === "assignedModerators") {
           valueA = a.assigned_moderator?.toLowerCase() ?? "";
           valueB = b.assigned_moderator?.toLowerCase() ?? "";
         } else if (sortColumn === "assignedCMs") {
           const getCMs = (user: User): string => {
-            if (user.roles.includes("client") && user.clientAssignedCommunityManagers) {
-              return user.clientAssignedCommunityManagers.map(cm => cm.full_name).join(", ").toLowerCase();
+            if (
+              user.roles.includes("client") &&
+              user.clientAssignedCommunityManagers
+            ) {
+              return user.clientAssignedCommunityManagers
+                .map((cm) => cm.full_name)
+                .join(", ")
+                .toLowerCase();
             } else if (user.assigned_communitymanagers) {
               return user.assigned_communitymanagers.toLowerCase();
             }
@@ -466,22 +561,24 @@ export default function UsersTable() {
         const safeValueA = valueA ?? "";
         const safeValueB = valueB ?? "";
 
-        return sortDirection === "asc" ? safeValueA.localeCompare(safeValueB) : safeValueB.localeCompare(safeValueA);
+        return sortDirection === "asc"
+          ? safeValueA.localeCompare(safeValueB)
+          : safeValueB.localeCompare(safeValueA);
       })
     : filteredByName;
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow">
+    <div className="rounded-xl bg-white p-6 shadow">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         Assignment Table
       </h1>
       {/* Search and Tabs */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div className="flex space-x-2">
           {tabs.map((tab) => (
             <button
               key={tab}
-              className={`px-4 py-2 rounded-full font-medium transition-colors duration-200 ${
+              className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${
                 activeTab === tab
                   ? "bg-primary text-white"
                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -492,12 +589,12 @@ export default function UsersTable() {
             </button>
           ))}
         </div>
-        <div className="flex items-center ml-4">
+        <div className="ml-4 flex items-center">
           <FaSearch className="mr-2 text-gray-500" />
           <input
             type="text"
             placeholder="Search by Name"
-            className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-48 sm:text-sm border-gray-300 rounded-md"
+            className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -506,18 +603,41 @@ export default function UsersTable() {
 
       {/* Pending Changes Display */}
       {pendingChanges.length > 0 && (
-        <div className="mb-6 p-4 bg-yellow-100 rounded-md shadow-sm">
-          <h3 className="text-lg font-semibold mb-2 text-yellow-700">Pending Changes:</h3>
+        <div className="mb-6 rounded-md bg-yellow-100 p-4 shadow-sm">
+          <h3 className="mb-2 text-lg font-semibold text-yellow-700">
+            Pending Changes:
+          </h3>
           <ul>
             {pendingChanges.map((change, index) => (
               <li key={index} className="text-yellow-600">
-                {users.find(u => u.id === change.userId)?.full_name} -
+                {users.find((u) => u.id === change.userId)?.full_name} -
                 {change.remove ? " Removing " : " Assigning "}
-                {change.type === "moderator" ? "Moderator" : change.type === "client" ? "Client" : change.type === "cm" ? "CM" : change.type === "cm\_to\_client" ? "CM to Client" : change.type === "remove\_client\_cm" ? "CM from Client" : ""}
-                {change.assignedName && !change.remove && change.type !== "cm_to_client" && `to ${change.assignedName}`}
-                {change.cmNameToRemove && change.remove && change.type === "cm" && `(${change.cmNameToRemove})`}
-                {change.cmToAssignToClientName && change.type === "cm\_to\_client" && `to ${change.cmToAssignToClientName}`}
-                {change.cmNameToRemoveFromClient && change.remove && change.type === "remove\_client\_cm" && `(${change.cmNameToRemoveFromClient})`}
+                {change.type === "moderator"
+                  ? "Moderator"
+                  : change.type === "client"
+                    ? "Client"
+                    : change.type === "cm"
+                      ? "CM"
+                      : change.type === "cm\_to\_client"
+                        ? "CM to Client"
+                        : change.type === "remove\_client\_cm"
+                          ? "CM from Client"
+                          : ""}
+                {change.assignedName &&
+                  !change.remove &&
+                  change.type !== "cm_to_client" &&
+                  `to ${change.assignedName}`}
+                {change.cmNameToRemove &&
+                  change.remove &&
+                  change.type === "cm" &&
+                  `(${change.cmNameToRemove})`}
+                {change.cmToAssignToClientName &&
+                  change.type === "cm\_to\_client" &&
+                  `to ${change.cmToAssignToClientName}`}
+                {change.cmNameToRemoveFromClient &&
+                  change.remove &&
+                  change.type === "remove\_client\_cm" &&
+                  `(${change.cmNameToRemoveFromClient})`}
               </li>
             ))}
           </ul>
@@ -525,80 +645,113 @@ export default function UsersTable() {
       )}
 
       {/* Table */}
-      <table className="min-w-full table-auto mb-6">
+      <table className="mb-6 min-w-full table-auto">
         <thead>
           <tr>
             <th
-              className="px-4 py-2 border font-bold text-black cursor-pointer"
+              className="cursor-pointer border px-4 py-2 font-bold text-black"
               onClick={() => sortUsers("name")}
             >
               <div className="flex items-center gap-1">
                 Name
-                {sortColumn === "name" && sortDirection === "asc" && <FaSortUp />}
-                {sortColumn === "name" && sortDirection === "desc" && <FaSortDown />}
+                {sortColumn === "name" && sortDirection === "asc" && (
+                  <FaSortUp />
+                )}
+                {sortColumn === "name" && sortDirection === "desc" && (
+                  <FaSortDown />
+                )}
                 {sortColumn !== "name" && <FaSort />}
               </div>
             </th>
-            <th className="px-4 py-2 border font-bold text-black">Email</th>
-            <th className="px-4 py-2 border font-bold text-black">Roles</th>
+            <th className="border px-4 py-2 font-bold text-black">Email</th>
+            <th className="border px-4 py-2 font-bold text-black">Roles</th>
+            {/*
             <th
-              className="px-4 py-2 border font-bold text-black cursor-pointer"
+              className="cursor-pointer border px-4 py-2 font-bold text-black"
               onClick={() => sortUsers("assignedClient")}
             >
-              <div className="flex items-center gap-1">
+               <div className="flex items-center gap-1">
                 Assigned Client
-                {sortColumn === "assignedClient" && sortDirection === "asc" && <FaSortUp />}
-                {sortColumn === "assignedClient" && sortDirection === "desc" && <FaSortDown />}
+                {sortColumn === "assignedClient" && sortDirection === "asc" && (
+                  <FaSortUp />
+                )}
+                {sortColumn === "assignedClient" &&
+                  sortDirection === "desc" && <FaSortDown />}
                 {sortColumn !== "assignedClient" && <FaSort />}
-              </div>
-            </th>
+              </div> 
+            </th>*/}
             <th
-              className="px-4 py-2 border font-bold text-black cursor-pointer"
+              className="cursor-pointer border px-4 py-2 font-bold text-black"
               onClick={() => sortUsers("assignedModerators")}
             >
               <div className="flex items-center gap-1">
                 Assigned Moderators
-                {sortColumn === "assignedModerators" && sortDirection === "asc" && <FaSortUp />}
-                {sortColumn === "assignedModerators" && sortDirection === "desc" && <FaSortDown />}
+                {sortColumn === "assignedModerators" &&
+                  sortDirection === "asc" && <FaSortUp />}
+                {sortColumn === "assignedModerators" &&
+                  sortDirection === "desc" && <FaSortDown />}
                 {sortColumn !== "assignedModerators" && <FaSort />}
               </div>
             </th>
             <th
-              className="px-4 py-2 border font-bold text-black cursor-pointer"
+              className="cursor-pointer border px-4 py-2 font-bold text-black"
               onClick={() => sortUsers("assignedCMs")}
             >
               <div className="flex items-center gap-1">
                 Assigned CM(s)
-                {sortColumn === "assignedCMs" && sortDirection === "asc" && <FaSortUp />}
-                {sortColumn === "assignedCMs" && sortDirection === "desc" && <FaSortDown />}
+                {sortColumn === "assignedCMs" && sortDirection === "asc" && (
+                  <FaSortUp />
+                )}
+                {sortColumn === "assignedCMs" && sortDirection === "desc" && (
+                  <FaSortDown />
+                )}
                 {sortColumn !== "assignedCMs" && <FaSort />}
               </div>
             </th>
-            <th className="px-4 py-2 border font-bold text-black">Actions</th>
+            <th className="border px-4 py-2 font-bold text-black">Actions</th>
           </tr>
         </thead>
+
         <tbody>
           {sortedFilteredUsers.map((user) => {
-            const pending = pendingChanges.find((a) => a.userId === user.id && !a.remove && a.type !== 'cm_to_client');
-            const pendingRemoval = pendingChanges.find((a) => a.userId === user.id && a.remove && a.type !== 'remove_client_cm');
+            const pending = pendingChanges.find(
+              (a) =>
+                a.userId === user.id && !a.remove && a.type !== "cm_to_client",
+            );
+            const pendingRemoval = pendingChanges.find(
+              (a) =>
+                a.userId === user.id &&
+                a.remove &&
+                a.type !== "remove_client_cm",
+            );
             const pendingCMToClient = pendingChanges.find(
-              (a) => a.clientForCMAssignmentId === user.id && a.type === 'cm_to_client'
+              (a) =>
+                a.clientForCMAssignmentId === user.id &&
+                a.type === "cm_to_client",
             );
             const pendingClientCMRemoval = pendingChanges.find(
-              (a) => a.clientToRemoveCMFromId === user.id && a.type === 'remove_client_cm' && a.remove
+              (a) =>
+                a.clientToRemoveCMFromId === user.id &&
+                a.type === "remove_client_cm" &&
+                a.remove,
             );
 
             return (
               <tr key={user.id}>
-                <td className="px-4 py-2 border text-gray-800">{user.full_name}</td>
-                <td className="px-4 py-2 border text-gray-800">{user.email}</td>
-                <td className="px-4 py-2 border text-gray-800">{user.roles.join(", ")}</td>
-                <td className="px-4 py-2 border text-gray-800">
+                <td className="border px-4 py-2 text-gray-800">
+                  {user.full_name}
+                </td>
+                <td className="border px-4 py-2 text-gray-800">{user.email}</td>
+                <td className="border px-4 py-2 text-gray-800">
+                  {user.roles.join(", ")}
+                </td>
+                {/* to be fixed "assigned client " */}
+                {/* <td className="border px-4 py-2 text-gray-800">
                   {user.assigned_client ? (
                     <div className="flex items-center justify-between gap-2">
                       <span>{user.assigned_client}</span>
                       <button
-                        className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                        className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                         onClick={() => queueRemoveAssignment(user, "client")}
                       >
                         Remove
@@ -608,47 +761,62 @@ export default function UsersTable() {
                     <span className="text-gray-500">No Assignment</span>
                   )}
                   {pending?.type === "client" && (
-                    <span className="text-yellow-600 font-semibold">Pending: {pending.assignedName}</span>
+                    <span className="font-semibold text-yellow-600">
+                      Pending: {pending.assignedName}
+                    </span>
                   )}
                   {pendingRemoval?.type === "client" && (
-                    <span className="text-red-600 font-semibold">Pending Removal</span>
+                    <span className="font-semibold text-red-600">
+                      Pending Removal
+                    </span>
+                  )}
+                </td> */}
+                <td className="border px-4 py-2 text-gray-800">
+                  {user.roles.includes("community_manager") ? (
+                    user.assigned_moderator ? (
+                      <span>{user.assigned_moderator}</span>
+                    ) : (
+                      <span className="text-gray-500">
+                        No Assigned Moderator
+                      </span>
+                    )
+                  ) : user.assigned_moderator ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{user.assigned_moderator}</span>
+                      <button
+                        className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                        onClick={() => queueRemoveAssignment(user, "moderator")}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">No Assignment</span>
+                  )}
+                  {pending?.type === "moderator" && (
+                    <span className="font-semibold text-yellow-600">
+                      Pending: {pending.assignedName}
+                    </span>
+                  )}
+                  {pendingRemoval?.type === "moderator" && (
+                    <span className="font-semibold text-red-600">
+                      Pending Removal
+                    </span>
                   )}
                 </td>
-                <td className="px-4 py-2 border text-gray-800">
-  {user.roles.includes("community_manager") ? (
-    user.assigned_moderator ? (
-      <span>{user.assigned_moderator}</span>
-    ) : (
-      <span className="text-gray-500">No Assigned Moderator</span>
-    )
-  ) : user.assigned_moderator ? (
-    <div className="flex items-center justify-between gap-2">
-      <span>{user.assigned_moderator}</span>
-      <button
-        className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-        onClick={() => queueRemoveAssignment(user, "moderator")}
-      >
-        Remove
-      </button>
-    </div>
-  ) : (
-    <span className="text-gray-500">No Assignment</span>
-  )}
-  {pending?.type === "moderator" && (
-    <span className="text-yellow-600 font-semibold">Pending: {pending.assignedName}</span>
-  )}
-  {pendingRemoval?.type === "moderator" && (
-    <span className="text-red-600 font-semibold">Pending Removal</span>
-  )}
-</td>
-                <td className="px-4 py-2 border text-gray-800">
-                  {user.roles.includes("client") && user.clientAssignedCommunityManagers && user.clientAssignedCommunityManagers.length > 0 ? (
-                    <ul className="list-disc list-inside">
+                <td className="border px-4 py-2 text-gray-800">
+                  {user.roles.includes("client") &&
+                  user.clientAssignedCommunityManagers &&
+                  user.clientAssignedCommunityManagers.length > 0 ? (
+                    <ul className="list-inside list-disc">
                       {user.clientAssignedCommunityManagers.map((cm) => (
-                        <li key={cm.id} className="flex items-center justify-between gap-2">
-                          <span>{cm.full_name}</span>
+                        <li
+                          key={cm.id}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span>{cm.full_name || cm.email}</span>
                           <button
-                            className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                            className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
                             onClick={() => queueRemoveClientCM(user, cm)}
                           >
                             Remove
@@ -657,44 +825,72 @@ export default function UsersTable() {
                       ))}
                     </ul>
                   ) : user.assigned_communitymanagers ? (
-                    <ul className="list-disc list-inside">
-                      {user.assigned_communitymanagers.split(",").map((cm, index) => {
-                        const communityManager = users.find(u => u.full_name.trim() === cm.trim());
-                        return (
-                          <li key={index} className="flex items-center justify-between gap-2">
-                            <span>{cm.trim()}</span>
-                            {communityManager && (
-                              <button
-                                className="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                                onClick={() => queueRemoveAssignment(user, "cm", communityManager)}
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </li>
-                        );
-                      })}
+                    <ul className="list-inside list-disc">
+                      {user.assigned_communitymanagers
+                        .split(",")
+                        .map((cm, index) => {
+                          const communityManager = users.find(
+                            (u) => u.full_name.trim() === cm.trim(),
+                          );
+                          return (
+                            <li
+                              key={index}
+                              className="flex items-center justify-between gap-2"
+                            >
+                              <span>
+                                {cm.trim() || communityManager?.email}
+                              </span>
+                              {communityManager && (
+                                <button
+                                  className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  onClick={() =>
+                                    queueRemoveAssignment(
+                                      user,
+                                      "cm",
+                                      communityManager,
+                                    )
+                                  }
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
                     </ul>
                   ) : (
                     <span className="text-gray-500">No Assignment</span>
                   )}
                   {pending?.type === "cm" && (
-                    <span className="text-yellow-600 font-semibold block mt-1">Pending: {pending.assignedName}</span>
+                    <span className="mt-1 block font-semibold text-yellow-600">
+                      Pending: {pending.assignedName}
+                    </span>
                   )}
-                  {pendingRemoval?.type === "cm" && pendingRemoval.cmNameToRemove && (
-                    <span className="text-red-600 font-semibold block mt-1">Pending Removal: {pendingRemoval.cmNameToRemove}</span>
-                  )}
-                  {user.roles.includes("client") && pendingClientCMRemoval?.type === 'remove_client_cm' && pendingClientCMRemoval.cmNameToRemoveFromClient && (
-                    <span className="text-red-600 font-semibold block mt-1">Pending Removal: {pendingClientCMRemoval.cmNameToRemoveFromClient}</span>
-                  )}
-                  {user.roles.includes("client") && pendingCMToClient?.type === 'cm_to_client' && (
-                    <span className="text-yellow-600 font-semibold block mt-1">Pending CM: {pendingCMToClient.cmToAssignToClientName}</span>
-                  )}
+                  {pendingRemoval?.type === "cm" &&
+                    pendingRemoval.cmNameToRemove && (
+                      <span className="mt-1 block font-semibold text-red-600">
+                        Pending Removal: {pendingRemoval.cmNameToRemove}
+                      </span>
+                    )}
+                  {user.roles.includes("client") &&
+                    pendingClientCMRemoval?.type === "remove_client_cm" &&
+                    pendingClientCMRemoval.cmNameToRemoveFromClient && (
+                      <span className="mt-1 block font-semibold text-red-600">
+                        Pending Removal:{" "}
+                        {pendingClientCMRemoval.cmNameToRemoveFromClient}
+                      </span>
+                    )}
+                  {user.roles.includes("client") &&
+                    pendingCMToClient?.type === "cm_to_client" && (
+                      <span className="mt-1 block font-semibold text-yellow-600">
+                        Pending CM: {pendingCMToClient.cmToAssignToClientName}
+                      </span>
+                    )}
                 </td>
-                <td className="px-4 py-2 border text-gray-800">
+                <td className="border px-4 py-2 text-gray-800">
                   {user.roles.includes("moderator") && (
                     <button
-                      className="px-4 py-2 text-white rounded-lg hover:bg-[#8a11df] hover:shadow-lg transition duration-300 ease-in-out mb-2 block"
+                      className="mb-2 block rounded-lg px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#8a11df] hover:shadow-lg"
                       style={{ backgroundColor: "#8a11df" }}
                       onClick={() => openAssignModal(user, "cm")}
                     >
@@ -704,7 +900,7 @@ export default function UsersTable() {
                   {user.roles.includes("client") && (
                     <div>
                       <button
-                        className="px-4 py-2 text-white rounded-lg hover:bg-[#7a6cc5] hover:shadow-lg transition duration-300 ease-in-out block mb-2"
+                        className="mb-2 block rounded-lg px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#7a6cc5] hover:shadow-lg"
                         style={{ backgroundColor: "#7a6cc5" }}
                         onClick={() => openAssignModal(user, "moderator")}
                       >
@@ -712,15 +908,17 @@ export default function UsersTable() {
                       </button>
                       {user.assigned_moderator && (
                         <button
-                          className="px-4 py-2 text-white rounded-lg hover:bg-[#7d009f] hover:shadow-lg transition duration-300 ease-in-out block mb-2"
+                          className="mb-2 block rounded-lg px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#7d009f] hover:shadow-lg"
                           style={{ backgroundColor: "#7d009f" }}
                           onClick={() => openAssignCMToClientModal(user)}
                         >
                           Assign CM to Client
                         </button>
                       )}
-                      {pendingCMToClient?.type === 'cm_to_client' && (
-                        <span className="text-yellow-600 font-semibold">Pending CM: {pendingCMToClient.cmToAssignToClientName}</span>
+                      {pendingCMToClient?.type === "cm_to_client" && (
+                        <span className="font-semibold text-yellow-600">
+                          Pending CM: {pendingCMToClient.cmToAssignToClientName}
+                        </span>
                       )}
                     </div>
                   )}
@@ -735,13 +933,13 @@ export default function UsersTable() {
       {pendingChanges.length > 0 && (
         <div className="flex space-x-2">
           <button
-            className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary-dark"
+            className="hover:bg-primary-dark rounded-full bg-primary px-4 py-2 text-white"
             onClick={handleSaveAssignments}
           >
             Save All Assignments
           </button>
           <button
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
+            className="rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
             onClick={clearPendingChanges}
           >
             Cancel
@@ -751,16 +949,28 @@ export default function UsersTable() {
 
       {/* Assignment Modal */}
       {showModal && selectedUser && assignmentType && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h2 className="text-lg font-semibold mb-4">Assign {assignmentType === "cm" ? "Community Manager" : assignmentType.charAt(0).toUpperCase() + assignmentType.slice(1)}</h2>
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
+          <div className="rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-lg font-semibold">
+              Assign{" "}
+              {assignmentType === "cm"
+                ? "Community Manager"
+                : assignmentType.charAt(0).toUpperCase() +
+                  assignmentType.slice(1)}
+            </h2>
             <div>
-              <label htmlFor="assignId" className="block mb-2">
-                Select {assignmentType === "moderator" ? "Moderator" : assignmentType === "client" ? "Client" : "Community Manager"}:
+              <label htmlFor="assignId" className="mb-2 block">
+                Select{" "}
+                {assignmentType === "moderator"
+                  ? "Moderator"
+                  : assignmentType === "client"
+                    ? "Client"
+                    : "Community Manager"}
+                :
               </label>
               <select
                 id="assignId"
-                className="border p-2 rounded w-full"
+                className="w-full rounded border p-2"
                 onChange={(e) => setSelectedAssignId(Number(e.target.value))}
               >
                 <option value="">-- Select --</option>
@@ -784,13 +994,13 @@ export default function UsersTable() {
             </div>
             <div className="mt-4 flex justify-end">
               <button
-                className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary-dark"
+                className="hover:bg-primary-dark rounded-full bg-primary px-4 py-2 text-white"
                 onClick={confirmAssignment}
               >
                 Confirm
               </button>
               <button
-                className="px-4 py-2 ml-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
+                className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
                 onClick={() => setShowModal(false)}
               >
                 Cancel
@@ -802,19 +1012,21 @@ export default function UsersTable() {
 
       {/* Assign CM to Client Modal */}
       {showAssignCMToClientModal && selectedClientForCMAssignment && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h2 className="text-lg font-semibold mb-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
+          <div className="rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-lg font-semibold">
               Assign CM to {selectedClientForCMAssignment.full_name}
             </h2>
             <div>
-              <label htmlFor="cmToAssign" className="block mb-2">
+              <label htmlFor="cmToAssign" className="mb-2 block">
                 Select Community Manager:
               </label>
               <select
                 id="cmToAssign"
-                className="border p-2 rounded w-full"
-                onChange={(e) => setSelectedCMToAssignToClient(Number(e.target.value))}
+                className="w-full rounded border p-2"
+                onChange={(e) =>
+                  setSelectedCMToAssignToClient(Number(e.target.value))
+                }
               >
                 <option value="">-- Select --</option>
                 {users
@@ -822,9 +1034,15 @@ export default function UsersTable() {
                     (user) =>
                       user.roles.includes("community_manager") &&
                       selectedClientForCMAssignment.assigned_moderator &&
-                      users.find(
-                        (u) => u.full_name === selectedClientForCMAssignment.assigned_moderator
-                      )?.assigned_communitymanagers?.split(",")?.map(cm => cm.trim().toLowerCase()).includes(user.full_name.toLowerCase())
+                      users
+                        .find(
+                          (u) =>
+                            u.full_name ===
+                            selectedClientForCMAssignment.assigned_moderator,
+                        )
+                        ?.assigned_communitymanagers?.split(",")
+                        ?.map((cm) => cm.trim().toLowerCase())
+                        .includes(user.full_name.toLowerCase()),
                   )
                   .map((user) => (
                     <option key={user.id} value={user.id}>
@@ -835,13 +1053,13 @@ export default function UsersTable() {
             </div>
             <div className="mt-4 flex justify-end">
               <button
-                className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary-dark"
+                className="hover:bg-primary-dark rounded-full bg-primary px-4 py-2 text-white"
                 onClick={confirmAssignCMToClient}
               >
                 Assign
               </button>
               <button
-                className="px-4 py-2 ml-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
+                className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
                 onClick={() => setShowAssignCMToClientModal(false)}
               >
                 Cancel
@@ -854,14 +1072,14 @@ export default function UsersTable() {
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+          <div className="w-96 rounded-lg bg-white p-6 shadow-lg">
             <h2 className="text-lg font-semibold text-gray-800">
               Confirm Changes
             </h2>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to save these changes?
             </p>
-            <div className="flex justify-end gap-3 mt-4">
+            <div className="mt-4 flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirmModal(false)}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"

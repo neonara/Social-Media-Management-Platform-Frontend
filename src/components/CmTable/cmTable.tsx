@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { getClientAssignments } from "@/services/clientService";
-import { FaSearch } from "react-icons/fa";
+import { getCMAssignments } from "@/services/cmService";
+import { FaSearch, FaPlus } from "react-icons/fa";
+import Link from "next/link";
 
 type Assignment = {
   id: number;
@@ -11,12 +12,12 @@ type Assignment = {
   phone_number: string | null;
 };
 
-const tabs = ["Moderators", "Community Managers"];
+const tabs = ["Clients", "Moderators"];
 
-export default function ClientAssignmentsTable() {
-  const [moderator, setModerator] = useState<Assignment | null>(null);
-  const [communityManagers, setCommunityManagers] = useState<Assignment[]>([]);
-  const [activeTab, setActiveTab] = useState("Moderators");
+export default function CmAssignmentsTable() {
+  const [clients, setClients] = useState<Assignment[]>([]);
+  const [moderators, setModerators] = useState<Assignment[]>([]);
+  const [activeTab, setActiveTab] = useState("Clients");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +25,9 @@ export default function ClientAssignmentsTable() {
   useEffect(() => {
     async function fetchAssignments() {
       try {
-        const data = await getClientAssignments();
-        setModerator(data.moderator || null);
-        setCommunityManagers(data.community_managers || []);
+        const data = await getCMAssignments();
+        setClients(data.clients || []);
+        setModerators(data.moderators || []);
       } catch (err: any) {
         setError(err.message || "Failed to load assignments");
       } finally {
@@ -37,8 +38,12 @@ export default function ClientAssignmentsTable() {
     fetchAssignments();
   }, []);
 
-  const filteredCommunityManagers = communityManagers.filter((cm) =>
-    cm.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredClients = clients.filter((client) =>
+    client.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const filteredModerators = moderators.filter((moderator) =>
+    moderator.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (loading) {
@@ -52,9 +57,7 @@ export default function ClientAssignmentsTable() {
   return (
     <div className="rounded-xl bg-white p-6 shadow">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
-        {activeTab === "Moderators"
-          ? "Assigned Moderator"
-          : "Assigned Community Managers"}
+        {activeTab === "Clients" ? "Assigned Clients" : "Assigned Moderators"}
       </h1>
 
       <div className="mb-4 flex items-center justify-between">
@@ -86,45 +89,56 @@ export default function ClientAssignmentsTable() {
         </div>
       </div>
 
-      {activeTab === "Moderators" && (
-        <div>
-          {moderator ? (
-            <table className="mb-6 min-w-full table-auto">
-              <thead>
-                <tr>
-                  <th className="border px-4 py-2 font-bold text-black">
-                    Name
-                  </th>
-                  <th className="border px-4 py-2 font-bold text-black">
-                    Email
-                  </th>
-                  <th className="border px-4 py-2 font-bold text-black">
-                    Phone Number
-                  </th>
+      {activeTab === "Clients" &&
+        (filteredClients.length > 0 ? (
+          <table className="mb-6 min-w-full table-auto">
+            <thead>
+              <tr>
+                <th className="border px-4 py-2 font-bold text-black">Name</th>
+                <th className="border px-4 py-2 font-bold text-black">Email</th>
+                <th className="border px-4 py-2 font-bold text-black">
+                  Phone Number
+                </th>
+                <th className="border px-4 py-2 font-bold text-black">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredClients.map((client) => (
+                <tr key={client.id}>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {client.full_name}
+                  </td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {client.email}
+                  </td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {client.phone_number || "N/A"}
+                  </td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    <Link
+                      href={`/content?clientId=${client.id}`}
+                      className="hover:bg-primary-dark flex items-center justify-center gap-1 rounded bg-primary px-3 py-1 text-white"
+                    >
+                      <FaPlus size={12} />
+                      <span>Create Post</span>
+                    </Link>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border px-4 py-2 text-gray-800">
-                    {moderator.full_name}
-                  </td>
-                  <td className="border px-4 py-2 text-gray-800">
-                    {moderator.email}
-                  </td>
-                  <td className="border px-4 py-2 text-gray-800">
-                    {moderator.phone_number || "N/A"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-gray-600">No Moderator assigned.</p>
-          )}
-        </div>
-      )}
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-gray-600">
+            {clients.length > 0
+              ? "No clients found matching your search."
+              : "No Clients assigned."}
+          </p>
+        ))}
 
-      {activeTab === "Community Managers" &&
-        (filteredCommunityManagers.length > 0 ? (
+      {activeTab === "Moderators" &&
+        (filteredModerators.length > 0 ? (
           <table className="mb-6 min-w-full table-auto">
             <thead>
               <tr>
@@ -136,14 +150,16 @@ export default function ClientAssignmentsTable() {
               </tr>
             </thead>
             <tbody>
-              {filteredCommunityManagers.map((cm) => (
-                <tr key={cm.id}>
+              {filteredModerators.map((moderator) => (
+                <tr key={moderator.id}>
                   <td className="border px-4 py-2 text-gray-800">
-                    {cm.full_name}
+                    {moderator.full_name}
                   </td>
-                  <td className="border px-4 py-2 text-gray-800">{cm.email}</td>
                   <td className="border px-4 py-2 text-gray-800">
-                    {cm.phone_number || "N/A"}
+                    {moderator.email}
+                  </td>
+                  <td className="border px-4 py-2 text-gray-800">
+                    {moderator.phone_number || "N/A"}
                   </td>
                 </tr>
               ))}
@@ -151,9 +167,9 @@ export default function ClientAssignmentsTable() {
           </table>
         ) : (
           <p className="text-gray-600">
-            {communityManagers.length > 0
-              ? "No community managers found matching your search."
-              : "No Community Managers assigned."}
+            {moderators.length > 0
+              ? "No moderators found matching your search."
+              : "No Moderators assigned."}
           </p>
         ))}
     </div>

@@ -7,63 +7,259 @@ import {
 } from "@/components/ui/dropdown";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-// import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { BellIcon } from "./icons";
 import {
   fetchNotifications,
   markAllNotificationsAsRead,
-} from "@/services/notifications";
-import type { Notification } from "@/types/notification";
-import { API_BASE_URL } from "@/config/api";
+  markNotificationAsRead,
+  deleteNotification,
+  revalidateNotificationsCache,
+} from "@/services/notificationService";
+import type { Notification as NotificationType } from "@/types/notification";
+import { getToken } from "@/utils/token";
+import { useNotification } from "@/context/NotificationContext";
 
 export function Notification() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDotVisible, setIsDotVisible] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
   const isMobile = useIsMobile();
+  const { showNotification } = useNotification();
+
+  // Track if the component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  // Function to refresh notifications data
+  const refreshNotifications = useCallback(async () => {
+    if (!isMountedRef.current) return;
+
+    setIsLoading(true);
+    try {
+      // Get fresh data from the server
+      const freshData = await revalidateNotificationsCache();
+
+      if (isMountedRef.current) {
+        setNotifications(freshData);
+        const hasUnread = freshData.some((n: NotificationType) => !n.is_read);
+        setIsDotVisible(hasUnread);
+      }
+    } catch (error) {
+      console.error("Error refreshing notifications:", error);
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    // Fetch initial notifications
+    // Set mounted flag to true when component mounts
+    isMountedRef.current = true;
+
     const loadNotifications = async () => {
+      setIsLoading(true);
       try {
         const data = await fetchNotifications();
-        setNotifications(data);
+
+        if (isMountedRef.current) {
+          setNotifications(data);
+          const hasUnread = data.some((n: NotificationType) => !n.is_read);
+          setIsDotVisible(hasUnread);
+        }
       } catch (error) {
         console.error("Error fetching notifications:", error);
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const connectWebSocket = async () => {
+      // Only connect if not already connecting or connected
+      if (
+        socketRef.current &&
+        (socketRef.current.readyState === WebSocket.CONNECTING ||
+          socketRef.current.readyState === WebSocket.OPEN)
+      ) {
+        return;
+      }
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          console.warn("No access token found in cookies");
+          return;
+        }
+
+        // Close existing socket if it exists
+        if (socketRef.current) {
+          socketRef.current.close();
+        }
+
+        const socket = new WebSocket(
+          `ws://127.0.0.1:8000/ws/notifications/?token=${token}`,
+        );
+
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+          console.log("WebSocket connected");
+
+          reconnectAttemptsRef.current = 0;
+        };
+
+        socket.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+
+            if (data.type === "notification_count") {
+              if (data.count > 0 && isMountedRef.current) {
+                setIsDotVisible(true);
+              }
+            } else if (data.type === "new_notification") {
+              const newNotification: NotificationType = data;
+              if (isMountedRef.current) {
+                setNotifications((prev) => [newNotification, ...prev]);
+                setIsDotVisible(true);
+
+                showNotification(
+                  newNotification.message,
+                  "success",
+                  newNotification.title,
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Invalid WebSocket data:", e.data, err);
+          }
+        };
+
+        socket.onclose = (event) => {
+          console.log(
+            `WebSocket closed with code: ${event.code}, reason: ${event.reason}`,
+          );
+
+          if (
+            !event.wasClean &&
+            reconnectAttemptsRef.current < maxReconnectAttempts &&
+            isMountedRef.current
+          ) {
+            const timeout = Math.min(
+              1000 * 2 ** reconnectAttemptsRef.current,
+              30000,
+            );
+            console.log(`Attempting to reconnect in ${timeout / 1000}s...`);
+
+            if (reconnectTimeoutRef.current) {
+              clearTimeout(reconnectTimeoutRef.current);
+            }
+
+            reconnectTimeoutRef.current = setTimeout(() => {
+              reconnectAttemptsRef.current += 1;
+              if (isMountedRef.current) {
+                connectWebSocket();
+              }
+            }, timeout);
+          }
+        };
+
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+      } catch (error) {
+        console.error("Error setting up WebSocket:", error);
       }
     };
 
     loadNotifications();
-
-    // WebSocket connection for real-time updates
-    const ws = new WebSocket(`${API_BASE_URL}/notifications/`);
-
-    ws.onmessage = (event) => {
-      const newNotification = JSON.parse(event.data);
-      setNotifications((prev) => [newNotification, ...prev]);
-      setIsDotVisible(true); // Show the notification dot for new notifications
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+    connectWebSocket();
 
     return () => {
-      ws.close();
+      // Set mounted flag to false when component unmounts
+      isMountedRef.current = false;
+
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
     };
-  }, []);
+  }, [showNotification]); // Remove socketStatus from the dependency array
 
   const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead();
-      setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, read: true })),
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setIsDotVisible(false);
+
+      // Refresh data after marking all as read to ensure backend state is in sync
+      await refreshNotifications();
+
+      console.log("All notifications marked as read");
     } catch (error) {
-      console.error("Error marking all notifications as read:", error);
+      console.error("Error marking all as read:", error);
+      console.log("Failed to mark notifications as read");
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId: number) => {
+    try {
+      await markNotificationAsRead(notificationId);
+
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, is_read: true } : n,
+        ),
+      );
+
+      // Check if there are any unread notifications left
+      const hasUnreadRemaining = notifications.some(
+        (n) => n.id !== notificationId && !n.is_read,
+      );
+
+      setIsDotVisible(hasUnreadRemaining);
+
+      // Refresh to ensure we have the latest data
+      await refreshNotifications();
+
+      return true;
+    } catch (error) {
+      console.error(
+        `Error marking notification ${notificationId} as read:`,
+        error,
+      );
+      return false;
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId: number) => {
+    try {
+      await deleteNotification(notificationId);
+
+      // Update local state by removing the deleted notification
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+
+      // Refresh to ensure we have the latest data
+      await refreshNotifications();
+
+      return true;
+    } catch (error) {
+      console.error(`Error deleting notification ${notificationId}:`, error);
+      return false;
     }
   };
 
@@ -72,8 +268,7 @@ export function Notification() {
       isOpen={isOpen}
       setIsOpen={(open) => {
         setIsOpen(open);
-
-        if (setIsDotVisible) setIsDotVisible(false);
+        if (open) setIsDotVisible(false);
       }}
     >
       <DropdownTrigger
@@ -82,7 +277,6 @@ export function Notification() {
       >
         <span className="relative">
           <BellIcon />
-
           {isDotVisible && (
             <span
               className={cn(
@@ -112,37 +306,61 @@ export function Notification() {
         </div>
 
         <ul className="mb-3 max-h-[23rem] space-y-1.5 overflow-y-auto">
-          {notifications.map((item, index) => (
-            <li key={index} role="menuitem">
-              <Link
-                href="#"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-4 rounded-lg px-2 py-1.5 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3"
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="py-4 text-center text-dark-5 dark:text-dark-6">
+              No notifications yet
+            </div>
+          ) : (
+            notifications.map((item, index) => (
+              <li
+                key={index}
+                role="menuitem"
+                className="border-b border-gray-100 last:border-none dark:border-dark-4"
               >
-                {/* <Image
-                  src={item.image || "/images/default-avatar.png"}
-                  className="size-14 rounded-full object-cover"
-                  width={200}
-                  height={200}
-                  alt="User"
-                /> */}
-
-                <div>
-                  <strong className="block text-sm font-medium text-dark dark:text-white">
-                    {item.title}
-                  </strong>
-
-                  <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
-                    {item.message}
-                  </span>
-                  <br />
-                  <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
-                    {item.created_at.split("T")[0]}{" "}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
+                <Link
+                  href={item.url}
+                  onClick={() => {
+                    handleMarkAsRead(item.id);
+                    setIsOpen(false);
+                  }}
+                  className="relative flex w-full items-center gap-4 rounded-lg px-2 py-1.5 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3"
+                >
+                  <div>
+                    <strong className="block text-sm font-medium text-dark dark:text-white">
+                      {item.title}
+                    </strong>
+                    <span className="w-full break-words text-sm font-medium text-dark-5 dark:text-dark-6">
+                      {item.message}
+                    </span>
+                    <br />
+                    <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
+                      {new Date(item.created_at).toLocaleTimeString([], {
+                        year: "numeric",
+                        month: "short", // 'May', 'Jan'
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </span>
+                  </div>
+                  {!item.is_read && (
+                    <span
+                      className={cn(
+                        "absolute left-0 top-0 z-1 size-2 rounded-full bg-red-light ring-2 ring-gray-2 dark:ring-dark-3",
+                      )}
+                    >
+                      <span className="absolute inset-0 -z-1 animate-ping rounded-full bg-red-light opacity-75" />
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))
+          )}
         </ul>
 
         <Link

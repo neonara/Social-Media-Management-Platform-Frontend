@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { API_BASE_URL } from "@/config/api";
 
-export async function getClientAssignments() {
+export async function getCMAssignments() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -12,7 +12,7 @@ export async function getClientAssignments() {
       throw new Error("Authentication required");
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/assignments/`, {
+    const response = await fetch(`${API_BASE_URL}/community-manager/assignments`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -26,7 +26,7 @@ export async function getClientAssignments() {
 
     return await response.json();
   } catch (error) {
-    console.error("Error fetching client assignments:", error);
+    console.error("Error fetching CM assignments:", error);
     throw error;
   }
 }

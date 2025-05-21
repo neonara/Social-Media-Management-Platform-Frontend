@@ -9,28 +9,51 @@ import {
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LogOutIcon, SettingsIcon } from "./icons";
 import { logout } from "@/services/authService";
-import { User } from "@/types/user";
-import { getCurrentUser } from "@/services/userService";
+import { useUser } from "@/context/UserContext";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { userProfile, refreshUserProfile } = useUser();
+  const isInitialMount = useRef(true);
+  const isRefreshing = useRef(false);
 
-  const refresh = async () => {
-    try {
-      const userData = getCurrentUser();
-      setUser(await userData);
-    } catch {
-      setUser(null);
-    }
-  };
-
+  // Refresh user profile when component mounts
   useEffect(() => {
-    refresh();
-  }, []);
+    // Only refresh on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      isRefreshing.current = true;
+      refreshUserProfile().finally(() => {
+        isRefreshing.current = false;
+      });
+    }
+  }, [refreshUserProfile]);
+
+  // Separate effect to handle profile updates from event listeners
+  useEffect(() => {
+    // Listen for profile update events
+    const handleProfileUpdate = () => {
+      // Don't refresh if we triggered the event ourselves
+      if (!isRefreshing.current && refreshUserProfile) {
+        console.log("UserInfo detected external profile update, refreshing...");
+        isRefreshing.current = true;
+        refreshUserProfile().finally(() => {
+          isRefreshing.current = false;
+        });
+      }
+    };
+
+    // Add event listener for the custom userProfileUpdated event
+    window.addEventListener("userProfileUpdated", handleProfileUpdate);
+
+    // Clean up event listener on component unmount
+    return () => {
+      window.removeEventListener("userProfileUpdated", handleProfileUpdate);
+    };
+  }, [refreshUserProfile]);
 
   return (
     <Dropdown isOpen={isOpen} setIsOpen={setIsOpen}>
@@ -39,15 +62,15 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-3">
           <Image
-            src={user?.user_image || "/images/user/user-03.png"}
+            src={userProfile?.user_image || "/images/user/user-03.png"}
             className="size-12"
-            alt={`Avatar of ${user?.user_image}`}
+            alt={`Avatar of ${userProfile?.full_name || "user"}`}
             role="presentation"
             width={200}
             height={200}
           />
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
-            <span>{user?.full_name}</span>
+            <span>{userProfile?.full_name || userProfile?.email}</span>
 
             <ChevronUpIcon
               aria-hidden
@@ -69,9 +92,9 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-2.5 px-5 py-3.5">
           <Image
-            src={user?.user_image || "/images/user/user-03.png"}
+            src={userProfile?.user_image || "/images/user/user-03.png"}
             className="size-12"
-            alt={`Avatar for ${user?.full_name}`}
+            alt={`Avatar for ${userProfile?.full_name || "user"}`}
             role="presentation"
             width={200}
             height={200}
@@ -79,10 +102,10 @@ export function UserInfo() {
 
           <figcaption className="space-y-1 text-base font-medium">
             <div className="mb-2 leading-none text-dark dark:text-white">
-              {user?.full_name || user?.email}
+              {userProfile?.full_name || userProfile?.email}
             </div>
 
-            <div className="leading-none text-gray-6">{user?.email}</div>
+            <div className="leading-none text-gray-6">{userProfile?.email}</div>
           </figcaption>
         </figure>
 
@@ -90,7 +113,7 @@ export function UserInfo() {
 
         <div className="p-2 text-base text-[#4B5563] dark:text-dark-6 [&>*]:cursor-pointer">
           <Link
-            href={"/pages/settings"}
+            href={"/settings"}
             onClick={() => setIsOpen(false)}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[9px] hover:bg-gray-2 hover:text-dark dark:hover:bg-dark-3 dark:hover:text-white"
           >

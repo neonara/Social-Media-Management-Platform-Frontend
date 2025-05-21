@@ -1,4 +1,5 @@
 /** @type {import("next").NextConfig} */
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -23,7 +24,12 @@ const nextConfig = {
         port: ""
       }
     ]
-  }
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '1000mb', // Increase this value as needed
+    },
+  },
 };
 
 export default nextConfig;

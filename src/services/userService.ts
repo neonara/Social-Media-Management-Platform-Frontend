@@ -99,21 +99,35 @@ export async function updateUserProfile(id: number, userData: GetUser) {
   }
 }
 
-export async function getCurrentUser() {
+
+export async function getCurrentUser(bypassCache: boolean = false) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
+
+  // Return early if no valid token is found
+  if (!token) {
+    return null; // Explicitly return null to indicate no user is logged in
+  }
+
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("access_token")?.value;
-    if (!token) {
-      return { error: "Authentication required" };
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    // Add cache control headers if we want to bypass cache
+    if (bypassCache) {
+      headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      headers["Pragma"] = "no-cache";
     }
 
     const response = await fetch(`${API_BASE_URL}/user/profile/`, {
       credentials: "include",
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
+      // Only set cache: 'no-store' when bypassing cache
+      cache: bypassCache ? "no-store" : "default",
+      next: bypassCache ? { revalidate: 0 } : undefined,
     });
 
     let data;
@@ -133,7 +147,6 @@ export async function getCurrentUser() {
       throw new Error(`Error: ${response.statusText}`);
     }
 
-    console.log("profile: ", data);
     return data;
   } catch (error) {
     console.error("Error getting user profile:", error);
@@ -429,7 +442,11 @@ export async function getClientAssignedCommunityManagersServerAction(
 export async function removeClientCommunityManagerServerAction(
   clientId: number,
   communityManagerIdToRemove: number,
-): Promise<{ success?: boolean; error?: string; data?: any }> {
+): Promise<{
+  success?: boolean;
+  error?: string;
+  data?: Record<string, unknown>;
+}> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;

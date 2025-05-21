@@ -21,7 +21,7 @@ export async function fetchNotifications() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      cache: "no-store",
+      cache: "default",
     });
 
     if (!response.ok) {
@@ -49,7 +49,7 @@ export async function markAllNotificationsAsRead() {
     }
 
     const response = await fetch(`${API_BASE_URL}/notifications/read-all/`, {
-      method: "POST",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -141,6 +141,41 @@ export async function deleteNotification(notificationId: number) {
     return { success: true };
   } catch (error) {
     console.error(`Error deleting notification ${notificationId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Revalidate notifications cache to ensure fresh data.
+ * Call this function after mutations like markAsRead or delete.
+ */
+export async function revalidateNotificationsCache() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("access_token")?.value;
+
+    if (!token) {
+      return { error: "Authentication required" };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/notifications/`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store", // Skip cache for this request to get fresh data
+      next: { revalidate: 0 }, // Force revalidation in Next.js
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error revalidating notifications cache:", error);
     throw error;
   }
 }
