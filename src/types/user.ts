@@ -6,6 +6,7 @@ export interface User {
   last_name?: string;
   phone_number?: string;
   is_administrator: boolean;
+  is_superadministrator: boolean;
   is_moderator: boolean;
   is_community_manager: boolean;
   is_client: boolean;
@@ -31,6 +32,7 @@ export interface GetUser {
 
 export type UserRole =
   | "administrator"
+  | "super_administrator"
   | "moderator"
   | "community_manager"
   | "client"
@@ -38,6 +40,8 @@ export type UserRole =
 
 export function getUserRole(user: User): UserRole {
   if (user.is_administrator) return "administrator";
+  if (user.is_superadministrator) return "super_administrator";
+
   if (user.is_moderator) return "moderator";
   if (user.is_community_manager) return "community_manager";
   if (user.is_client) return "client";
@@ -48,6 +52,7 @@ export const roles = [
   { value: "moderator", label: "Moderator" },
   { value: "community_manager", label: "Community Manager" },
   { value: "administrator", label: "Administrator" },
+  { value: "super_administrator", label: "Super Administrator" },
 ];
 
 export type PendingAssignment = {

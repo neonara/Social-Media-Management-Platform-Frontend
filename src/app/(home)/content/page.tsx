@@ -8,7 +8,7 @@ export const metadata = {
 const PostsPage = () => {
   return (
     <>
-      <Breadcrumb pageName="Post" />
+      
       <PostForm />
     </>
   );

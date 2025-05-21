@@ -5,7 +5,7 @@ export const NAV_DATA = [
     label: "DASHBOARD",
     items: [
       {
-        title: "Dashboard",
+        title: "Assignment Table",
         url: "/",
         icon: Icons.HomeIcon,
         items: [],
@@ -15,28 +15,33 @@ export const NAV_DATA = [
         url: "/create-user",
         icon: Icons.User,
         items: [],
-        roles: ["administrator", "moderator"], // Only admins can see this
+        roles: ["administrator", "super_administrator", "moderator"], // Only admins can see this
       },
-      {
-        title: "Assignment Table",
-        url: "/assignmentTable",
-        icon: Icons.User,
-        items: [],
-        roles: [], // Admins and managers can see this
-      },
+      // {
+      //   title: "Assignment Table",
+      //   url: "/assignmentTable",
+      //   icon: Icons.User,
+      //   items: [],
+      //   roles: [], // Admins and managers can see this
+      // },
       {
         title: "Users Table",
         url: "/usersTable",
         icon: Icons.User,
         items: [],
-        roles: ["administrator"], // Only admins can see this
+        roles: ["administrator", "super_administrator"], // Only admins can see this
       },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
       {
         title: "Draft Posts",
         url: "/drafts",
         icon: Icons.Alphabet,
         items: [],
-        roles: [],
+        roles: ["moderator", "community_manager"], // Only admins and managers can see this
       },
       {
         title: "Calendar",

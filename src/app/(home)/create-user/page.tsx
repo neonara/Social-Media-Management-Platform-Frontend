@@ -39,10 +39,19 @@ export default function CreateUser() {
   ];
 
   // Check if the user is an administrator or moderator
-  if (role !== "administrator" && role !== "moderator") {
+  if (
+    role !== "administrator" &&
+    role !== "moderator" &&
+    role !== "super_administrator"
+  ) {
     router.push("/");
     return null;
   }
+
+  if (role === "administrator") {
+    roles.splice(3, 1); // Remove Client role
+  }
+
   if (role === "moderator") {
     roles.splice(0, 1); // Remove Client role
     roles.splice(1, 3); // Remove Rest of the roles

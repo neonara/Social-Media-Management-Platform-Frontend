@@ -665,11 +665,12 @@ export default function UsersTable() {
             </th>
             <th className="border px-4 py-2 font-bold text-black">Email</th>
             <th className="border px-4 py-2 font-bold text-black">Roles</th>
+            {/*
             <th
               className="cursor-pointer border px-4 py-2 font-bold text-black"
               onClick={() => sortUsers("assignedClient")}
             >
-              <div className="flex items-center gap-1">
+               <div className="flex items-center gap-1">
                 Assigned Client
                 {sortColumn === "assignedClient" && sortDirection === "asc" && (
                   <FaSortUp />
@@ -677,8 +678,8 @@ export default function UsersTable() {
                 {sortColumn === "assignedClient" &&
                   sortDirection === "desc" && <FaSortDown />}
                 {sortColumn !== "assignedClient" && <FaSort />}
-              </div>
-            </th>
+              </div> 
+            </th>*/}
             <th
               className="cursor-pointer border px-4 py-2 font-bold text-black"
               onClick={() => sortUsers("assignedModerators")}
@@ -710,6 +711,7 @@ export default function UsersTable() {
             <th className="border px-4 py-2 font-bold text-black">Actions</th>
           </tr>
         </thead>
+
         <tbody>
           {sortedFilteredUsers.map((user) => {
             const pending = pendingChanges.find(
@@ -743,7 +745,8 @@ export default function UsersTable() {
                 <td className="border px-4 py-2 text-gray-800">
                   {user.roles.join(", ")}
                 </td>
-                <td className="border px-4 py-2 text-gray-800">
+                {/* to be fixed "assigned client " */}
+                {/* <td className="border px-4 py-2 text-gray-800">
                   {user.assigned_client ? (
                     <div className="flex items-center justify-between gap-2">
                       <span>{user.assigned_client}</span>
@@ -767,7 +770,7 @@ export default function UsersTable() {
                       Pending Removal
                     </span>
                   )}
-                </td>
+                </td> */}
                 <td className="border px-4 py-2 text-gray-800">
                   {user.roles.includes("community_manager") ? (
                     user.assigned_moderator ? (

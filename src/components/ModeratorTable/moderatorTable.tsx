@@ -116,40 +116,41 @@ export default function AssignedCommunityManagersTable() {
   );
 
   const handleAssignCMToClient = async () => {
-    if (!selectedCMToAssign || !selectedClientToAssign) {
-      setAssignError("Please select a client to assign to.");
-      return;
-    }
+  if (!selectedCMToAssign || !selectedClientToAssign) {
+    setAssignError("Please select a client to assign to.");
+    return;
+  }
 
-    // Show the confirmation modal
-    setOnConfirm(() => async () => {
-      setIsAssigning(true);
-      setAssignError(null);
+  // Show the confirmation modal
+  setOnConfirm(() => async () => {
+    setIsAssigning(true);
+    setAssignError(null);
 
-      try {
-        const data = await assignCommunityManagerToClient(
-          selectedCMToAssign.id,
-          selectedClientToAssign,
-        );
-        if ("error" in data) {
-          setAssignError(data.error);
-          console.error("Error assigning CM to client:", data.error);
-          return;
-        }
-        setShowAssignModal(false);
-        setSelectedCMToAssign(null);
-        setSelectedClientToAssign(null);
-        loadAssignedCMs(); // Refresh CM list after assignment
-      } catch (error: any) {
-        setAssignError(`An unexpected error occurred: ${error.message}`);
-        console.error("Unexpected error assigning CM to client:", error);
-      } finally {
-        setIsAssigning(false);
-        setShowConfirmModal(false); // Close the modal
+    try {
+      const data = await assignCommunityManagerToClient(
+        selectedCMToAssign.id,
+        selectedClientToAssign,
+      );
+      if ("error" in data) {
+        setAssignError(data.error);
+        console.error("Error assigning CM to client:", data.error);
+        return;
       }
-    });
-    setShowConfirmModal(true);
-  };
+      setShowAssignModal(false);
+      setSelectedCMToAssign(null);
+      setSelectedClientToAssign(null);
+      await loadAssignedCMs(); // Refresh CM list after assignment
+      await loadClients();     // Refresh client list to update assigned CM
+    } catch (error: any) {
+      setAssignError(`An unexpected error occurred: ${error.message}`);
+      console.error("Unexpected error assigning CM to client:", error);
+    } finally {
+      setIsAssigning(false);
+      setShowConfirmModal(false); // Close the modal
+    }
+  });
+  setShowConfirmModal(true);
+};
 
   if (isLoadingCMs || isLoadingClients) {
     return <div>Loading data...</div>;

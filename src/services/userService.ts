@@ -99,6 +99,7 @@ export async function updateUserProfile(id: number, userData: GetUser) {
   }
 }
 
+
 export async function getCurrentUser(bypassCache: boolean = false) {
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import {
   format,
   isSameDay,
-  // isSameHour,
   startOfWeek,
   endOfWeek,
   addWeeks,
@@ -19,7 +18,6 @@ import {
   addMonths,
   subMonths,
   subQuarters,
-  eachMonthOfInterval,
 } from "date-fns";
 import {
   ChevronLeft,
@@ -32,8 +30,6 @@ import * as postService from "@/services/postService";
 import { useRouter } from "next/navigation";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { GetUser } from "@/types/user";
-import router from "next/router";
 
 interface ScheduledPost {
   id: string;
@@ -41,138 +37,21 @@ interface ScheduledPost {
   platform: "Facebook" | "Instagram" | "LinkedIn";
   scheduled_for: string;
   status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: GetUser;
+  creator?: {
+    full_name?: string;
+    [key: string]: any;
+  };
+  client?: {
+    id?: string;
+    name?: string;
+    [key: string]: any;
+  };
 }
-interface AnalyticsData {
-  period: string;
-  posts: number;
-  engagement: number;
-}
+
 const platformIcons = {
   Facebook: <FaFacebook className="text-blue-600" />,
   Instagram: <FaInstagram className="text-pink-500" />,
   LinkedIn: <FaLinkedin className="text-blue-700" />,
-};
-
-const AnalyticsGrid = ({
-  currentDate,
-  calendarView,
-}: {
-  currentDate: Date;
-  calendarView: "week" | "month" | "quarter" | "year";
-}) => {
-  const generateAnalyticsData = (): AnalyticsData[] => {
-    // const now = new Date();
-    switch (calendarView) {
-      case "month": {
-        const monthsToShow = 3;
-        return Array.from({ length: monthsToShow })
-          .map((_, i) => {
-            const monthDate = subMonths(startOfMonth(currentDate), i);
-            return {
-              period: format(monthDate, "MMM yyyy"),
-              posts: Math.floor(Math.random() * 300 + 100 * (monthsToShow - i)),
-              engagement: Math.floor(
-                Math.random() * 5000 + 2000 * (monthsToShow - i),
-              ),
-            };
-          })
-          .reverse();
-      }
-
-      case "quarter": {
-        const quartersToShow = 4;
-        return Array.from({ length: quartersToShow })
-          .map((_, i) => {
-            const quarterStart = subQuarters(startOfQuarter(currentDate), i);
-            return {
-              period: `Q${Math.ceil((quarterStart.getMonth() + 1) / 3)} ${format(quarterStart, "yyyy")}`,
-              posts: Math.floor(
-                Math.random() * 900 + 300 * (quartersToShow - i),
-              ),
-              engagement: Math.floor(
-                Math.random() * 15000 + 5000 * (quartersToShow - i),
-              ),
-            };
-          })
-          .reverse();
-      }
-
-      case "year": {
-        return eachMonthOfInterval({
-          start: startOfYear(currentDate),
-          end: endOfYear(currentDate),
-        }).map((month) => ({
-          period: format(month, "MMM"),
-          posts: Math.floor(Math.random() * 100 + 50 * (12 - month.getMonth())),
-          engagement: Math.floor(
-            Math.random() * 2000 + 1000 * (12 - month.getMonth()),
-          ),
-        }));
-      }
-
-      default: {
-        const weekStart = startOfWeek(currentDate);
-        return eachDayOfInterval({
-          start: weekStart,
-          end: addDays(weekStart, 6),
-        }).map((day) => ({
-          period: format(day, "EEE"),
-          posts: Math.floor(Math.random() * 20 + 10),
-          engagement: Math.floor(Math.random() * 500 + 200),
-        }));
-      }
-    }
-  };
-
-  const analyticsData = generateAnalyticsData();
-
-  return (
-    <div className="p-4">
-      <h3 className="mb-4 text-xl font-semibold dark:text-white">
-        {calendarView.charAt(0).toUpperCase() + calendarView.slice(1)} Analytics
-      </h3>
-
-      <div className="rounded-lg border border-stroke dark:border-dark-3">
-        <div className="dark:bg-gray-dark-1 grid grid-cols-3 bg-gray-1 p-4 font-medium text-dark dark:text-white">
-          <div>Period</div>
-          <div>Posts</div>
-          <div>Engagement</div>
-        </div>
-
-        {analyticsData.map((item, index) => (
-          <div
-            key={index}
-            className="grid grid-cols-3 border-b border-stroke p-4 hover:bg-gray-1 dark:border-dark-3 dark:hover:bg-dark-2"
-          >
-            <div className="text-dark dark:text-white">{item.period}</div>
-            <div className="dark:text-primary-dark text-primary">
-              {item.posts}
-            </div>
-            <div className="text-blue-600 dark:text-blue-300">
-              {item.engagement.toLocaleString()}
-            </div>
-          </div>
-        ))}
-
-        <div className="dark:bg-gray-dark-1 grid grid-cols-3 bg-gray-1 p-4 font-semibold">
-          <div className="text-dark dark:text-white">Average</div>
-          <div className="dark:text-primary-dark text-primary">
-            {Math.round(
-              analyticsData.reduce((sum, item) => sum + item.posts, 0) /
-                analyticsData.length,
-            )}
-          </div>
-          <div className="text-blue-600 dark:text-blue-300">
-            {Math.round(
-              analyticsData.reduce((sum, item) => sum + item.engagement, 0) /
-                analyticsData.length,
-            ).toLocaleString()}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const PostTable = ({
@@ -180,11 +59,13 @@ const PostTable = ({
   onRefresh,
   currentDate,
   calendarView,
+  onPostClick,
 }: {
   posts: ScheduledPost[];
   onRefresh: () => void;
   currentDate: Date;
   calendarView: "week" | "month" | "quarter" | "year";
+  onPostClick: (post: ScheduledPost) => void;
 }) => {
   // Filter posts based on the current calendar view and date
   const filterPostsByDateRange = (post: ScheduledPost) => {
@@ -266,7 +147,8 @@ const PostTable = ({
           pendingPosts.map((post) => (
             <div
               key={post.id}
-              className="mb-2 rounded-lg bg-yellow-100 p-3 text-sm text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+              className="mb-2 cursor-pointer rounded-lg bg-yellow-100 p-3 text-sm text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+              onClick={() => onPostClick(post)}
             >
               <div className="flex justify-between">
                 <span>{post.title}</span>
@@ -279,13 +161,19 @@ const PostTable = ({
               </div>
               <div className="mt-2 flex gap-2">
                 <button
-                  onClick={() => handleApprove(post.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleApprove(post.id);
+                  }}
                   className="rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-600"
                 >
                   Approve
                 </button>
                 <button
-                  onClick={() => handleReject(post.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReject(post.id);
+                  }}
                   className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600"
                 >
                   Reject
@@ -309,7 +197,8 @@ const PostTable = ({
           rejectedPosts.map((post) => (
             <div
               key={post.id}
-              className="mb-2 rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900 dark:text-red-200"
+              className="mb-2 cursor-pointer rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900 dark:text-red-200"
+              onClick={() => onPostClick(post)}
             >
               <div className="flex justify-between">
                 <span>{post.title}</span>
@@ -337,7 +226,8 @@ const PostTable = ({
           scheduledPosts.map((post) => (
             <div
               key={post.id}
-              className="mb-2 rounded-lg bg-blue-100 p-3 text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+              className="mb-2 cursor-pointer rounded-lg bg-blue-100 p-3 text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+              onClick={() => onPostClick(post)}
             >
               <div className="flex justify-between">
                 <span>{post.title}</span>
@@ -366,14 +256,9 @@ const PostTable = ({
           postedPosts.map((post) => (
             <div
               key={post.id}
-              className="mb-2 rounded-lg bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900 dark:text-green-200"
+              className="mb-2 cursor-pointer rounded-lg bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900 dark:text-green-200"
+              onClick={() => onPostClick(post)}
             >
-              <button
-                onClick={() => router.push(`/editPost/${post?.id}`)}
-                className="hover:bg-primary-dark rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              >
-                Edit Post
-              </button>
               <div className="flex justify-between">
                 <span>{post.title}</span>
                 <span className="text-xs">
@@ -401,7 +286,7 @@ const ContentDashboard = () => (
       {["Facebook", "Instagram", "LinkedIn"].map((platform) => (
         <button
           key={platform}
-          className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-purple-100 px-3 py-2 text-white shadow-md"
+          className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white"
         >
           {platformIcons[platform as keyof typeof platformIcons]}
         </button>
@@ -454,15 +339,18 @@ const CalendarBox = () => {
   const [calendarView, setCalendarView] = useState<
     "week" | "month" | "quarter" | "year"
   >("week");
-  const [activeTab, setActiveTab] = useState<
-    "calendar" | "analytics" | "content_studio" | "post_table"
-  >("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "post_table">(
+    "calendar",
+  );
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchYear, setSearchYear] = useState<string>("");
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null);
-  // const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  const [filterCreator, setFilterCreator] = useState<string | null>(null);
+  const [filterClient, setFilterClient] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
   const router = useRouter();
 
   const platformIcons = {
@@ -471,21 +359,66 @@ const CalendarBox = () => {
     LinkedIn: <FaLinkedin className="text-blue-700" />,
   };
 
-  const fetchScheduledPosts = async () => {
+  const fetchScheduledPosts = async (
+    creatorFilter?: string | null,
+    statusFilter?: string | null,
+    clientFilter?: string | null,
+  ) => {
     setLoadingPosts(true);
     try {
       const posts = await postService.getScheduledPosts();
-      setScheduledPosts(posts);
+      // Apply filters if they exist
+      const filteredPosts = posts.filter((post) => {
+        const matchesCreator = creatorFilter
+          ? post.creator?.full_name === creatorFilter
+          : true;
+        const matchesStatus = statusFilter
+          ? post.status === statusFilter
+          : true;
+        const matchesClient = clientFilter
+          ? post.client?.full_name === clientFilter
+          : true;
+        return matchesCreator && matchesStatus && matchesClient;
+      });
+      setScheduledPosts(filteredPosts);
     } catch (error) {
       console.error("Error fetching scheduled posts:", error);
     } finally {
       setLoadingPosts(false);
     }
   };
+  useEffect(() => {
+    fetchScheduledPosts(filterCreator, filterStatus);
+  }, [filterCreator, filterStatus, filterClient, currentDate, calendarView]);
+
+  const applyFilters = (posts: ScheduledPost[]) => {
+    return posts.filter((post) => {
+      const matchesStatus = filterStatus ? post.status === filterStatus : true;
+      const matchesCreator = filterCreator
+        ? post.creator?.full_name === filterCreator
+        : true;
+      const matchesClient = filterClient
+        ? post.client?.name === filterClient
+        : true;
+      return matchesStatus && matchesCreator;
+    });
+  };
 
   useEffect(() => {
-    fetchScheduledPosts();
-  }, [currentDate, calendarView]);
+    const fetchFilteredPosts = async () => {
+      setLoadingPosts(true);
+      try {
+        const posts = await postService.getScheduledPosts();
+        setScheduledPosts(applyFilters(posts));
+      } catch (error) {
+        console.error("Error fetching scheduled posts:", error);
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+
+    fetchFilteredPosts();
+  }, [filterStatus, currentDate, calendarView]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
     setCurrentDate(date);
@@ -762,7 +695,7 @@ const CalendarBox = () => {
                                       e.stopPropagation();
                                       setSelectedPost(post);
                                     }}
-                                    className={`h-4 cursor-pointer truncate rounded px-2 py-1 text-xs ${
+                                    className={`h-6 cursor-pointer truncate rounded px-2 py-1 text-xs ${
                                       new Date(post.scheduled_for) < new Date()
                                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                         : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
@@ -854,7 +787,7 @@ const CalendarBox = () => {
                       monthIndex,
                     );
                     const monthStart = startOfMonth(monthDate);
-                    // const monthEnd = endOfMonth(monthDate);
+                    const monthEnd = endOfMonth(monthDate);
 
                     // Get first day of month and calculate offset for week start
                     const firstDay = monthStart.getDay(); // 0 (Sun) to 6 (Sat)
@@ -978,7 +911,7 @@ const CalendarBox = () => {
             <span className="hidden sm:block">Today</span>
           </button>
           <button
-            onClick={fetchScheduledPosts}
+            onClick={() => fetchScheduledPosts()}
             disabled={loadingPosts}
             className="hover:bg-primary-dark dark:bg-primary-dark ml-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all dark:hover:bg-primary"
           >
@@ -1026,26 +959,76 @@ const CalendarBox = () => {
         </button>
       </div>
 
-      <div className="mb-6 flex gap-4 border-b border-stroke dark:border-dark-3">
-        {["Calendar", "Analytics", "Content Studio", "Posts Table"].map(
-          (tab) => (
-            <button
-              key={tab}
-              onClick={() =>
-                setActiveTab(tab.toLowerCase().replace(" ", "_") as any)
-              }
-              className={`px-4 pb-2 ${
-                activeTab === tab.toLowerCase().replace(" ", "_")
-                  ? "dark:border-primary-dark dark:text-primary-dark border-b-2 border-primary text-primary"
-                  : "text-dark hover:text-gray-600 dark:text-white"
-              }`}
-            >
-              {tab}
-            </button>
-          ),
-        )}
+      <div className="mb-6 flex gap-4">
+        {/* Filter by Status */}
+        <select
+          value={filterStatus || ""}
+          onChange={(e) => setFilterStatus(e.target.value || null)}
+          className="dark:bg-gray-dark-2 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
+        >
+          <option value="">All Statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="published">Published</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <select
+          value={filterCreator || ""}
+          onChange={(e) => setFilterCreator(e.target.value || null)}
+          className="dark:bg-gray-dark-2 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
+        >
+          <option value="">All Creators</option>
+          {Array.from(
+            new Set(
+              scheduledPosts
+                .map((post) => post.creator?.full_name)
+                .filter(Boolean),
+            ),
+          ).map((creatorName) => (
+            <option key={creatorName} value={creatorName}>
+              {creatorName}
+            </option>
+          ))}
+        </select>
+        {/* Filter by Client */}
+        <select
+          value={filterClient || ""}
+          onChange={(e) => setFilterClient(e.target.value || null)}
+          className="dark:bg-gray-dark-2 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
+        >
+          <option value="">All Clients</option>
+          {Array.from(
+            new Set(
+              scheduledPosts
+                .map((post) => post.client?.full_name)
+                .filter(Boolean),
+            ),
+          ).map((clientName) => (
+            <option key={clientName} value={clientName}>
+              {clientName}
+            </option>
+          ))}
+        </select>
       </div>
 
+      <div className="mb-6 flex gap-4 border-b border-stroke dark:border-dark-3">
+        {["Calendar", "Posts Table"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() =>
+              setActiveTab(tab.toLowerCase().replace(" ", "_") as any)
+            }
+            className={`px-4 pb-2 ${
+              activeTab === tab.toLowerCase().replace(" ", "_")
+                ? "dark:border-primary-dark dark:text-primary-dark border-b-2 border-primary text-primary"
+                : "text-dark hover:text-gray-600 dark:text-white"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+      {/*el views mta3 table*/}
       <div className="overflow-hidden rounded-xl bg-white shadow-lg dark:bg-gray-dark dark:shadow-card">
         {activeTab === "calendar" ? (
           calendarView === "month" ? (
@@ -1066,19 +1049,13 @@ const CalendarBox = () => {
           ) : (
             CalendarGridView()
           )
-        ) : activeTab === "analytics" ? (
-          <AnalyticsGrid
-            currentDate={currentDate}
-            calendarView={calendarView}
-          />
-        ) : activeTab === "content_studio" ? (
-          <ContentDashboard />
         ) : (
           <PostTable
             posts={scheduledPosts}
             onRefresh={fetchScheduledPosts}
             currentDate={currentDate}
             calendarView={calendarView}
+            onPostClick={setSelectedPost}
           />
         )}
       </div>
@@ -1086,14 +1063,14 @@ const CalendarBox = () => {
       {selectedPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-dark">
-            {/* Post Preview Modal */}
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-dark-3">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                 {selectedPost.title}
               </h3>
               <button
                 onClick={() => setSelectedPost(null)}
-                className="text-xl text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
               >
                 ✕
               </button>
@@ -1143,20 +1120,16 @@ const CalendarBox = () => {
                     : "Unknown"}
                 </span>
               </p>
-
               {/* Creator */}
-              {selectedPost.creator && (
-                <p className="text-sm">
-                  <span className="font-medium text-gray-600 dark:text-gray-300">
-                    Creator:
-                  </span>{" "}
-                  <span className="font-semibold text-dark dark:text-white">
-                    {selectedPost.creator.full_name ||
-                      selectedPost.creator.email}{" "}
-                    ({selectedPost.creator.role})
-                  </span>
-                </p>
-              )}
+
+              <p className="text-sm">
+                <span className="font-medium text-gray-600 dark:text-gray-300">
+                  Creator:
+                </span>{" "}
+                <span className="font-semibold text-dark dark:text-white">
+                  {selectedPost.creator?.full_name || "Unknown"}
+                </span>
+              </p>
             </div>
 
             {/* Modal Footer */}
@@ -1202,7 +1175,7 @@ const CalendarBox = () => {
 
       <div className="mt-8 border-t border-stroke pt-4 text-center dark:border-dark-3">
         <div className="text-sm text-gray-600 dark:text-gray-300">
-          PLANIT BY BRAND AND COM
+          PLANTIT BY BRAND AND COM
         </div>
         <div className="mt-2 flex justify-center gap-4">
           <a

@@ -1,4 +1,5 @@
 /** @type {import("next").NextConfig} */
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -23,9 +24,10 @@ const nextConfig = {
         port: ""
       }
     ]
-  },experimental: {
+  },
+  experimental: {
     serverActions: {
-      bodySizeLimit: "200mb", // Set the limit to 10 MB or any desired size
+      bodySizeLimit: '1000mb', // Increase this value as needed
     },
   },
 };
