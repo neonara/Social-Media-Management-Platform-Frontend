@@ -465,12 +465,41 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
       // Append all basic fields
       formDataToSend.append("title", formData.title);
       formDataToSend.append("description", formData.caption);
+
+      // Convert platforms array to JSON string as required by the backend
       formDataToSend.append(
         "platforms",
         JSON.stringify(formData.selectedPlatforms),
       );
+
       formDataToSend.append("status", "scheduled");
-      formDataToSend.append("scheduled_for", formData.scheduledTime);
+
+      // Format the date properly with seconds and timezone (Z for UTC)
+      let formattedDate = "";
+      if (formData.scheduledTime) {
+        try {
+          // Ensure the date has seconds and timezone
+          const date = new Date(formData.scheduledTime);
+          formattedDate = date.toISOString();
+
+          // Verify the date is valid and in the expected format
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date");
+          }
+        } catch (err) {
+          console.error("Date conversion error:", err);
+          // Fallback format: add seconds and timezone if missing
+          formattedDate = formData.scheduledTime.replace(
+            /T(\d{2}):(\d{2})$/,
+            "T$1:$2:00Z",
+          );
+        }
+      }
+
+      // Log the formatted date for debugging
+      console.log("Formatted ISO date:", formattedDate);
+
+      formDataToSend.append("scheduled_for", formattedDate);
 
       // Append existing media IDs
       formData.mediaFiles.forEach((media) => {
@@ -514,12 +543,19 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
       // Append all basic fields
       formDataToSend.append("title", formData.title);
       formDataToSend.append("description", formData.caption);
+
+      // Convert platforms array to JSON string as required by the backend
       formDataToSend.append(
         "platforms",
         JSON.stringify(formData.selectedPlatforms),
       );
+
       formDataToSend.append("status", "draft"); // Set status to "draft"
-      formDataToSend.append("scheduled_for", formData.scheduledTime || "");
+      // Format the date properly if it exists
+      const formattedDate = formData.scheduledTime
+        ? new Date(formData.scheduledTime).toISOString()
+        : "";
+      formDataToSend.append("scheduled_for", formattedDate);
 
       // Append existing media IDs
       formData.mediaFiles.forEach((media) => {

@@ -1,13 +1,13 @@
+"use client";
+
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import type { Metadata } from "next";
 import { PersonalInfoForm } from "./_components/personal-info";
 import { UploadPhotoForm } from "./_components/upload-photo";
-
-export const metadata: Metadata = {
-  title: "Settings Page",
-};
+import { SocialMediaConnections } from "./_components/social-media-connection";
+import { useUser } from "@/context/UserContext";
 
 export default function SettingsPage() {
+  const { role } = useUser();
   return (
     <div className="mx-auto w-full max-w-[1080px]">
       <Breadcrumb pageName="Settings" />
@@ -20,7 +20,7 @@ export default function SettingsPage() {
           <UploadPhotoForm />
         </div>
       </div>
+      {role === "client" && <SocialMediaConnections />}
     </div>
   );
-};
-
+}

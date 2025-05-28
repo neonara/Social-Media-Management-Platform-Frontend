@@ -23,6 +23,8 @@ import { toast } from "react-hot-toast";
 import { useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import DOMPurify from "dompurify";
+import { getClientPages } from "@/services/socialMedia";
+import { SocialPage } from "@/types/social-page";
 
 interface MediaFile {
   id: string;
@@ -315,6 +317,7 @@ export function PostForm() {
     clientId: clientId || null,
   });
 
+  // State to hold client data
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
 
@@ -459,6 +462,41 @@ export function PostForm() {
     }
   }, []);
 
+  // State to hold client pages
+  const [clientPages, setClientPages] = useState<SocialPage[]>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
+
+  // Fetch client social media pages
+  const fetchClientPages = useCallback(async () => {
+    if (!state.clientId) return;
+
+    setLoadingPages(true);
+    try {
+      const pages = await getClientPages(state.clientId);
+      console.log("Client pages fetched:", pages);
+      if (Array.isArray(pages)) {
+        setClientPages(pages);
+      } else if ("error" in pages) {
+        console.error("Error fetching pages:", pages.error);
+        toast.error("Failed to load client social media pages");
+        setClientPages([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch client pages:", error);
+      toast.error("Failed to load client social media pages");
+      setClientPages([]);
+    } finally {
+      setLoadingPages(false);
+    }
+  }, [state.clientId]);
+
+  useEffect(() => {
+    if (state.clientId) {
+      fetchClientPages();
+    }
+  }, [state.clientId, fetchClientPages]);
+  console.log("Client pages:", clientPages);
+
   // Form submission
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -507,14 +545,45 @@ export function PostForm() {
       const formData = new FormData();
       formData.append("title", title);
       formData.append("description", updatedCaption);
+
+      // Convert platforms array to JSON string as required by the backend
       formData.append("platforms", JSON.stringify(state.selectedPlatforms));
+
       formData.append("status", "scheduled");
-      formData.append("scheduled_for", state.scheduledAt);
+
+      // Log the input date for debugging
+      console.log("Original scheduled date:", state.scheduledAt);
+
+      // Format the date properly with seconds and timezone (Z for UTC)
+      let formattedDate = "";
+      if (state.scheduledAt) {
+        try {
+          // Ensure the date has seconds and timezone
+          const date = new Date(state.scheduledAt);
+          formattedDate = date.toISOString();
+
+          // Verify the date is valid and in the expected format
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date");
+          }
+        } catch (err) {
+          console.error("Date conversion error:", err);
+          // Fallback format: add seconds and timezone if missing
+          formattedDate = state.scheduledAt.replace(
+            /T(\d{2}):(\d{2})$/,
+            "T$1:$2:00Z",
+          );
+        }
+      }
+
+      // Log the formatted date to verify it's correct
+      console.log("Formatted ISO date:", formattedDate);
+
+      formData.append("scheduled_for", formattedDate);
 
       // Add client ID if present
       if (state.clientId) {
         formData.append("client_id", state.clientId.toString());
-        console.log("Client ID:", state.clientId);
       }
 
       state.mediaFiles.forEach((media) => {
@@ -523,6 +592,7 @@ export function PostForm() {
         }
       });
 
+      console.log("Post create result:", formData.get("platforms"));
       const result = await createPost(formData);
 
       if (result.success) {
@@ -544,6 +614,7 @@ export function PostForm() {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
   };
+
   const resetForm = useCallback(() => {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (titleRef.current) titleRef.current.value = "";
@@ -604,12 +675,15 @@ export function PostForm() {
         const formData = new FormData();
         formData.append("title", title);
         formData.append("description", updatedCaption);
+
+        // Convert platforms array to JSON string as required by the backend
         formData.append("platforms", JSON.stringify(state.selectedPlatforms));
+
         formData.append("status", "draft");
 
         // Add client ID if present
         if (state.clientId) {
-          formData.append("client", state.clientId.toString());
+          formData.append("client_id", state.clientId.toString());
         }
 
         state.mediaFiles.forEach((media) => {
@@ -653,10 +727,6 @@ export function PostForm() {
         ? prev.selectedPlatforms.filter((p) => p !== platform)
         : [...prev.selectedPlatforms, platform],
     }));
-  }, []);
-
-  const handleChooseFileClick = useCallback(() => {
-    fileInputRef.current?.click();
   }, []);
 
   const renderPreview = () => {
@@ -853,23 +923,53 @@ export function PostForm() {
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Platforms
               </h2>
-              <div className="mt-4 flex space-x-4">
-                {["facebook", "instagram", "linkedin"].map((platform) => (
-                  <button
-                    key={platform}
-                    type="button"
-                    onClick={() => togglePlatform(platform)}
-                    className={`flex items-center justify-center rounded-md border px-4 py-2 ${
-                      state.selectedPlatforms.includes(platform)
-                        ? "border-primary bg-primary text-white"
-                        : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                    }`}
-                  >
-                    {platformIcons[platform as keyof typeof platformIcons]}
-                    <span className="ml-2 capitalize">{platform}</span>
-                  </button>
-                ))}
-              </div>
+              {state.clientId && clientPages.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-4">
+                  {clientPages.map((page) => (
+                    <button
+                      key={page.id}
+                      type="button"
+                      onClick={() => togglePlatform(page.platform)}
+                      className={`flex items-center justify-center rounded-md border px-4 py-2 ${
+                        state.selectedPlatforms.includes(page.platform)
+                          ? "border-primary bg-primary text-white"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
+                    >
+                      {
+                        platformIcons[
+                          page.platform as keyof typeof platformIcons
+                        ]
+                      }
+                      <span className="ml-2">{page.name || page.platform}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : state.clientId ? (
+                <div className="mt-4 text-gray-500">
+                  {loadingPages
+                    ? "Loading available platforms..."
+                    : "No connected social media accounts found for this client."}
+                </div>
+              ) : (
+                <div className="mt-4 flex space-x-4">
+                  {["facebook", "instagram", "linkedin"].map((platform) => (
+                    <button
+                      key={platform}
+                      type="button"
+                      onClick={() => togglePlatform(platform)}
+                      className={`flex items-center justify-center rounded-md border px-4 py-2 ${
+                        state.selectedPlatforms.includes(platform)
+                          ? "border-primary bg-primary text-white"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
+                    >
+                      {platformIcons[platform as keyof typeof platformIcons]}
+                      <span className="ml-2 capitalize">{platform}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Media */}
