@@ -185,7 +185,7 @@ export function PersonalInfoForm() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="devidjohn45@gmail.com"
+                placeholder="name@email.com"
                 className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
               />
             </div>
