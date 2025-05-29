@@ -27,6 +27,7 @@ export function PersonalInfoForm() {
   const { userProfile, refreshUserProfile } = useUser();
   const { role } = useUser();
   const id = useRef(1);
+  console.log("User Profile:", userProfile);
 
   useEffect(() => {
     if (userProfile) {
@@ -58,18 +59,27 @@ export function PersonalInfoForm() {
     setOnConfirm(() => async () => {
       try {
         setLoading(true);
+        console.log("Submitting profile update with data:", {
+          id: id.current,
+          ...formData,
+          role: formData.role as UserRole,
+        });
+
         await updateUserProfile(id.current, {
           id: id.current,
           ...formData,
           role: formData.role as UserRole,
-          full_name: "",
+          full_name: `${formData.first_name} ${formData.last_name}`.trim(),
           assigned_moderator: null,
           assigned_communitymanagers: null,
           assigned_clients: null,
         });
 
-        // Refresh user profile to get updated data (bypassCache=true)
+        // Force refresh user profile to get latest data (bypassCache=true)
         await refreshUserProfile();
+
+        // Log the refreshed profile to verify
+        console.log("Profile after refresh:", userProfile);
 
         showNotification(
           "Profile updated successfully!",

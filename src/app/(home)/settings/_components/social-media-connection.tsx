@@ -72,7 +72,7 @@ const FacebookPlatform = ({
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">{page.name}</span>
+                  <span className="text-sm text-gray-600">{page.page_name}</span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   {page.followers_count && (
@@ -155,7 +155,7 @@ const InstagramPlatform = ({
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">{page.name}</span>
+                  <span className="text-sm text-gray-600">{page.page_name}</span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   {page.followers_count && (
@@ -237,7 +237,7 @@ const LinkedInPlatform = ({
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">{page.name}</span>
+                  <span className="text-sm text-gray-600">{page.page_name}</span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   {page.followers_count && (

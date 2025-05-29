@@ -2,30 +2,31 @@
 
 /**
  * Represents a social media account/page
- * Backend fields: ['id', 'platform', 'client', 'page_id', 'page_name', 'connected', 'created_at', 'updated_at']
+ * Backend fields from Django model SocialPage
  */
 export interface SocialPage {
-  // Required fields from backend
+  // Required fields from serializer
   id: number;
   platform: SocialPlatform;
+  client: number; // Foreign key to User model
   page_id: string;
-  name: string; // corresponds to page_name from backend
-  connected: boolean;
-  created_at: Date;
-  updated_at: Date;
-  // Optional fields
-  client?: number;
-  // Additional frontend properties
+  page_name: string; // Primary field for display name
+  connected: boolean; // Whether the account is connected
+  token_valid: boolean; // From is_token_valid method
+  created_at: Date | string;
+  updated_at: Date | string;
+
+  // Optional but useful fields
+  name?: string; // kept for backward compatibility, same as page_name
+  access_token?: string;
+  token_expires_at?: Date | string | null;
+  permissions?: Record<string, unknown>;
+
+  // Additional frontend properties that might be useful
   followers_count?: number;
-  handle?: string;
-  url?: string;
   profile_image?: string;
-  cover_image?: string;
-  following_count?: number;
-  posts_count?: number;
-  engagement_rate?: number;
-  description?: string;
-  is_active?: boolean;
+  url?: string;
+  handle?: string;
 }
 
 /**

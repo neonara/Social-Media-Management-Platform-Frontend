@@ -43,9 +43,11 @@ interface Client {
 const FacebookPostPreview = ({
   content,
   media,
+  pageName = "Facebook User",
 }: {
   content: string;
   media?: string[];
+  pageName?: string;
 }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
@@ -53,7 +55,7 @@ const FacebookPostPreview = ({
       <div className="mb-2 flex items-center gap-3">
         <Facebook className="h-8 w-8 text-blue-600" />
         <div>
-          <div className="font-semibold text-gray-800">Facebook User</div>
+          <div className="font-semibold text-gray-800">{pageName}</div>
           <div className="text-xs text-gray-500">{timeAgo}</div>
         </div>
       </div>
@@ -120,9 +122,11 @@ const FacebookPostPreview = ({
 const InstagramPostPreview = ({
   content,
   media,
+  pageName = "Instagram User",
 }: {
   content: string;
   media?: string[];
+  pageName?: string;
 }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
@@ -130,7 +134,7 @@ const InstagramPostPreview = ({
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-3">
           <Instagram className="h-8 w-8 text-pink-500" />
-          <div className="font-semibold text-gray-800">Instagram User</div>
+          <div className="font-semibold text-gray-800">{pageName}</div>
         </div>
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -219,9 +223,11 @@ const InstagramPostPreview = ({
 const LinkedinPostPreview = ({
   content,
   media,
+  pageName = "LinkedIn User",
 }: {
   content: string;
   media?: string[];
+  pageName?: string;
 }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
@@ -229,7 +235,7 @@ const LinkedinPostPreview = ({
       <div className="mb-2 flex items-center gap-3">
         <Linkedin className="h-8 w-8 text-blue-700" />
         <div>
-          <div className="font-semibold text-gray-800">LinkedIn User</div>
+          <div className="font-semibold text-gray-800">{pageName}</div>
           <div className="text-xs text-gray-500">{timeAgo}</div>
         </div>
       </div>
@@ -354,9 +360,9 @@ export function PostForm() {
 
   // Platform icons
   const platformIcons = {
-    facebook: <Facebook className="text-blue-600" />,
-    instagram: <Instagram className="text-pink-500" />,
-    linkedin: <Linkedin className="text-blue-700" />,
+    facebook: <Facebook className="size-5 text-blue-600" />,
+    instagram: <Instagram className="size-5 text-pink-500" />,
+    linkedin: <Linkedin className="size-5 text-blue-700" />,
   };
 
   // File handling
@@ -744,11 +750,15 @@ export function PostForm() {
           ? state.mediaFiles.map((file) => file.preview)
           : undefined;
 
+      // Find the matching social page for this platform from clientPages if available
+      const socialPage = clientPages.find((page) => page.platform === platform);
+
       switch (platform) {
         case "facebook":
           return (
             <FacebookPostPreview
               key="facebook"
+              pageName={socialPage?.page_name || "Facebook User"}
               content={state.caption}
               media={mediaArray}
             />
@@ -757,6 +767,7 @@ export function PostForm() {
           return (
             <InstagramPostPreview
               key="instagram"
+              pageName={socialPage?.page_name || "Instagram User"}
               content={state.caption}
               media={mediaArray}
             />
@@ -765,6 +776,7 @@ export function PostForm() {
           return (
             <LinkedinPostPreview
               key="linkedin"
+              pageName={socialPage?.page_name || "LinkedIn User"}
               content={state.caption}
               media={mediaArray}
             />
@@ -794,7 +806,7 @@ export function PostForm() {
               </label>
               <select
                 id="client-select"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                className="mt-1 block w-full rounded-md border-gray-300 p-3 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 value={state.clientId || ""}
                 onChange={(e) =>
                   setState((prev) => ({
@@ -930,18 +942,32 @@ export function PostForm() {
                       key={page.id}
                       type="button"
                       onClick={() => togglePlatform(page.platform)}
-                      className={`flex items-center justify-center rounded-md border px-4 py-2 ${
+                      className={`flex flex-col items-center justify-center gap-1 rounded-md border px-3 py-2 ${
                         state.selectedPlatforms.includes(page.platform)
-                          ? "border-primary bg-primary text-white"
+                          ? "border-primary bg-secondary text-white"
                           : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                       }`}
                     >
-                      {
-                        platformIcons[
-                          page.platform as keyof typeof platformIcons
-                        ]
-                      }
-                      <span className="ml-2">{page.name || page.platform}</span>
+                      <span className="flex items-center justify-items-start gap-2 font-semibold capitalize">
+                        {
+                          platformIcons[
+                            page.platform as keyof typeof platformIcons
+                          ]
+                        }
+                        {page.platform}
+                      </span>
+
+                      {page.page_name && (
+                        <span
+                          className={`text-blue-900 dark:text-white ${
+                            state.selectedPlatforms.includes(page.platform)
+                              ? "border-primary text-white"
+                              : "text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
+                        >
+                          {page.page_name}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

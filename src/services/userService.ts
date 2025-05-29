@@ -99,7 +99,6 @@ export async function updateUserProfile(id: number, userData: GetUser) {
   }
 }
 
-
 export async function getCurrentUser(bypassCache: boolean = false) {
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
@@ -490,5 +489,96 @@ export async function removeClientCommunityManagerServerAction(
       error,
     );
     return { error: "Failed to remove CM from client" };
+  }
+}
+
+// Update user profile image
+export async function updateProfileImage(imageFile: File) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("access_token")?.value;
+
+    if (!token) {
+      return { error: "Authentication required" };
+    }
+
+    // First get the current user to get the ID
+    const user = await getCurrentUser(true);
+
+    if (!user || "error" in user) {
+      return { error: "Failed to get current user data" };
+    }
+
+    console.log("Updating profile image for user:", user.id);
+
+    // Create FormData object for file upload
+    const formData = new FormData();
+    formData.append("user_image", imageFile);
+
+    // Send the request with proper formData formatting
+    const response = await fetch(`${API_BASE_URL}/users/update/${user.id}/`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // Don't set Content-Type here - browser will set it with boundary for FormData
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return { error: errorData.message || "Failed to update profile image" };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error updating profile image:", error);
+    return { error: "Failed to update profile image" };
+  }
+}
+
+// Delete user profile image
+export async function deleteProfileImage() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("access_token")?.value;
+
+    if (!token) {
+      return { error: "Authentication required" };
+    }
+
+    // First get the current user to get the ID and data
+    const user = await getCurrentUser(true);
+
+    if (!user || "error" in user) {
+      return { error: "Failed to get current user data" };
+    }
+
+    console.log("Deleting profile image for user:", user.id);
+
+    // Create FormData with a special flag to delete the image
+    const formData = new FormData();
+    formData.append("delete_image", "true");
+
+    // Send the request to delete the image
+    const response = await fetch(`${API_BASE_URL}/users/update/${user.id}/`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return { error: errorData.message || "Failed to delete profile image" };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error deleting profile image:", error);
+    return { error: "Failed to delete profile image" };
   }
 }

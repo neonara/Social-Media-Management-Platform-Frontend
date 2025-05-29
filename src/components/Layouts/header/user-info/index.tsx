@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from "react";
 import { LogOutIcon, SettingsIcon } from "./icons";
 import { logout } from "@/services/authService";
 import { useUser } from "@/context/UserContext";
+import { getImageUrl } from "@/utils/image-url";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,6 +55,8 @@ export function UserInfo() {
       window.removeEventListener("userProfileUpdated", handleProfileUpdate);
     };
   }, [refreshUserProfile]);
+  console.log("UserInfo component rendered with userProfile:", userProfile);
+  console.log("Using image URL:", getImageUrl(userProfile?.user_image));
 
   return (
     <Dropdown isOpen={isOpen} setIsOpen={setIsOpen}>
@@ -62,12 +65,18 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-3">
           <Image
-            src={userProfile?.user_image || "/images/user/user-03.png"}
-            className="size-12"
+            src={getImageUrl(userProfile?.user_image)}
+            className="size-12 rounded-full object-cover"
             alt={`Avatar of ${userProfile?.full_name || "user"}`}
             role="presentation"
             width={200}
             height={200}
+            priority
+            onError={(e) => {
+              console.error("Error loading user image:", e);
+              // Fallback to default image if there's an error
+              e.currentTarget.src = "/images/user/user-03.png";
+            }}
           />
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
             <span>{userProfile?.full_name || userProfile?.email}</span>
@@ -90,14 +99,22 @@ export function UserInfo() {
       >
         <h2 className="sr-only">User information</h2>
 
-        <figure className="flex items-center gap-2.5 px-5 py-3.5">
+        <figure className="flex items-center gap-2.5 px-3 py-3.5">
           <Image
-            src={userProfile?.user_image || "/images/user/user-03.png"}
-            className="size-12"
+            src={getImageUrl(userProfile?.user_image)}
+            className="size-12 rounded-full"
             alt={`Avatar for ${userProfile?.full_name || "user"}`}
             role="presentation"
             width={200}
             height={200}
+            onError={(e) => {
+              console.error(
+                "Error loading avatar image in UserInfo dropdown:",
+                e,
+              );
+              // Fallback to default image if there's a loading error
+              e.currentTarget.src = "/images/user/user-03.png";
+            }}
           />
 
           <figcaption className="space-y-1 text-base font-medium">
