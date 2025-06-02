@@ -1,7 +1,7 @@
 "use server";
 
 import { API_BASE_URL } from "@/config/api";
-import { GetUser } from "@/types/user";
+import { GetUser, UpdateUser } from "@/types/user";
 import { cookies } from "next/headers";
 
 // Get all users (this can be customized for different roles, etc.)
@@ -67,8 +67,12 @@ export async function getUserById(id: number) {
   }
 }
 
-// Update user profile
-export async function updateUserProfile(id: number, userData: GetUser) {
+// Update user profile (handles both text fields and image files using FormData)
+export async function updateUserProfile(
+  id: number,
+  userData: UpdateUser,
+  imageFile?: File,
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -77,25 +81,55 @@ export async function updateUserProfile(id: number, userData: GetUser) {
       return { error: "Authentication required" };
     }
 
+    console.log(
+      "Updating user profile data for ID:",
+      id,
+      "with data:",
+      JSON.stringify(userData),
+    );
+
+    // Create FormData for multipart/form-data
+    const formData = new FormData();
+
+    // Add text fields to FormData
+    if (userData.first_name) {
+      formData.append("first_name", userData.first_name);
+    }
+    if (userData.last_name) {
+      formData.append("last_name", userData.last_name);
+    }
+    if (userData.email) {
+      formData.append("email", userData.email);
+    }
+    if (userData.phone_number) {
+      formData.append("phone_number", userData.phone_number);
+    }
+
+    // Add image file if provided
+    if (imageFile) {
+      formData.append("user_image", imageFile);
+    }
+
     const response = await fetch(`${API_BASE_URL}/users/update/${id}/`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        // Don't set Content-Type - let the browser set it for multipart/form-data
       },
-      body: JSON.stringify(userData),
+      body: formData,
       cache: "no-store",
     });
 
     if (!response.ok) {
-      throw new Error(`Error: ${response.statusText}`);
+      const errorData = await response.json();
+      return { error: errorData.message || `Error: ${response.statusText}` };
     }
 
     const data = await response.json();
     return data;
   } catch (error) {
     console.error("Error updating user profile:", error);
-    throw error;
+    return { error: "Failed to update user profile" };
   }
 }
 
@@ -489,52 +523,6 @@ export async function removeClientCommunityManagerServerAction(
       error,
     );
     return { error: "Failed to remove CM from client" };
-  }
-}
-
-// Update user profile image
-export async function updateProfileImage(imageFile: File) {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("access_token")?.value;
-
-    if (!token) {
-      return { error: "Authentication required" };
-    }
-
-    // First get the current user to get the ID
-    const user = await getCurrentUser(true);
-
-    if (!user || "error" in user) {
-      return { error: "Failed to get current user data" };
-    }
-
-    console.log("Updating profile image for user:", user.id);
-
-    // Create FormData object for file upload
-    const formData = new FormData();
-    formData.append("user_image", imageFile);
-
-    // Send the request with proper formData formatting
-    const response = await fetch(`${API_BASE_URL}/users/update/${user.id}/`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type here - browser will set it with boundary for FormData
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { error: errorData.message || "Failed to update profile image" };
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error updating profile image:", error);
-    return { error: "Failed to update profile image" };
   }
 }
 

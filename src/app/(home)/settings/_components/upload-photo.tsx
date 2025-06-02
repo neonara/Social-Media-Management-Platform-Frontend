@@ -2,26 +2,31 @@
 
 import { UploadIcon } from "@/assets/icons";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
-import { useUser } from "@/context/UserContext";
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import { updateProfileImage, deleteProfileImage } from "@/services/userService";
+import { useState } from "react";
 import { getImageUrl } from "@/utils/image-url";
+import { UpdateUser } from "@/types/user";
 
-export function UploadPhotoForm() {
-  const { userProfile, refreshUserProfile } = useUser();
-  const [isUploading, setIsUploading] = useState(false);
-  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+interface UploadPhotoFormProps {
+  userImage?: string | null;
+  onSubmit: (
+    updatedData: Partial<UpdateUser>,
+    imageFile?: File,
+    deleteImage?: boolean,
+  ) => Promise<void>;
+  loading: boolean;
+}
+
+export function UploadPhotoForm({
+  userImage,
+  onSubmit,
+  loading,
+}: UploadPhotoFormProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Clear preview when userProfile changes
-    if (userProfile?.user_image) {
-      setPreviewImage(null);
-    }
-  }, [userProfile]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMessage(null);
@@ -66,18 +71,10 @@ export function UploadPhotoForm() {
       setIsUploading(true);
       setErrorMessage(null);
 
-      console.log("Starting profile photo upload with file:", selectedFile);
+      // Use the centralized function
+      await onSubmit({}, selectedFile);
 
-      const result = await updateProfileImage(selectedFile);
-      console.log("Upload profile image result:", result);
-
-      if (result && "error" in result) {
-        throw new Error(result.error);
-      }
-
-      // Refresh user profile to get updated image
-      console.log("Upload successful, refreshing user profile...");
-      await refreshUserProfile();
+      // Clear the preview and selected file on success
       setPreviewImage(null);
       setSelectedFile(null);
 
@@ -103,14 +100,8 @@ export function UploadPhotoForm() {
       setIsDeletingPhoto(true);
       setErrorMessage(null);
 
-      const result = await deleteProfileImage();
-
-      if (result && "error" in result) {
-        throw new Error(result.error);
-      }
-
-      // Refresh user profile to update the UI
-      await refreshUserProfile();
+      // Use the centralized function
+      await onSubmit({}, undefined, true);
     } catch (error) {
       console.error("Error deleting profile photo:", error);
       setErrorMessage(
@@ -140,7 +131,7 @@ export function UploadPhotoForm() {
       <form onSubmit={uploadProfilePhoto}>
         <div className="mb-4 flex items-center gap-3">
           <Image
-            src={previewImage || getImageUrl(userProfile?.user_image)}
+            src={previewImage || getImageUrl(userImage)}
             width={55}
             height={55}
             alt="User"
@@ -162,7 +153,7 @@ export function UploadPhotoForm() {
                 type="button"
                 className="text-body-sm hover:text-red disabled:opacity-50"
                 onClick={deleteProfilePhoto}
-                disabled={isDeletingPhoto || !userProfile?.user_image}
+                disabled={isDeletingPhoto || loading || !userImage}
               >
                 {isDeletingPhoto ? "Deleting..." : "Delete"}
               </button>
@@ -215,14 +206,14 @@ export function UploadPhotoForm() {
             className="flex justify-center rounded-lg border border-stroke px-6 py-[7px] font-medium text-dark hover:shadow-1 disabled:opacity-50 dark:border-dark-3 dark:text-white"
             type="button"
             onClick={handleCancel}
-            disabled={isUploading || !selectedFile}
+            disabled={isUploading || loading || !selectedFile}
           >
             Cancel
           </button>
           <button
             className="flex items-center justify-center rounded-lg bg-primary px-6 py-[7px] font-medium text-gray-2 hover:bg-opacity-90 disabled:opacity-50"
             type="submit"
-            disabled={isUploading || !selectedFile}
+            disabled={isUploading || loading || !selectedFile}
           >
             {isUploading ? "Saving..." : "Save"}
           </button>

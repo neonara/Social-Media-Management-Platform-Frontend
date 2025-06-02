@@ -1,4 +1,3 @@
-import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { PostForm } from "@/components/postCreate/page";
 
 export const metadata = {
@@ -8,7 +7,6 @@ export const metadata = {
 const PostsPage = () => {
   return (
     <>
-      
       <PostForm />
     </>
   );

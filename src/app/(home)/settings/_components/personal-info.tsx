@@ -1,48 +1,39 @@
 "use client";
 
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
-import { useState, useEffect, useRef } from "react";
-import { updateUserProfile } from "@/services/userService";
-import { UserRole } from "@/types/user";
+import { useState } from "react";
+import { UpdateUser } from "@/types/user";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { useNotification } from "@/context/NotificationContext";
-import { useUser } from "@/context/UserContext";
 
-export function PersonalInfoForm() {
-  const [formData, setFormData] = useState({
-    email: "",
-    first_name: "",
-    last_name: "",
-    phone_number: "",
-    role: "",
-    user_image: "",
-  });
+interface PersonalInfoFormProps {
+  formData: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+  };
+  setFormData: React.Dispatch<
+    React.SetStateAction<{
+      email: string;
+      first_name: string;
+      last_name: string;
+      phone_number: string;
+    }>
+  >;
+  onSubmit: (data: UpdateUser) => Promise<void>;
+  loading: boolean;
+  role: string;
+}
 
-  const [loading, setLoading] = useState(true);
+export function PersonalInfoForm({
+  formData,
+  setFormData,
+  onSubmit,
+  loading,
+  role,
+}: PersonalInfoFormProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [onConfirm, setOnConfirm] = useState<() => void>(() => () => {});
-
-  const { showNotification } = useNotification();
-  const { userProfile, refreshUserProfile } = useUser();
-  const { role } = useUser();
-  const id = useRef(1);
-  console.log("User Profile:", userProfile);
-
-  useEffect(() => {
-    if (userProfile) {
-      setFormData({
-        email: userProfile.email || "",
-        first_name: userProfile.first_name || "",
-        last_name: userProfile.last_name || "",
-        phone_number: userProfile.phone_number || "",
-        role: role || "",
-        user_image: userProfile.user_image || "",
-      });
-      id.current = userProfile.id;
-      setLoading(false);
-    }
-  }, [role, userProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -54,52 +45,29 @@ export function PersonalInfoForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // Show the confirmation modal
-    setOnConfirm(() => async () => {
-      try {
-        setLoading(true);
-        console.log("Submitting profile update with data:", {
-          id: id.current,
-          ...formData,
-          role: formData.role as UserRole,
-        });
-
-        await updateUserProfile(id.current, {
-          id: id.current,
-          ...formData,
-          role: formData.role as UserRole,
-          full_name: `${formData.first_name} ${formData.last_name}`.trim(),
-          assigned_moderator: null,
-          assigned_communitymanagers: null,
-          assigned_clients: null,
-        });
-
-        // Force refresh user profile to get latest data (bypassCache=true)
-        await refreshUserProfile();
-
-        // Log the refreshed profile to verify
-        console.log("Profile after refresh:", userProfile);
-
-        showNotification(
-          "Profile updated successfully!",
-          "success",
-          "Update Complete",
-        );
-
-        setShowConfirmModal(false);
-      } catch (error) {
-        console.error("Error updating user profile:", error);
-        showNotification(
-          "Failed to update profile. Please try again.",
-          "error",
-          "Update Failed",
-        );
-      } finally {
-        setLoading(false);
-      }
-    });
     setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
+    try {
+      console.log("Submitting profile update with data:", {
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone_number: formData.phone_number,
+      });
+
+      await onSubmit({
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone_number: formData.phone_number,
+      });
+
+      setShowConfirmModal(false);
+    } catch (error) {
+      console.error("Error in confirmSubmit:", error);
+    }
   };
 
   return (
@@ -156,11 +124,11 @@ export function PersonalInfoForm() {
                 </label>
                 <input
                   disabled
-                  type="phone"
+                  type="text"
                   id="role"
                   name="role"
-                  value={formData.role}
-                  placeholder="+990 3343 7865"
+                  value={role}
+                  placeholder="Your role"
                   className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
                 />
               </div>
@@ -213,6 +181,7 @@ export function PersonalInfoForm() {
                   }))
                 }
                 className="rounded-lg border border-stroke px-6 py-[7px] font-medium text-dark hover:shadow-1 dark:border-dark-3 dark:text-white"
+                disabled={loading}
               >
                 Cancel
               </button>
@@ -220,8 +189,9 @@ export function PersonalInfoForm() {
               <button
                 type="submit"
                 className="rounded-lg bg-primary px-6 py-[7px] font-medium text-gray-2 hover:bg-opacity-90"
+                disabled={loading}
               >
-                Save
+                {loading ? "Saving..." : "Save"}
               </button>
             </div>
           </form>
@@ -242,14 +212,16 @@ export function PersonalInfoForm() {
               <button
                 onClick={() => setShowConfirmModal(false)}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
-                onClick={onConfirm}
+                onClick={confirmSubmit}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
+                disabled={loading}
               >
-                Confirm
+                {loading ? "Saving..." : "Confirm"}
               </button>
             </div>
           </div>

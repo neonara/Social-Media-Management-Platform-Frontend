@@ -30,6 +30,14 @@ export interface GetUser {
   assigned_clients: GetUser | null;
 }
 
+export interface UpdateUser {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  user_image?: string | null;
+}
+
 export type UserRole =
   | "administrator"
   | "super_administrator"
