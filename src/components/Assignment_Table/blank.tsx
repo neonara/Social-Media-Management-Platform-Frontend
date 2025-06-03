@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   getUsers,
   removeModeratorServer,
@@ -11,12 +12,15 @@ import {
   getClientAssignedCommunityManagersServerAction,
   removeClientCommunityManagerServerAction, // Import the new service function
 } from "@/services/userService";
-import { FaSort, FaSortUp, FaSortDown, FaSearch } from "react-icons/fa"; // Import sort and search icons
+import { FaSort, FaSortUp, FaSortDown, FaSearch } from "react-icons/fa";
+import { MdPersonRemoveAlt1 } from "react-icons/md";
+import { getImageUrl } from "@/utils/image-url";
 
 type GetUser = {
   id: number;
   full_name: string;
   email: string;
+  user_image?: string;
   // ... other relevant CM details
 };
 
@@ -24,7 +28,8 @@ type User = {
   id: number;
   email: string;
   full_name: string;
-  roles: string[];
+  role: string; // Single role property from API data
+  user_image?: string;
   assigned_moderator?: string | null;
   assigned_communitymanagers?: string | null; // For moderators' CMs
   assigned_communitymanagerstoclient?: string | null; // For clients' CMs (currently a string)
@@ -90,7 +95,7 @@ export default function UsersTable() {
       if (fetchedUsers && Array.isArray(fetchedUsers)) {
         const usersWithAssignedCMs = await Promise.all(
           fetchedUsers.map(async (user: User) => {
-            if (user.roles.includes("client")) {
+            if (user.role === "client") {
               const assignedCMsResult =
                 await getClientAssignedCommunityManagersServerAction(user.id);
               if (Array.isArray(assignedCMsResult)) {
@@ -154,10 +159,7 @@ export default function UsersTable() {
         valueB = b.assigned_moderator?.toLowerCase();
       } else if (column === "assignedCMs") {
         const getCMs = (user: User): string => {
-          if (
-            user.roles.includes("client") &&
-            user.clientAssignedCommunityManagers
-          ) {
+          if (user.role == "client" && user.clientAssignedCommunityManagers) {
             return user.clientAssignedCommunityManagers
               .map((cm) => cm.full_name)
               .join(", ")
@@ -188,15 +190,15 @@ export default function UsersTable() {
   const filteredByRole =
     activeTab === "All"
       ? users
-      : users.filter((user) =>
-          user.roles.some((role) => {
-            const formattedRole =
-              role === "community_manager"
-                ? "Community Manager"
-                : role.charAt(0).toUpperCase() + role.slice(1);
-            return formattedRole === activeTab;
-          }),
-        );
+      : users.filter((user) => {
+          // Use the single role property
+          const formattedRole = user.role
+            ? user.role === "community_manager"
+              ? "Community Manager"
+              : user.role.charAt(0).toUpperCase() + user.role.slice(1)
+            : "";
+          return formattedRole === activeTab;
+        });
 
   const filteredByName = filteredByRole.filter((user) =>
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -541,10 +543,7 @@ export default function UsersTable() {
           valueB = b.assigned_moderator?.toLowerCase() ?? "";
         } else if (sortColumn === "assignedCMs") {
           const getCMs = (user: User): string => {
-            if (
-              user.roles.includes("client") &&
-              user.clientAssignedCommunityManagers
-            ) {
+            if (user.role == "client" && user.clientAssignedCommunityManagers) {
               return user.clientAssignedCommunityManagers
                 .map((cm) => cm.full_name)
                 .join(", ")
@@ -568,7 +567,7 @@ export default function UsersTable() {
     : filteredByName;
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow">
+    <div className="rounded-xl bg-white p-6 shadow dark:bg-gray-800">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         Assignment Table
       </h1>
@@ -581,7 +580,7 @@ export default function UsersTable() {
               className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${
                 activeTab === tab
                   ? "bg-primary text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
               }`}
               onClick={() => setActiveTab(tab)}
             >
@@ -589,12 +588,12 @@ export default function UsersTable() {
             </button>
           ))}
         </div>
-        <div className="ml-4 flex items-center">
-          <FaSearch className="mr-2 text-gray-500" />
+        <div className="ml-4 flex items-center rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700">
+          <FaSearch className="ml-2 text-gray-500 dark:text-gray-400" />
           <input
             type="text"
             placeholder="Search by Name"
-            className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="block w-48 bg-transparent p-3 text-gray-900 placeholder-gray-500 dark:text-white dark:placeholder-gray-400 sm:text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -603,13 +602,13 @@ export default function UsersTable() {
 
       {/* Pending Changes Display */}
       {pendingChanges.length > 0 && (
-        <div className="mb-6 rounded-md bg-yellow-100 p-4 shadow-sm">
-          <h3 className="mb-2 text-lg font-semibold text-yellow-700">
+        <div className="mb-6 rounded-md bg-yellow-100 p-4 shadow-sm dark:bg-yellow-900">
+          <h3 className="mb-2 text-lg font-semibold text-yellow-700 dark:text-yellow-300">
             Pending Changes:
           </h3>
           <ul>
             {pendingChanges.map((change, index) => (
-              <li key={index} className="text-yellow-600">
+              <li key={index} className="text-yellow-600 dark:text-yellow-400">
                 {users.find((u) => u.id === change.userId)?.full_name} -
                 {change.remove ? " Removing " : " Assigning "}
                 {change.type === "moderator"
@@ -645,11 +644,11 @@ export default function UsersTable() {
       )}
 
       {/* Table */}
-      <table className="mb-6 min-w-full table-auto">
-        <thead>
+      <table className="mb-6 min-w-full table-auto bg-white dark:bg-gray-800">
+        <thead className="bg-gray-50 dark:bg-gray-700">
           <tr>
             <th
-              className="cursor-pointer border px-4 py-2 font-bold text-black"
+              className="cursor-pointer border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white"
               onClick={() => sortUsers("name")}
             >
               <div className="flex items-center gap-1">
@@ -663,8 +662,12 @@ export default function UsersTable() {
                 {sortColumn !== "name" && <FaSort />}
               </div>
             </th>
-            <th className="border px-4 py-2 font-bold text-black">Email</th>
-            <th className="border px-4 py-2 font-bold text-black">Roles</th>
+            <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+              Email
+            </th>
+            <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+              Role
+            </th>
             {/*
             <th
               className="cursor-pointer border px-4 py-2 font-bold text-black"
@@ -681,7 +684,7 @@ export default function UsersTable() {
               </div> 
             </th>*/}
             <th
-              className="cursor-pointer border px-4 py-2 font-bold text-black"
+              className="cursor-pointer border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white"
               onClick={() => sortUsers("assignedModerators")}
             >
               <div className="flex items-center gap-1">
@@ -694,7 +697,7 @@ export default function UsersTable() {
               </div>
             </th>
             <th
-              className="cursor-pointer border px-4 py-2 font-bold text-black"
+              className="cursor-pointer border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white"
               onClick={() => sortUsers("assignedCMs")}
             >
               <div className="flex items-center gap-1">
@@ -708,7 +711,9 @@ export default function UsersTable() {
                 {sortColumn !== "assignedCMs" && <FaSort />}
               </div>
             </th>
-            <th className="border px-4 py-2 font-bold text-black">Actions</th>
+            <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+              Actions
+            </th>
           </tr>
         </thead>
 
@@ -737,18 +742,63 @@ export default function UsersTable() {
             );
 
             return (
-              <tr key={user.id}>
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.full_name}
+              <tr
+                key={user.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={getImageUrl(user.user_image)}
+                      className="size-12 rounded-full object-cover"
+                      alt={`Avatar of ${user.full_name || "user"}`}
+                      role="presentation"
+                      width={48}
+                      height={48}
+                      priority
+                      onError={(e) => {
+                        console.error(
+                          "Error loading user image for user:",
+                          user.full_name,
+                          "Image URL:",
+                          user.user_image,
+                          "Processed URL:",
+                          getImageUrl(user.user_image),
+                        );
+                        // Fallback to default image if there's an error
+                        e.currentTarget.src = "/images/user/user-03.png";
+                      }}
+                      onLoad={() => {
+                        console.log(
+                          "Successfully loaded image for user:",
+                          user.full_name,
+                          "Image URL:",
+                          user.user_image,
+                          "Processed URL:",
+                          getImageUrl(user.user_image),
+                        );
+                      }}
+                    />
+                    <span>{user.full_name}</span>
+                  </div>
                 </td>
-                <td className="border px-4 py-2 text-gray-800">{user.email}</td>
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.roles.join(", ")}
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  {user.email}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  {user.role
+                    ? user.role === "community_manager"
+                      ? "Community Manager"
+                      : user.role === "super_administrator"
+                        ? "Super Administrator"
+                        : user.role.charAt(0).toUpperCase() +
+                          user.role.slice(1).replace(/_/g, " ")
+                    : "No Role"}
                 </td>
                 {/* to be fixed "assigned client " */}
                 {/* <td className="border px-4 py-2 text-gray-800">
                   {user.assigned_client ? (
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2  my-2">
                       <span>{user.assigned_client}</span>
                       <button
                         className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
@@ -771,124 +821,225 @@ export default function UsersTable() {
                     </span>
                   )}
                 </td> */}
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.roles.includes("community_manager") ? (
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  {user.role === "community_manager" ? (
                     user.assigned_moderator ? (
-                      <span>{user.assigned_moderator}</span>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const moderatorUser = users.find(
+                            (u) => u.full_name === user.assigned_moderator,
+                          );
+                          return (
+                            <Image
+                              src={getImageUrl(moderatorUser?.user_image)}
+                              className="size-8 rounded-full object-cover"
+                              alt={`Avatar of ${user.assigned_moderator}`}
+                              role="presentation"
+                              width={32}
+                              height={32}
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "/images/user/user-03.png";
+                              }}
+                            />
+                          );
+                        })()}
+                        <span>{user.assigned_moderator}</span>
+                      </div>
                     ) : (
-                      <span className="text-gray-500">
+                      <span className="text-gray-500 dark:text-gray-400">
                         No Assigned Moderator
                       </span>
                     )
                   ) : user.assigned_moderator ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{user.assigned_moderator}</span>
+                    <div className="my-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const moderatorUser = users.find(
+                            (u) => u.full_name === user.assigned_moderator,
+                          );
+                          return (
+                            <Image
+                              src={getImageUrl(moderatorUser?.user_image)}
+                              className="size-8 rounded-full object-cover"
+                              alt={`Avatar of ${user.assigned_moderator}`}
+                              role="presentation"
+                              width={32}
+                              height={32}
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "/images/user/user-03.png";
+                              }}
+                            />
+                          );
+                        })()}
+                        <span>{user.assigned_moderator}</span>
+                      </div>
                       <button
-                        className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                        className="flex rounded p-1 text-xs text-red-500 hover:text-red-700"
                         onClick={() => queueRemoveAssignment(user, "moderator")}
                       >
-                        Remove
+                        <MdPersonRemoveAlt1 size={22} />
                       </button>
                     </div>
                   ) : (
-                    <span className="text-gray-500">No Assignment</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      No Assignment
+                    </span>
                   )}
                   {pending?.type === "moderator" && (
-                    <span className="font-semibold text-yellow-600">
+                    <span className="font-semibold text-yellow-600 dark:text-yellow-400">
                       Pending: {pending.assignedName}
                     </span>
                   )}
                   {pendingRemoval?.type === "moderator" && (
-                    <span className="font-semibold text-red-600">
+                    <span className="font-semibold text-red-600 dark:text-red-400">
                       Pending Removal
                     </span>
                   )}
                 </td>
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.roles.includes("client") &&
-                  user.clientAssignedCommunityManagers &&
-                  user.clientAssignedCommunityManagers.length > 0 ? (
-                    <ul className="list-inside list-disc">
-                      {user.clientAssignedCommunityManagers.map((cm) => (
-                        <li
-                          key={cm.id}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span>{cm.full_name || cm.email}</span>
-                          <button
-                            className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                            onClick={() => queueRemoveClientCM(user, cm)}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : user.assigned_communitymanagers ? (
-                    <ul className="list-inside list-disc">
-                      {user.assigned_communitymanagers
-                        .split(",")
-                        .map((cm, index) => {
-                          const communityManager = users.find(
-                            (u) => u.full_name.trim() === cm.trim(),
-                          );
-                          return (
+                <td className="border border-gray-300 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  <div className="space-y-3">
+                    {/* Current Assignments */}
+                    <div>
+                      {user.role === "client" &&
+                      user.clientAssignedCommunityManagers &&
+                      user.clientAssignedCommunityManagers.length > 0 ? (
+                        <ul className="list-inside list-disc divide-y divide-gray-200 dark:divide-gray-600">
+                          {user.clientAssignedCommunityManagers.map((cm) => (
                             <li
-                              key={index}
-                              className="flex items-center justify-between gap-2"
+                              key={cm.id}
+                              className="flex items-center justify-between gap-2 px-4 py-2"
                             >
-                              <span>
-                                {cm.trim() || communityManager?.email}
-                              </span>
-                              {communityManager && (
-                                <button
-                                  className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                  onClick={() =>
-                                    queueRemoveAssignment(
-                                      user,
-                                      "cm",
-                                      communityManager,
-                                    )
-                                  }
-                                >
-                                  Remove
-                                </button>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <Image
+                                  src={getImageUrl(cm.user_image)}
+                                  className="size-8 rounded-full object-cover"
+                                  alt={`Avatar of ${cm.full_name || cm.email}`}
+                                  role="presentation"
+                                  width={32}
+                                  height={32}
+                                  onError={(e) => {
+                                    e.currentTarget.src =
+                                      "/images/user/user-03.png";
+                                  }}
+                                />
+                                <span>{cm.full_name || cm.email}</span>
+                              </div>
+                              <button
+                                className="flex rounded p-1 text-xs text-red-500 hover:text-red-700"
+                                onClick={() => queueRemoveClientCM(user, cm)}
+                              >
+                                <MdPersonRemoveAlt1 size={22} />
+                              </button>
                             </li>
-                          );
-                        })}
-                    </ul>
-                  ) : (
-                    <span className="text-gray-500">No Assignment</span>
-                  )}
-                  {pending?.type === "cm" && (
-                    <span className="mt-1 block font-semibold text-yellow-600">
-                      Pending: {pending.assignedName}
-                    </span>
-                  )}
-                  {pendingRemoval?.type === "cm" &&
-                    pendingRemoval.cmNameToRemove && (
-                      <span className="mt-1 block font-semibold text-red-600">
-                        Pending Removal: {pendingRemoval.cmNameToRemove}
-                      </span>
+                          ))}
+                        </ul>
+                      ) : user.assigned_communitymanagers ? (
+                        <ul className="list-inside list-disc divide-y divide-gray-200 dark:divide-gray-600">
+                          {user.assigned_communitymanagers
+                            .split(",")
+                            .map((cm, index) => {
+                              const communityManager = users.find(
+                                (u) => u.full_name.trim() === cm.trim(),
+                              );
+                              return (
+                                <li
+                                  key={index}
+                                  className="flex items-center justify-between gap-2 px-3 py-2"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Image
+                                      src={getImageUrl(
+                                        communityManager?.user_image,
+                                      )}
+                                      className="size-8 rounded-full object-cover"
+                                      alt={`Avatar of ${cm.trim() || communityManager?.email}`}
+                                      role="presentation"
+                                      width={32}
+                                      height={32}
+                                      onError={(e) => {
+                                        e.currentTarget.src =
+                                          "/images/user/user-03.png";
+                                      }}
+                                    />
+                                    <span>
+                                      {cm.trim() || communityManager?.email}
+                                    </span>
+                                  </div>
+                                  {communityManager && (
+                                    <button
+                                      className="flex rounded p-1 text-xs text-red-500 hover:text-red-700"
+                                      onClick={() =>
+                                        queueRemoveAssignment(
+                                          user,
+                                          "cm",
+                                          communityManager,
+                                        )
+                                      }
+                                    >
+                                      <MdPersonRemoveAlt1 size={22} />
+                                    </button>
+                                  )}
+                                </li>
+                              );
+                            })}
+                        </ul>
+                      ) : (
+                        <span className="px-3 py-2 text-gray-500 dark:text-gray-400">
+                          No Assignment
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Pending Changes - separated with a line */}
+                    {(pending?.type === "cm" ||
+                      (pendingRemoval?.type === "cm" &&
+                        pendingRemoval.cmNameToRemove) ||
+                      (user.role === "client" &&
+                        pendingClientCMRemoval?.type === "remove_client_cm" &&
+                        pendingClientCMRemoval.cmNameToRemoveFromClient) ||
+                      (user.role === "client" &&
+                        pendingCMToClient?.type === "cm_to_client")) && (
+                      <>
+                        <hr className="mx-[-16px] border-gray-300 dark:border-gray-600" />
+                        <div className="space-y-1">
+                          {pending?.type === "cm" && (
+                            <span className="block font-semibold text-yellow-600 dark:text-yellow-400">
+                              Pending: {pending.assignedName}
+                            </span>
+                          )}
+                          {pendingRemoval?.type === "cm" &&
+                            pendingRemoval.cmNameToRemove && (
+                              <span className="block font-semibold text-red-600 dark:text-red-400">
+                                Pending Removal: {pendingRemoval.cmNameToRemove}
+                              </span>
+                            )}
+                          {user.role === "client" &&
+                            pendingClientCMRemoval?.type ===
+                              "remove_client_cm" &&
+                            pendingClientCMRemoval.cmNameToRemoveFromClient && (
+                              <span className="block font-semibold text-red-600 dark:text-red-400">
+                                Pending Removal:{" "}
+                                {
+                                  pendingClientCMRemoval.cmNameToRemoveFromClient
+                                }
+                              </span>
+                            )}
+                          {user.role === "client" &&
+                            pendingCMToClient?.type === "cm_to_client" && (
+                              <span className="block font-semibold text-yellow-600 dark:text-yellow-400">
+                                Pending CM:{" "}
+                                {pendingCMToClient.cmToAssignToClientName}
+                              </span>
+                            )}
+                        </div>
+                      </>
                     )}
-                  {user.roles.includes("client") &&
-                    pendingClientCMRemoval?.type === "remove_client_cm" &&
-                    pendingClientCMRemoval.cmNameToRemoveFromClient && (
-                      <span className="mt-1 block font-semibold text-red-600">
-                        Pending Removal:{" "}
-                        {pendingClientCMRemoval.cmNameToRemoveFromClient}
-                      </span>
-                    )}
-                  {user.roles.includes("client") &&
-                    pendingCMToClient?.type === "cm_to_client" && (
-                      <span className="mt-1 block font-semibold text-yellow-600">
-                        Pending CM: {pendingCMToClient.cmToAssignToClientName}
-                      </span>
-                    )}
+                  </div>
                 </td>
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.roles.includes("moderator") && (
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  {user.role === "moderator" && (
                     <button
                       className="mb-2 block rounded-lg px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#8a11df] hover:shadow-lg"
                       style={{ backgroundColor: "#8a11df" }}
@@ -897,7 +1048,7 @@ export default function UsersTable() {
                       Assign CM
                     </button>
                   )}
-                  {user.roles.includes("client") && (
+                  {user.role === "client" && (
                     <div>
                       <button
                         className="mb-2 block rounded-lg px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#7a6cc5] hover:shadow-lg"
@@ -916,7 +1067,7 @@ export default function UsersTable() {
                         </button>
                       )}
                       {pendingCMToClient?.type === "cm_to_client" && (
-                        <span className="font-semibold text-yellow-600">
+                        <span className="font-semibold text-yellow-600 dark:text-yellow-400">
                           Pending CM: {pendingCMToClient.cmToAssignToClientName}
                         </span>
                       )}
@@ -939,7 +1090,7 @@ export default function UsersTable() {
             Save All Assignments
           </button>
           <button
-            className="rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
+            className="rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
             onClick={clearPendingChanges}
           >
             Cancel
@@ -950,8 +1101,8 @@ export default function UsersTable() {
       {/* Assignment Modal */}
       {showModal && selectedUser && assignmentType && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
-          <div className="rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-semibold">
+          <div className="rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
               Assign{" "}
               {assignmentType === "cm"
                 ? "Community Manager"
@@ -959,7 +1110,10 @@ export default function UsersTable() {
                   assignmentType.slice(1)}
             </h2>
             <div>
-              <label htmlFor="assignId" className="mb-2 block">
+              <label
+                htmlFor="assignId"
+                className="mb-2 block text-gray-700 dark:text-gray-300"
+              >
                 Select{" "}
                 {assignmentType === "moderator"
                   ? "Moderator"
@@ -970,18 +1124,18 @@ export default function UsersTable() {
               </label>
               <select
                 id="assignId"
-                className="w-full rounded border p-2"
+                className="w-full rounded border border-gray-300 bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 onChange={(e) => setSelectedAssignId(Number(e.target.value))}
               >
                 <option value="">-- Select --</option>
                 {users
                   .filter((user) => {
                     if (assignmentType === "moderator") {
-                      return user.roles.includes("moderator");
+                      return user.role === "moderator";
                     } else if (assignmentType === "client") {
-                      return user.roles.includes("client");
+                      return user.role === "client";
                     } else if (assignmentType === "cm") {
-                      return user.roles.includes("community_manager");
+                      return user.role === "community_manager";
                     }
                     return false;
                   })
@@ -1000,7 +1154,7 @@ export default function UsersTable() {
                 Confirm
               </button>
               <button
-                className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
+                className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
                 onClick={() => setShowModal(false)}
               >
                 Cancel
@@ -1013,17 +1167,20 @@ export default function UsersTable() {
       {/* Assign CM to Client Modal */}
       {showAssignCMToClientModal && selectedClientForCMAssignment && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
-          <div className="rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-semibold">
+          <div className="rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
               Assign CM to {selectedClientForCMAssignment.full_name}
             </h2>
             <div>
-              <label htmlFor="cmToAssign" className="mb-2 block">
+              <label
+                htmlFor="cmToAssign"
+                className="mb-2 block text-gray-700 dark:text-gray-300"
+              >
                 Select Community Manager:
               </label>
               <select
                 id="cmToAssign"
-                className="w-full rounded border p-2"
+                className="w-full rounded border border-gray-300 bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 onChange={(e) =>
                   setSelectedCMToAssignToClient(Number(e.target.value))
                 }
@@ -1032,7 +1189,7 @@ export default function UsersTable() {
                 {users
                   .filter(
                     (user) =>
-                      user.roles.includes("community_manager") &&
+                      user.role === "community_manager" &&
                       selectedClientForCMAssignment.assigned_moderator &&
                       users
                         .find(
@@ -1059,7 +1216,7 @@ export default function UsersTable() {
                 Assign
               </button>
               <button
-                className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
+                className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
                 onClick={() => setShowAssignCMToClientModal(false)}
               >
                 Cancel
@@ -1072,17 +1229,17 @@ export default function UsersTable() {
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-96 rounded-lg bg-white p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-gray-800">
+          <div className="w-96 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
               Confirm Changes
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
               Are you sure you want to save these changes?
             </p>
             <div className="mt-4 flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>

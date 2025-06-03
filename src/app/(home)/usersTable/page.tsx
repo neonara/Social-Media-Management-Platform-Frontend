@@ -10,23 +10,10 @@ import {
   FaSearch,
 } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import { fetchAllUsersServer, deleteUserServer } from "@/services/userService"; // Import server functions
-
-type GetUser = {
-  id: number;
-  email: string;
-  full_name: string;
-  phone_number: string;
-  roles: string[];
-};
-
-type User = {
-  id: number;
-  email: string;
-  full_name: string;
-  phone_number: string;
-  roles: string[];
-};
+import Image from "next/image";
+import { fetchAllUsersServer, deleteUserServer } from "@/services/userService";
+import { GetUser } from "@/types/user";
+import { getImageUrl } from "@/utils/image-url";
 
 type PendingDeletion = {
   userId: number;
@@ -41,7 +28,7 @@ const tabs = [
 ];
 
 const UsersPage = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<GetUser[]>([]);
   const [activeTab, setActiveTab] = useState("All");
   const [pendingDeletions, setPendingDeletions] = useState<PendingDeletion[]>(
     [],
@@ -52,7 +39,7 @@ const UsersPage = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
     null,
   );
-  const [sortColumn, setSortColumn] = useState<"full_name" | "roles" | null>(
+  const [sortColumn, setSortColumn] = useState<"full_name" | "role" | null>(
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -72,19 +59,14 @@ const UsersPage = () => {
       return;
     }
     if (result) {
-      setUsers(
-        (result as unknown as GetUser[]).map((user) => ({
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          phone_number: user.phone_number,
-          roles: user.roles,
-        })),
-      );
+      console.log("Raw user data:", result); // Debug log
+      console.log("First user user_image:", result[0]?.user_image); // Debug specific field
+
+      setUsers(result);
     }
   };
 
-  const sortUsers = (column: "full_name" | "roles") => {
+  const sortUsers = (column: "full_name" | "role") => {
     let newSortDirection: "asc" | "desc";
     if (sortColumn === column && sortDirection === "asc") {
       newSortDirection = "desc";
@@ -101,9 +83,9 @@ const UsersPage = () => {
       if (column === "full_name") {
         valueA = a.full_name;
         valueB = b.full_name;
-      } else if (column === "roles") {
-        valueA = a.roles?.join(", ");
-        valueB = b.roles?.join(", ");
+      } else if (column === "role") {
+        valueA = a.role;
+        valueB = b.role;
       }
 
       const safeValueA = (valueA || "").toLowerCase();
@@ -123,15 +105,17 @@ const UsersPage = () => {
   const filteredByRole =
     activeTab === "All"
       ? users
-      : users.filter((user) =>
-          user.roles.some((role) => {
-            const formattedRole =
-              role === "community_manager"
-                ? "Community Manager"
-                : role.charAt(0).toUpperCase() + role.slice(1);
-            return formattedRole === activeTab;
-          }),
-        );
+      : users.filter((user) => {
+          if (!user.role) return false;
+          const formattedRole =
+            user.role === "community_manager"
+              ? "Community Manager"
+              : user.role === "super_administrator"
+                ? "Super Administrator"
+                : user.role.charAt(0).toUpperCase() +
+                  user.role.slice(1).replace(/_/g, " ");
+          return formattedRole === activeTab;
+        });
 
   const filteredByName = filteredByRole.filter((user) =>
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -173,7 +157,7 @@ const UsersPage = () => {
       }
       setPendingDeletions([]);
       loadUsers(); // Reload users after successful deletion
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error deleting users:", err);
     }
   };
@@ -192,9 +176,9 @@ const UsersPage = () => {
         if (sortColumn === "full_name") {
           valueA = a.full_name?.toLowerCase();
           valueB = b.full_name?.toLowerCase();
-        } else if (sortColumn === "roles") {
-          valueA = a.roles?.join(", ").toLowerCase();
-          valueB = b.roles?.join(", ").toLowerCase();
+        } else if (sortColumn === "role") {
+          valueA = a.role?.toLowerCase();
+          valueB = b.role?.toLowerCase();
         }
 
         const safeValueA = valueA ?? "";
@@ -207,15 +191,21 @@ const UsersPage = () => {
     : filteredByName;
 
   if (isLoading) {
-    return <div>Loading users...</div>;
+    return (
+      <div className="text-gray-900 dark:text-white">Loading users...</div>
+    );
   }
 
   if (fetchError) {
-    return <div>Error loading users: {fetchError}</div>;
+    return (
+      <div className="text-red-600 dark:text-red-400">
+        Error loading users: {fetchError}
+      </div>
+    );
   }
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow">
+    <div className="rounded-xl bg-white p-6 shadow dark:bg-gray-800">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         USERS TABLE
       </h1>
@@ -228,7 +218,7 @@ const UsersPage = () => {
               className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${
                 activeTab === tab
                   ? "bg-primary text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
               }`}
               onClick={() => setActiveTab(tab)}
             >
@@ -236,12 +226,19 @@ const UsersPage = () => {
             </button>
           ))}
         </div>
-        <div className="ml-4 flex items-center">
-          <FaSearch className="mr-2 text-gray-500" />
+
+        <button
+          className="rounded-full bg-[#7a6cc5] px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#6854b3]"
+          onClick={() => router.push("/create-user")}
+        >
+          <FaPlus className="mr-2 inline-block" /> Add User
+        </button>
+        <div className="ml-4 flex items-center rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700">
+          <FaSearch className="ml-2 text-gray-500 dark:text-gray-400" />
           <input
             type="text"
-            placeholder="Search by Name"
-            className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder={`Search by Name in ${activeTab}`}
+            className="block w-48 bg-transparent p-3 text-gray-900 placeholder-gray-500 dark:text-white dark:placeholder-gray-400 sm:text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -250,31 +247,50 @@ const UsersPage = () => {
 
       {/* Pending Deletions Display */}
       {hasPendingDeletions && (
-        <div className="mb-6 rounded-md bg-yellow-100 p-4 shadow-sm">
-          <h3 className="mb-2 text-lg font-semibold text-yellow-700">
-            Pending Deletions:
-          </h3>
-          <ul>
-            {pendingDeletions.map((deletion) => {
-              const userToDelete = users.find(
-                (user) => user.id === deletion.userId,
-              );
-              return (
-                <li key={deletion.userId} className="text-orange-600">
-                  {userToDelete?.full_name}
-                </li>
-              );
-            })}
-          </ul>
+        <div className="mb-6 flex justify-between rounded-md bg-yellow-100 p-4 shadow-sm dark:bg-yellow-900">
+          <div>
+            <h3 className="mb-2 text-lg font-semibold text-yellow-700 dark:text-yellow-200">
+              Pending Deletions:
+            </h3>
+            <ul>
+              {pendingDeletions.map((deletion) => {
+                const userToDelete = users.find(
+                  (user) => user.id === deletion.userId,
+                );
+                return (
+                  <li
+                    key={deletion.userId}
+                    className="text-orange-600 dark:text-orange-400"
+                  >
+                    {userToDelete?.full_name}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="flex items-start">
+            <button
+              className="hover:bg-primary-dark rounded-full bg-primary px-4 py-2 text-white"
+              onClick={saveDeletions}
+            >
+              Save Deletions
+            </button>
+            <button
+              className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+              onClick={clearPendingDeletions}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
       {/* Table */}
-      <table className="mb-6 min-w-full table-auto">
-        <thead>
+      <table className="mb-6 min-w-full table-auto border-collapse border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800">
+        <thead className="bg-gray-50 dark:bg-gray-700">
           <tr>
             <th
-              className="flex cursor-pointer items-center gap-1 border px-4 py-2 font-bold text-black"
+              className="flex cursor-pointer items-center gap-1 border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white"
               onClick={() => sortUsers("full_name")}
             >
               Name
@@ -286,24 +302,26 @@ const UsersPage = () => {
               )}
               {sortColumn !== "full_name" && <FaSort />}
             </th>
-            <th className="border px-4 py-2 font-bold text-black">Email</th>
-            <th className="border px-4 py-2 font-bold text-black">
+            <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+              Email
+            </th>
+            <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
               Phone Number
             </th>
             <th
-              className="flex cursor-pointer items-center gap-1 border px-4 py-2 font-bold text-black"
-              onClick={() => sortUsers("roles")}
+              className="flex cursor-pointer items-center gap-1 border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white"
+              onClick={() => sortUsers("role")}
             >
-              Roles
-              {sortColumn === "roles" && sortDirection === "asc" && (
-                <FaSortUp />
-              )}
-              {sortColumn === "roles" && sortDirection === "desc" && (
+              Role
+              {sortColumn === "role" && sortDirection === "asc" && <FaSortUp />}
+              {sortColumn === "role" && sortDirection === "desc" && (
                 <FaSortDown />
               )}
-              {sortColumn !== "roles" && <FaSort />}
+              {sortColumn !== "role" && <FaSort />}
             </th>
-            <th className="border px-4 py-2 font-bold text-black">Actions</th>
+            <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -312,20 +330,65 @@ const UsersPage = () => {
               (deletion) => deletion.userId === user.id,
             );
             return (
-              <tr key={user.id}>
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.full_name}
+              <tr
+                key={user.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={getImageUrl(user.user_image)}
+                      className="size-12 rounded-full object-cover"
+                      alt={`Avatar of ${user.full_name || "user"}`}
+                      role="presentation"
+                      width={48}
+                      height={48}
+                      priority
+                      onError={(e) => {
+                        console.error(
+                          "Error loading user image for user:",
+                          user.full_name,
+                          "Image URL:",
+                          user.user_image,
+                          "Processed URL:",
+                          getImageUrl(user.user_image),
+                        );
+                        // Fallback to default image if there's an error
+                        e.currentTarget.src = "/images/user/user-03.png";
+                      }}
+                      onLoad={() => {
+                        console.log(
+                          "Successfully loaded image for user:",
+                          user.full_name,
+                          "Image URL:",
+                          user.user_image,
+                          "Processed URL:",
+                          getImageUrl(user.user_image),
+                        );
+                      }}
+                    />
+                    <span>{user.full_name}</span>
+                  </div>
                 </td>
-                <td className="border px-4 py-2 text-gray-800">{user.email}</td>
-                <td className="border px-4 py-2 text-gray-800">
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  {user.email}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                   {user.phone_number}
                 </td>
-                <td className="border px-4 py-2 text-gray-800">
-                  {user.roles.join(", ")}
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                  {user.role
+                    ? user.role === "community_manager"
+                      ? "Community Manager"
+                      : user.role === "super_administrator"
+                        ? "Super Administrator"
+                        : user.role.charAt(0).toUpperCase() +
+                          user.role.slice(1).replace(/_/g, " ")
+                    : "No Role"}
                 </td>
-                <td className="border px-4 py-2 text-gray-800">
+                <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                   <span
-                    className={`inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md ${
+                    className={`inline-flex h-6 w-20 cursor-pointer items-center justify-between rounded-md px-2 py-4 ${
                       isPendingDelete
                         ? "bg-yellow-500 text-white hover:bg-yellow-600"
                         : "bg-red-500 text-white hover:bg-red-600"
@@ -334,6 +397,7 @@ const UsersPage = () => {
                     style={{ userSelect: "none" }}
                   >
                     <FaTrash size={14} />
+                    Delete
                   </span>
                 </td>
               </tr>
@@ -341,29 +405,6 @@ const UsersPage = () => {
           })}
         </tbody>
       </table>
-      <button
-        className="mb-4 rounded-full bg-[#7a6cc5] px-4 py-2 text-white transition duration-300 ease-in-out"
-        onClick={() => router.push("/create-user")}
-      >
-        <FaPlus className="mr-2 inline-block" /> Add User
-      </button>
-      {/* Save and Cancel Buttons */}
-      {hasPendingDeletions && (
-        <div className="flex space-x-2">
-          <button
-            className="hover:bg-primary-dark rounded-full bg-primary px-4 py-2 text-white"
-            onClick={saveDeletions}
-          >
-            Save Deletions
-          </button>
-          <button
-            className="ml-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400"
-            onClick={clearPendingDeletions}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
     </div>
   );
 };

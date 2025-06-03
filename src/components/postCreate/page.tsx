@@ -501,7 +501,6 @@ export function PostForm() {
       fetchClientPages();
     }
   }, [state.clientId, fetchClientPages]);
-  console.log("Client pages:", clientPages);
 
   // Form submission
   const handleSubmit = async (event: React.FormEvent) => {
@@ -1009,7 +1008,7 @@ export function PostForm() {
                     <div
                       {...provided.droppableProps}
                       ref={provided.innerRef}
-                      className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+                      className="mt-4 flex flex-wrap gap-4 overflow-x-auto"
                     >
                       {state.mediaFiles.map((media, index) => (
                         <Draggable

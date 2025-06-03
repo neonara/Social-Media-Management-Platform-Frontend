@@ -55,8 +55,6 @@ export function UserInfo() {
       window.removeEventListener("userProfileUpdated", handleProfileUpdate);
     };
   }, [refreshUserProfile]);
-  console.log("UserInfo component rendered with userProfile:", userProfile);
-  console.log("Using image URL:", getImageUrl(userProfile?.user_image));
 
   return (
     <Dropdown isOpen={isOpen} setIsOpen={setIsOpen}>

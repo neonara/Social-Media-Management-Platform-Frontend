@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 export async function getUsers() {
   try {
     const cookieStore = await cookies();
-    const token = (await cookieStore).get("access_token")?.value;
+    const token = cookieStore.get("access_token")?.value;
 
     if (!token) {
       return { error: "Authentication required" };
@@ -187,9 +187,7 @@ export async function getCurrentUser(bypassCache: boolean = false) {
   }
 }
 
-export async function fetchAllUsersServer(): Promise<
-  GetUser[] | { error: string }
-> {
+export async function fetchAllUsersServer() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;

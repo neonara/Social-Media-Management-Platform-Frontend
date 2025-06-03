@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   format,
   isSameDay,
@@ -18,6 +18,9 @@ import {
   addMonths,
   subMonths,
   subQuarters,
+  addQuarters,
+  subYears,
+  addYears,
 } from "date-fns";
 import {
   ChevronLeft,
@@ -31,21 +34,25 @@ import { useRouter } from "next/navigation";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-toastify";
 
+interface Creator {
+  id: string;
+  full_name: string;
+  type: "client" | "team_member";
+}
+
+interface Client {
+  id: string;
+  full_name: string;
+}
+
 interface ScheduledPost {
   id: string;
   title: string;
   platform: "Facebook" | "Instagram" | "LinkedIn";
   scheduled_for: string;
   status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: {
-    full_name?: string;
-    [key: string]: any;
-  };
-  client?: {
-    id?: string;
-    name?: string;
-    [key: string]: any;
-  };
+  creator?: Creator;
+  client?: Client | undefined;
 }
 
 const platformIcons = {
@@ -280,59 +287,57 @@ const PostTable = ({
   );
 };
 
-const ContentDashboard = () => (
-  <div className="p-4">
-    <div className="mb-6 flex gap-4">
-      {["Facebook", "Instagram", "LinkedIn"].map((platform) => (
-        <button
-          key={platform}
-          className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white"
-        >
-          {platformIcons[platform as keyof typeof platformIcons]}
-        </button>
-      ))}
-    </div>
+// ContentDashboard component (currently unused but kept for future use)
+// const ContentDashboard = () => (
+<div className="p-4">
+  <div className="mb-6 flex gap-4">
+    {["Facebook", "Instagram", "LinkedIn"].map((platform) => (
+      <button
+        key={platform}
+        className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white"
+      >
+        {platformIcons[platform as keyof typeof platformIcons]}
+      </button>
+    ))}
+  </div>
 
-    <div className="mb-6 rounded-lg border border-stroke p-4 dark:border-dark-3">
-      <h3 className="mb-4 text-lg font-semibold dark:text-white">
-        Content Approval Status
-      </h3>
-      <div className="grid grid-cols-3 gap-4">
-        {["Scheduled", "Pending Approval", "Approved"].map((status) => (
-          <div
-            key={status}
-            className="dark:bg-gray-dark-1 rounded-lg bg-gray-1 p-4"
-          >
-            <div className="text-sm font-medium text-dark dark:text-white">
-              {status}
-            </div>
-            <div className="dark:text-primary-dark text-2xl font-bold text-primary">
-              {Math.floor(Math.random() * 20)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-
+  <div className="mb-6 rounded-lg border border-stroke p-4 dark:border-dark-3">
+    <h3 className="mb-4 text-lg font-semibold dark:text-white">
+      Content Approval Status
+    </h3>
     <div className="grid grid-cols-3 gap-4">
-      {["Repurpose Content", "New Ideas", "Get Inspired"].map((action, idx) => (
+      {["Scheduled", "Pending Approval", "Approved"].map((status) => (
         <div
-          key={idx}
-          className="cursor-pointer rounded-lg border border-stroke p-4 transition-all hover:shadow-md dark:border-dark-3"
+          key={status}
+          className="dark:bg-gray-dark-1 rounded-lg bg-gray-1 p-4"
         >
-          <h4 className="mb-2 font-medium text-dark dark:text-white">
-            {action}
-          </h4>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            {action === "Repurpose Content"
-              ? "Reuse top-performing posts"
-              : "Generate new content ideas"}
-          </p>
+          <div className="text-sm font-medium text-dark dark:text-white">
+            {status}
+          </div>
+          <div className="dark:text-primary-dark text-2xl font-bold text-primary">
+            {Math.floor(Math.random() * 20)}
+          </div>
         </div>
       ))}
     </div>
   </div>
-);
+
+  <div className="grid grid-cols-3 gap-4">
+    {["Repurpose Content", "New Ideas", "Get Inspired"].map((action, idx) => (
+      <div
+        key={idx}
+        className="cursor-pointer rounded-lg border border-stroke p-4 transition-all hover:shadow-md dark:border-dark-3"
+      >
+        <h4 className="mb-2 font-medium text-dark dark:text-white">{action}</h4>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {action === "Repurpose Content"
+            ? "Reuse top-performing posts"
+            : "Generate new content ideas"}
+        </p>
+      </div>
+    ))}
+  </div>
+</div>;
 
 const CalendarBox = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -350,7 +355,7 @@ const CalendarBox = () => {
   const [filterCreator, setFilterCreator] = useState<string | null>(null);
   const [filterClient, setFilterClient] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  // const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]; // Unused variable
   const router = useRouter();
 
   const platformIcons = {
@@ -391,18 +396,23 @@ const CalendarBox = () => {
     fetchScheduledPosts(filterCreator, filterStatus);
   }, [filterCreator, filterStatus, filterClient, currentDate, calendarView]);
 
-  const applyFilters = (posts: ScheduledPost[]) => {
-    return posts.filter((post) => {
-      const matchesStatus = filterStatus ? post.status === filterStatus : true;
-      const matchesCreator = filterCreator
-        ? post.creator?.full_name === filterCreator
-        : true;
-      const matchesClient = filterClient
-        ? post.client?.name === filterClient
-        : true;
-      return matchesStatus && matchesCreator;
-    });
-  };
+  const applyFilters = useCallback(
+    (posts: ScheduledPost[]) => {
+      return posts.filter((post) => {
+        const matchesStatus = filterStatus
+          ? post.status === filterStatus
+          : true;
+        const matchesCreator = filterCreator
+          ? post.creator?.full_name === filterCreator
+          : true;
+        // const matchesClient = filterClient
+        //   ? post.client?.name === filterClient
+        //   : true;
+        return matchesStatus && matchesCreator;
+      });
+    },
+    [filterStatus, filterCreator],
+  );
 
   useEffect(() => {
     const fetchFilteredPosts = async () => {
@@ -418,7 +428,7 @@ const CalendarBox = () => {
     };
 
     fetchFilteredPosts();
-  }, [filterStatus, currentDate, calendarView]);
+  }, [filterStatus, currentDate, calendarView, applyFilters]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
     setCurrentDate(date);
@@ -787,7 +797,6 @@ const CalendarBox = () => {
                       monthIndex,
                     );
                     const monthStart = startOfMonth(monthDate);
-                    const monthEnd = endOfMonth(monthDate);
 
                     // Get first day of month and calculate offset for week start
                     const firstDay = monthStart.getDay(); // 0 (Sun) to 6 (Sat)
@@ -1015,9 +1024,12 @@ const CalendarBox = () => {
         {["Calendar", "Posts Table"].map((tab) => (
           <button
             key={tab}
-            onClick={() =>
-              setActiveTab(tab.toLowerCase().replace(" ", "_") as any)
-            }
+            onClick={() => {
+              const tabValue = tab.toLowerCase().replace(" ", "_") as
+                | "calendar"
+                | "post_table";
+              setActiveTab(tabValue);
+            }}
             className={`px-4 pb-2 ${
               activeTab === tab.toLowerCase().replace(" ", "_")
                 ? "dark:border-primary-dark dark:text-primary-dark border-b-2 border-primary text-primary"
@@ -1196,20 +1208,4 @@ const CalendarBox = () => {
   );
 };
 
-function subYears(date: Date, amount: number): Date {
-  const newDate = new Date(date);
-  newDate.setFullYear(newDate.getFullYear() - amount);
-  return newDate;
-}
-
 export default CalendarBox;
-function addQuarters(date: Date, amount: number): Date {
-  const newDate = new Date(date);
-  newDate.setMonth(newDate.getMonth() + amount * 3);
-  return newDate;
-}
-function addYears(date: Date, amount: number): Date {
-  const newDate = new Date(date);
-  newDate.setFullYear(newDate.getFullYear() + amount);
-  return newDate;
-}

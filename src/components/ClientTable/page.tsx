@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { getClientAssignments } from "@/services/clientService";
 import { FaSearch } from "react-icons/fa";
+import { getImageUrl } from "@/utils/image-url";
 
 type Assignment = {
   id: number;
   full_name: string;
   email: string;
   phone_number: string | null;
+  user_image?: string;
 };
 
 const tabs = ["Moderators", "Community Managers"];
@@ -27,8 +30,10 @@ export default function ClientAssignmentsTable() {
         const data = await getClientAssignments();
         setModerator(data.moderator || null);
         setCommunityManagers(data.community_managers || []);
-      } catch (err: any) {
-        setError(err.message || "Failed to load assignments");
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error ? err.message : "Failed to load assignments",
+        );
       } finally {
         setLoading(false);
       }
@@ -50,7 +55,7 @@ export default function ClientAssignmentsTable() {
   }
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow">
+    <div className="rounded-xl bg-white p-6 shadow dark:bg-gray-800">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         {activeTab === "Moderators"
           ? "Assigned Moderator"
@@ -65,7 +70,7 @@ export default function ClientAssignmentsTable() {
               className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${
                 activeTab === tab
                   ? "bg-primary text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
               }`}
               onClick={() => setActiveTab(tab)}
             >
@@ -74,12 +79,12 @@ export default function ClientAssignmentsTable() {
           ))}
         </div>
 
-        <div className="ml-4 flex items-center">
-          <FaSearch className="mr-2 text-gray-500" />
+        <div className="ml-4 flex items-center rounded-md border border-gray-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700">
+          <FaSearch className="ml-2 text-gray-500 dark:text-gray-400" />
           <input
             type="text"
             placeholder={`Search by Name in ${activeTab}`}
-            className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="block w-48 bg-transparent p-3 text-gray-900 placeholder-gray-500 focus:outline-none dark:text-white dark:placeholder-gray-400 sm:text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -89,60 +94,97 @@ export default function ClientAssignmentsTable() {
       {activeTab === "Moderators" && (
         <div>
           {moderator ? (
-            <table className="mb-6 min-w-full table-auto">
-              <thead>
+            <table className="mb-6 min-w-full table-auto bg-white dark:bg-gray-800">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="border px-4 py-2 font-bold text-black">
+                  <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                     Name
                   </th>
-                  <th className="border px-4 py-2 font-bold text-black">
+                  <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                     Email
                   </th>
-                  <th className="border px-4 py-2 font-bold text-black">
+                  <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                     Phone Number
                   </th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="border px-4 py-2 text-gray-800">
-                    {moderator.full_name}
+                <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Image
+                        src={getImageUrl(moderator.user_image)}
+                        className="size-8 rounded-full object-cover"
+                        alt={`Avatar of ${moderator.full_name || "user"}`}
+                        role="presentation"
+                        width={32}
+                        height={32}
+                        onError={(e) => {
+                          e.currentTarget.src = "/images/user/user-03.png";
+                        }}
+                      />
+                      <span>{moderator.full_name}</span>
+                    </div>
                   </td>
-                  <td className="border px-4 py-2 text-gray-800">
+                  <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                     {moderator.email}
                   </td>
-                  <td className="border px-4 py-2 text-gray-800">
+                  <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                     {moderator.phone_number || "N/A"}
                   </td>
                 </tr>
               </tbody>
             </table>
           ) : (
-            <p className="text-gray-600">No Moderator assigned.</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              No Moderator assigned.
+            </p>
           )}
         </div>
       )}
 
       {activeTab === "Community Managers" &&
         (filteredCommunityManagers.length > 0 ? (
-          <table className="mb-6 min-w-full table-auto">
-            <thead>
+          <table className="mb-6 min-w-full table-auto bg-white dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="border px-4 py-2 font-bold text-black">Name</th>
-                <th className="border px-4 py-2 font-bold text-black">Email</th>
-                <th className="border px-4 py-2 font-bold text-black">
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+                  Name
+                </th>
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+                  Email
+                </th>
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                   Phone Number
                 </th>
               </tr>
             </thead>
             <tbody>
               {filteredCommunityManagers.map((cm) => (
-                <tr key={cm.id}>
-                  <td className="border px-4 py-2 text-gray-800">
-                    {cm.full_name}
+                <tr
+                  key={cm.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Image
+                        src={getImageUrl(cm.user_image)}
+                        className="size-8 rounded-full object-cover"
+                        alt={`Avatar of ${cm.full_name || "user"}`}
+                        role="presentation"
+                        width={32}
+                        height={32}
+                        onError={(e) => {
+                          e.currentTarget.src = "/images/user/user-03.png";
+                        }}
+                      />
+                      <span>{cm.full_name}</span>
+                    </div>
                   </td>
-                  <td className="border px-4 py-2 text-gray-800">{cm.email}</td>
-                  <td className="border px-4 py-2 text-gray-800">
+                  <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
+                    {cm.email}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                     {cm.phone_number || "N/A"}
                   </td>
                 </tr>
@@ -150,7 +192,7 @@ export default function ClientAssignmentsTable() {
             </tbody>
           </table>
         ) : (
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             {communityManagers.length > 0
               ? "No community managers found matching your search."
               : "No Community Managers assigned."}

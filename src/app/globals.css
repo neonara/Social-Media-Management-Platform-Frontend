@@ -29,3 +29,70 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-title);
 }
+
+/* PhoneInput Dark Mode Styles */
+.phone-input-wrapper .react-tel-input .flag-dropdown {
+  border-color: rgb(209 213 219) !important;
+  background-color: transparent !important;
+  border-radius: 0.375rem 0 0 0.375rem !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .flag-dropdown {
+  border-color: #374151 !important;
+  background-color: #1F2A37 !important;
+}
+
+.phone-input-wrapper .react-tel-input .flag-dropdown:hover {
+  background-color: rgb(249 250 251) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .flag-dropdown:hover {
+  background-color: #374151 !important;
+}
+
+.phone-input-wrapper .react-tel-input .selected-flag {
+  border-color: rgb(209 213 219) !important;
+  background-color: transparent !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .selected-flag {
+  border-color: #374151 !important;
+  background-color: #1F2A37 !important;
+}
+
+.phone-input-wrapper .react-tel-input .country-list {
+  background-color: white !important;
+  border-color: rgb(209 213 219) !important;
+  border-radius: 0.375rem !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .country-list {
+  background-color: #1F2A37 !important;
+  border-color: #374151 !important;
+}
+
+.phone-input-wrapper .react-tel-input .country-list .country {
+  background-color: transparent !important;
+  color: rgb(17 24 39) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .country-list .country {
+  color: white !important;
+}
+
+.phone-input-wrapper .react-tel-input .country-list .country:hover {
+  background-color: rgb(249 250 251) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .country-list .country:hover {
+  background-color: #374151 !important;
+}
+
+.phone-input-wrapper .react-tel-input .country-list .country.highlight {
+  background-color: rgb(239 246 255) !important;
+}
+
+.dark .phone-input-wrapper .react-tel-input .country-list .country.highlight {
+  background-color: #374151 !important;
+}

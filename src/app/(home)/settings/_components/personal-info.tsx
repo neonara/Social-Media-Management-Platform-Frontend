@@ -3,8 +3,7 @@
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { useState } from "react";
 import { UpdateUser } from "@/types/user";
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 interface PersonalInfoFormProps {
   formData: {
@@ -129,7 +128,7 @@ export function PersonalInfoForm({
                   name="role"
                   value={role}
                   placeholder="Your role"
-                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 disabled:text-gray-600 disabled:opacity-70 dark:border-dark-3 dark:bg-dark-2 dark:text-white"
                 />
               </div>
               <div className="w-full sm:w-1/2">
@@ -140,12 +139,15 @@ export function PersonalInfoForm({
                   Phone Number
                 </label>
                 <PhoneInput
-                  country={"us"}
+                  defaultCountry="TN"
                   value={formData.phone_number}
                   onChange={(phone) =>
-                    setFormData((prev) => ({ ...prev, phone_number: phone }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      phone_number: phone || "",
+                    }))
                   }
-                  inputClass="w-full rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                  className="w-full"
                 />
               </div>
             </div>
