@@ -23,11 +23,14 @@ export async function ChatsCard() {
             >
               <div className="relative shrink-0">
                 <Image
-                  src={chat.profile}
+                  src={chat.profile || "/avatar_placeholder.svg"}
                   width={56}
                   height={56}
                   className="size-14 rounded-full object-cover"
                   alt={"Avatar for " + chat.name}
+                  onError={(e) => {
+                    e.currentTarget.src = "/avatar_placeholder.svg"; // Fallback to placeholder image on error
+                  }}
                 />
 
                 <span

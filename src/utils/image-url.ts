@@ -8,7 +8,7 @@
  * @returns A properly formatted image URL or the default user image
  */
 export function getImageUrl(url: string | null | undefined): string {
-  if (!url) return "/images/user/user-03.png";
+  if (!url) return "/avatar_placeholder.svg"; // Default image if URL is null or undefined
 
   // Already a complete URL (starts with http:// or https://)
   if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -28,5 +28,5 @@ export function getImageUrl(url: string | null | undefined): string {
   }
 
   // When in doubt, use the default image
-  return "/images/user/user-03.png";
+  return "/avatar_placeholder.svg";
 }

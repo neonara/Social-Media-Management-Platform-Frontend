@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useParams } from 'next/navigation';
-import { resetPasswordConfirm } from '@/services/authService';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { resetPasswordConfirm } from "@/services/authService";
+import Link from "next/link";
 
 export default function ResetPasswordConfirmPage() {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const params = useParams(); // Get the parameters object
@@ -20,7 +19,7 @@ export default function ResetPasswordConfirmPage() {
 
   useEffect(() => {
     if (!uid || !token) {
-      setError('Invalid reset link.');
+      setError("Invalid reset link.");
     }
   }, [uid, token]);
 
@@ -43,7 +42,12 @@ export default function ResetPasswordConfirmPage() {
         throw new Error("Passwords do not match.");
       }
 
-      const response = await resetPasswordConfirm(uid, token, newPassword, confirmPassword);
+      const response = await resetPasswordConfirm(
+        uid,
+        token,
+        newPassword,
+        confirmPassword,
+      );
       setMessage(response.message);
       setTimeout(() => {
         router.push("/auth/login");
@@ -70,57 +74,63 @@ export default function ResetPasswordConfirmPage() {
 
         {uid && token && !message && !error && (
           <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label
-              htmlFor="newPassword"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            <div className="mb-4">
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                New Password
+              </label>
+              <input
+                type="password"
+                id="newPassword"
+                className="block w-full rounded-md border border-gray-300 py-2 placeholder-gray-500 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary dark:focus:ring-primary sm:text-sm"
+                placeholder="Enter your new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                id="confirmPassword"
+                className="block w-full rounded-md border border-gray-300 py-2 placeholder-gray-500 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary dark:focus:ring-primary sm:text-sm"
+                placeholder="Confirm your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="mt-4 w-full rounded-lg bg-primary p-2 text-white hover:bg-opacity-90"
+              disabled={loading}
             >
-              New Password
-            </label>
-            <input
-              type="password"
-              id="newPassword"
-              className="block w-full py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary"
-              placeholder="Enter your new password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-4">
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              className="block w-full py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary"
-              placeholder="Confirm your new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="mt-4 w-full rounded-lg bg-primary p-2 text-white hover:bg-opacity-90"
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent dark:border-primary dark:border-t-transparent" />
-            ) : (
-              "Reset Password"
-            )}
-          </button>
+              {loading ? (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent dark:border-primary dark:border-t-transparent" />
+              ) : (
+                "Reset Password"
+              )}
+            </button>
           </form>
         )}
 
         {error && (
           <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            Go back to <Link href="/auth/forgot-password" className="text-primary hover:underline">Forgot Password</Link>
+            Go back to{" "}
+            <Link
+              href="/auth/forgot-password"
+              className="text-primary hover:underline"
+            >
+              Forgot Password
+            </Link>
           </p>
         )}
       </div>

@@ -1,6 +1,7 @@
 "use server";
 
 import { API_BASE_URL } from "@/config/api";
+import { SocialPage } from "@/types/social-page";
 import { cookies } from "next/headers";
 
 export interface DraftPost {
@@ -35,6 +36,9 @@ interface ScheduledPost {
   id: string;
   title: string;
   platform: "Facebook" | "Instagram" | "LinkedIn";
+  platformPage: SocialPage;
+  mediaFiles?: Array<{ id: string; preview: string }>;
+  description: string;
   scheduled_for: string;
   status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
   creator?: Creator;
@@ -231,7 +235,7 @@ export async function createPost(formData: FormData) {
   }
 }
 
-export async function getScheduledPosts(): Promise<ScheduledPost[]> {
+export async function getScheduledPosts() {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();

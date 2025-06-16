@@ -73,7 +73,7 @@ export function UserInfo() {
             onError={(e) => {
               console.error("Error loading user image:", e);
               // Fallback to default image if there's an error
-              e.currentTarget.src = "/images/user/user-03.png";
+              e.currentTarget.src = "/avatar_placeholder.svg";
             }}
           />
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
