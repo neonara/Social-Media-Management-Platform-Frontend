@@ -5,6 +5,7 @@ import {
   FaInstagram as Instagram,
   FaLinkedin as Linkedin,
 } from "react-icons/fa";
+import Image from "next/image";
 
 // Preview Components
 export const FacebookPostPreview = ({
@@ -41,10 +42,12 @@ export const FacebookPostPreview = ({
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <img
+              <Image
                 src={media[0]}
                 alt="Post Media"
                 className="max-h-[500px] w-full object-contain"
+                width={500}
+                height={500}
               />
             )
           ) : (
@@ -60,10 +63,12 @@ export const FacebookPostPreview = ({
                       <source src={item} type="video/mp4" />
                     </video>
                   ) : (
-                    <img
+                    <Image
                       src={item}
                       alt={`Media ${index + 1}`}
                       className="h-full w-full object-cover"
+                      width={500}
+                      height={500}
                     />
                   )}
                   {index === 3 && media.length > 4 && (
@@ -130,10 +135,12 @@ export const InstagramPostPreview = ({
                   Your browser does not support the video tag.
                 </video>
               ) : (
-                <img
+                <Image
                   src={media[0]}
                   alt="Post Media"
                   className="aspect-square w-full object-cover"
+                  width={500}
+                  height={500}
                 />
               )
             ) : (
@@ -145,10 +152,12 @@ export const InstagramPostPreview = ({
                     <source src={media[0]} type="video/mp4" />
                   </video>
                 ) : (
-                  <img
+                  <Image
                     src={media[0]}
                     alt="Post Media"
                     className="h-full w-full object-cover"
+                    width={500}
+                    height={500}
                   />
                 )}
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1">
@@ -221,10 +230,12 @@ export const LinkedinPostPreview = ({
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <img
+              <Image
                 src={media[0]}
                 alt="Post Media"
                 className="max-h-[500px] w-full object-contain"
+                width={500}
+                height={500}
               />
             )
           ) : (
@@ -240,10 +251,12 @@ export const LinkedinPostPreview = ({
                       <source src={item} type="video/mp4" />
                     </video>
                   ) : (
-                    <img
+                    <Image
                       src={item}
                       alt={`Media ${index + 1}`}
                       className="h-full w-full object-cover"
+                      width={500}
+                      height={500}
                     />
                   )}
                   {index === 3 && media.length > 4 && (

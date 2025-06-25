@@ -19,6 +19,7 @@
     "@radix-ui/react-scroll-area": "^1.2.9",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-toast": "^1.2.14",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tiptap/extension-image": "^2.11.7",
@@ -39,6 +40,7 @@
     "flatpickr": "^4.6.13",
     "jsonwebtoken": "^9.0.2",
     "jsvectormap": "^1.6.0",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.503.0",
     "next": "15.1.6",
     "next-auth": "^4.24.11",
@@ -47,7 +49,6 @@
     "quill": "^2.0.3",
     "react": "^18.3.1",
     "react-apexcharts": "^1.7.0",
-    "react-beautiful-dnd": "^13.1.1",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.3.1",
@@ -57,7 +58,8 @@
     "react-phone-number-input": "^3.4.12",
     "react-simple-wysiwyg": "^3.2.2",
     "react-toastify": "^11.0.5",
-    "tailwind-merge": "^2.6.0"
+    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.0"
   },
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
@@ -70,13 +72,14 @@
     "@types/react-dom": "19.0.3",
     "@types/slate": "^0.47.16",
     "@types/slate-react": "^0.50.0",
-    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
     "postcss": "^8.5.3",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.11",
-    "tailwindcss": "^3.4.17",
     "typescript": "^5"
+  },
+  "resolutions": {
+    "lodash.isequal": "npm:is-plain-object@^5.0.0"
   }
 }

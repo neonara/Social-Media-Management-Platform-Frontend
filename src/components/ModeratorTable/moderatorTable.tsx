@@ -53,10 +53,15 @@ export default function AssignedCommunityManagersTable() {
         console.error("Error fetching assigned CMs:", data.error);
         return;
       }
-      setAssignedCMs(data.map((cm: any) => ({ ...cm, roles: cm.roles || [] })));
-    } catch (error: any) {
-      setFetchCMsError(`An unexpected error occurred: ${error.message}`);
-      console.error("Unexpected error fetching assigned CMs:", error);
+      // Adjusted to use `role` instead of `roles`
+      setAssignedCMs(
+        data.map((cm: GetUser) => ({ ...cm, role: cm.role ?? undefined })),
+      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFetchCMsError(`An unexpected error occurred: ${error.message}`);
+        console.error("Unexpected error fetching assigned CMs:", error);
+      }
     } finally {
       setIsLoadingCMs(false);
     }
@@ -73,9 +78,14 @@ export default function AssignedCommunityManagersTable() {
         return;
       }
       setClients(data as GetUser[]);
-    } catch (error: any) {
-      setFetchClientsError(`An unexpected error occurred: ${error.message}`);
-      console.error("Unexpected error fetching clients:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFetchClientsError(`An unexpected error occurred: ${error.message}`);
+        console.error("Unexpected error fetching clients:", error);
+      } else {
+        setFetchClientsError("An unexpected error occurred.");
+        console.error("Unexpected error fetching clients:", error);
+      }
     } finally {
       setIsLoadingClients(false);
     }
@@ -119,9 +129,14 @@ export default function AssignedCommunityManagersTable() {
         setSelectedClientToAssign(null);
         await loadAssignedCMs(); // Refresh CM list after assignment
         await loadClients(); // Refresh client list to update assigned CM
-      } catch (error: any) {
-        setAssignError(`An unexpected error occurred: ${error.message}`);
-        console.error("Unexpected error assigning CM to client:", error);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          setAssignError(`An unexpected error occurred: ${error.message}`);
+          console.error("Unexpected error assigning CM to client:", error);
+        } else {
+          setAssignError("An unexpected error occurred.");
+          console.error("Unexpected error assigning CM to client:", error);
+        }
       } finally {
         setIsAssigning(false);
         setShowConfirmModal(false); // Close the modal

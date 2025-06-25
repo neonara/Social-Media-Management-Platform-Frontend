@@ -1,4 +1,4 @@
-import { PostForm } from "@/components/postCreate/page";
+import { PostFormWrapper } from "@/components/postCreate/page";
 
 export const metadata = {
   title: "Post Form",
@@ -7,7 +7,7 @@ export const metadata = {
 const PostsPage = () => {
   return (
     <>
-      <PostForm />
+      <PostFormWrapper />
     </>
   );
 };

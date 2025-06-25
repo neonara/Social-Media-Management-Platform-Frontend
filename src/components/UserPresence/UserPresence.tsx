@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Users } from "lucide-react";
 import { getToken } from "@/utils/token";
+import { getUserPresenceWebSocketUrl } from "@/utils/websocket";
 import { getImageUrl } from "@/utils/image-url";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
@@ -64,9 +65,7 @@ export default function UserPresence({
         return;
       }
 
-      socketRef.current = new WebSocket(
-        `ws://127.0.0.1:8000/ws/user_activity/?token=${token}`,
-      );
+      socketRef.current = new WebSocket(getUserPresenceWebSocketUrl(token));
 
       socketRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -318,43 +317,45 @@ export default function UserPresence({
               <Users size={18} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="z-1 mt-[6px] w-56 rounded-md bg-white p-1 shadow-md dark:bg-gray-800 dark:text-white"
-          >
-            <div className="max-h-80 overflow-auto">
-              {presentUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center gap-2 rounded-md p-2 hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <div className="flex-1 truncate">
-                    <p className="text-sm font-semibold text-black dark:text-white">
-                      {user.name || user.email}
-                    </p>
-                  </div>
+          {presentUsers.length > 0 && (
+            <DropdownMenuContent
+              align="end"
+              className="z-1 mt-[6px] w-56 rounded-md bg-white p-1 shadow-md dark:bg-gray-800 dark:text-white"
+            >
+              <div className="max-h-80 overflow-auto">
+                {presentUsers.map((user) => (
                   <div
-                    className={cn(
-                      "rounded-full border-2",
-                      getRandomColor(user.id),
-                      "",
-                    )}
+                    key={user.id}
+                    className="flex items-center gap-2 rounded-md p-2 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <Image
-                      src={getImageUrl(user.profilePicture)}
-                      alt={user.name || `User with email ${user.email}`}
-                      width={32}
-                      height={32}
-                      className="h-6 w-6 rounded-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "/avatar_placeholder.svg";
-                      }}
-                    />
+                    <div className="flex-1 truncate">
+                      <p className="text-sm font-semibold text-black dark:text-white">
+                        {user.name || user.email}
+                      </p>
+                    </div>
+                    <div
+                      className={cn(
+                        "rounded-full border-2",
+                        getRandomColor(user.id),
+                        "",
+                      )}
+                    >
+                      <Image
+                        src={getImageUrl(user.profilePicture)}
+                        alt={user.name || `User with email ${user.email}`}
+                        width={32}
+                        height={32}
+                        className="h-6 w-6 rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/avatar_placeholder.svg";
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </DropdownMenuContent>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          )}
         </DropdownMenuRoot>
       </div>
     </div>

@@ -115,10 +115,12 @@ export function Sidebar() {
                                 )}
                                 onClick={() => toggleExpanded(item.title)}
                               >
-                                <item.icon
-                                  className="size-6 shrink-0"
-                                  aria-hidden="true"
-                                />
+                                {item.icon && (
+                                  <item.icon
+                                    className="size-6 shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                )}
 
                                 <span>{item.title}</span>
 
@@ -141,7 +143,7 @@ export function Sidebar() {
                                     <li key={subItem.title} role="none">
                                       <MenuItem
                                         as="link"
-                                        href={subItem.url}
+                                        href={subItem.url || "#"}
                                         isActive={pathname === subItem.url}
                                       >
                                         <span>{subItem.title}</span>
@@ -169,10 +171,12 @@ export function Sidebar() {
                                   href={href}
                                   isActive={pathname === href}
                                 >
-                                  <item.icon
-                                    className="size-6 shrink-0"
-                                    aria-hidden="true"
-                                  />
+                                  {item.icon && (
+                                    <item.icon
+                                      className="size-6 shrink-0"
+                                      aria-hidden="true"
+                                    />
+                                  )}
 
                                   <span>{item.title}</span>
                                 </MenuItem>

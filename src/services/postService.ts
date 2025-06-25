@@ -128,7 +128,7 @@ export async function updatePostToDraft(
   formData: FormData,
 ): Promise<{
   success: boolean;
-  data?: any;
+  data?: DraftPost;
   error?: string;
 }> {
   try {
@@ -155,9 +155,9 @@ export async function updatePostToDraft(
       };
     }
 
-    const data = await response.json();
+    const data: DraftPost = await response.json();
     return { success: true, data };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error updating post to draft:", error);
     return {
       success: false,
@@ -210,24 +210,22 @@ export async function createPost(formData: FormData) {
       const responseText = await response.text();
       console.log("Error response text:", responseText);
 
-      let errorData: Record<string, any> = {};
+      let errorData: Record<string, unknown> = {};
       try {
         errorData = JSON.parse(responseText);
-      } catch (_) {
+      } catch {
         console.log("Could not parse error response as JSON");
       }
-
       return {
         success: false,
-        error:
-          (errorData.message as string) ||
-          `Failed to create post: ${responseText}`,
+        error: errorData.message || "Failed to create post",
       };
     }
 
     const data = await response.json();
     return { success: true, data };
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Error creating post:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Network error",
@@ -319,28 +317,22 @@ export async function getDraftPosts(): Promise<DraftPost[]> {
     });
 
     if (!response.ok) {
-      console.error(
-        "Failed to fetch draft posts:",
-        response.status,
-        await response.text(),
-      );
-      throw new Error("Failed to fetch draft posts");
+      console.error("Failed to fetch draft posts:", response.status);
+      return [];
     }
 
-    const data = await response.json();
-
-    // Convert each draft post to plain object
-    return data.map((post: any) => ({
+    const data: DraftPost[] = await response.json();
+    return data.map((post) => ({
       ...post,
       scheduled_for: post.scheduled_for
         ? new Date(post.scheduled_for).toISOString()
         : null,
-      media: post.media.map((mediaItem: any) => ({
+      media: post.media.map((mediaItem) => ({
         ...mediaItem,
         uploaded_at: new Date(mediaItem.uploaded_at).toISOString(),
       })),
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching draft posts:", error);
     return [];
   }
@@ -348,7 +340,7 @@ export async function getDraftPosts(): Promise<DraftPost[]> {
 
 export async function saveDraft(formData: FormData): Promise<{
   success: boolean;
-  data?: any;
+  data?: DraftPost;
   error?: string;
 }> {
   try {
@@ -376,13 +368,12 @@ export async function saveDraft(formData: FormData): Promise<{
       };
     }
 
-    // Ensure the response data is serializable
-    const responseData = await response.json();
+    const responseData: DraftPost = await response.json();
     return {
       success: true,
       data: JSON.parse(JSON.stringify(responseData)), // Force serialization
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error saving draft:", error);
     return {
       success: false,
@@ -420,14 +411,14 @@ export async function getPostById(postId: number): Promise<DraftPost | null> {
         scheduled_for: data.scheduled_for
           ? new Date(data.scheduled_for).toISOString()
           : null,
-        media: data.media.map((mediaItem: any) => ({
+        media: data.media.map((mediaItem: { uploaded_at: string }) => ({
           ...mediaItem,
           uploaded_at: new Date(mediaItem.uploaded_at).toISOString(),
         })),
       }),
     );
-  } catch (error) {
-    console.error("Error fetching post:", error);
+  } catch (error: unknown) {
+    console.error("Error fetching post by ID:", error);
     return null;
   }
 }

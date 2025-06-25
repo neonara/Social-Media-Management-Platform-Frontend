@@ -14,12 +14,12 @@ import {
   fetchNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
-  deleteNotification,
   revalidateNotificationsCache,
 } from "@/services/notificationService";
 import type { Notification as NotificationType } from "@/types/notification";
 import { getToken } from "@/utils/token";
 import { useNotification } from "@/context/NotificationContext";
+import { getNotificationWebSocketUrl } from "@/utils/websocket";
 
 export function Notification() {
   const [isOpen, setIsOpen] = useState(false);
@@ -106,7 +106,7 @@ export function Notification() {
         }
 
         const socket = new WebSocket(
-          `ws://127.0.0.1:8000/ws/notifications/?token=${token}`,
+          getNotificationWebSocketUrl(token)
         );
 
         socketRef.current = socket;
@@ -242,23 +242,6 @@ export function Notification() {
         `Error marking notification ${notificationId} as read:`,
         error,
       );
-      return false;
-    }
-  };
-
-  const handleDeleteNotification = async (notificationId: number) => {
-    try {
-      await deleteNotification(notificationId);
-
-      // Update local state by removing the deleted notification
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-
-      // Refresh to ensure we have the latest data
-      await refreshNotifications();
-
-      return true;
-    } catch (error) {
-      console.error(`Error deleting notification ${notificationId}:`, error);
       return false;
     }
   };

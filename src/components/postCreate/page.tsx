@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  Suspense,
+} from "react";
 import {
   createPost,
   saveDraft,
@@ -8,12 +14,12 @@ import {
 } from "@/services/postService";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { SimpleWysiwyg } from "@/components/SimpleWysiwyg";
+import { DndContext, useDraggable, closestCenter } from "@dnd-kit/core";
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "react-beautiful-dnd";
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import {
   FaFacebook as Facebook,
   FaInstagram as Instagram,
@@ -21,6 +27,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 import { getClientPages } from "@/services/socialMedia";
 import { SocialPage } from "@/types/social-page";
@@ -160,16 +167,25 @@ export function PostForm() {
 
   // Drag and drop
   const onDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!result.destination) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (event: any) => {
+      const { active, over } = event;
 
-      const items = [...state.mediaFiles];
-      const [reorderedItem] = items.splice(result.source.index, 1);
-      items.splice(result.destination.index, 0, reorderedItem);
+      if (active.id !== over.id) {
+        setState((prev) => {
+          const oldIndex = prev.mediaFiles.findIndex(
+            (file) => file.id === active.id,
+          );
+          const newIndex = prev.mediaFiles.findIndex(
+            (file) => file.id === over.id,
+          );
+          const mediaFiles = arrayMove(prev.mediaFiles, oldIndex, newIndex);
 
-      setState((prev) => ({ ...prev, mediaFiles: items }));
+          return { ...prev, mediaFiles };
+        });
+      }
     },
-    [state.mediaFiles],
+    [setState],
   );
 
   // Hashtag management
@@ -352,7 +368,7 @@ export function PostForm() {
         );
         resetForm();
       } else {
-        throw new Error(result.error || "Failed to create post");
+        throw new Error(String(result.error) || "Failed to create post");
       }
     } catch (error) {
       const message =
@@ -530,6 +546,57 @@ export function PostForm() {
     });
   };
 
+  // Create a reusable DraggableItem component
+  const DraggableItem = ({
+    media,
+    index,
+    onRemove,
+  }: {
+    media: MediaFile;
+    index: number;
+    onRemove: (index: number) => void;
+  }) => {
+    const { setNodeRef, listeners, isDragging } = useDraggable({
+      id: media.id,
+      data: { index },
+    });
+
+    return (
+      <div
+        ref={setNodeRef}
+        {...listeners}
+        className={`relative h-40 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md dark:bg-gray-800 ${
+          isDragging ? "opacity-50" : ""
+        }`}
+      >
+        {media.preview.startsWith("data:video") ||
+        /\.(mp4|mov)$/i.test(media.preview) ? (
+          <video controls preload="auto" className="h-full w-full object-cover">
+            <source src={media.preview} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <Image
+            src={media.preview}
+            alt={`Preview ${index}`}
+            className="h-full w-full object-cover"
+            width={500}
+            height={500}
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600 focus:outline-none"
+          title="Remove"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  };
+
+  // Use the DraggableItem component in the PostForm
   return (
     <ShowcaseSection
       title={state.isForClient ? "Create Post for Client" : "Create Post"}
@@ -741,68 +808,27 @@ export function PostForm() {
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Media
               </h2>
-              <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable
-                  droppableId="media-previews"
-                  direction="horizontal"
-                  isDropDisabled={false}
+              <DndContext
+                onDragEnd={onDragEnd}
+                collisionDetection={closestCenter}
+              >
+                <SortableContext
+                  items={state.mediaFiles.map((file) => file.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  {(provided) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className="mt-4 flex flex-wrap gap-4 overflow-x-auto"
-                    >
-                      {state.mediaFiles.map((media, index) => (
-                        <Draggable
-                          key={media.id}
-                          draggableId={media.id}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="relative h-40 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md dark:bg-gray-800"
-                            >
-                              {media.preview.startsWith("data:video") ||
-                              /\.(mp4|mov)$/i.test(media.preview) ? (
-                                <video
-                                  controls
-                                  preload="auto"
-                                  className="h-full w-full object-cover"
-                                >
-                                  <source
-                                    src={media.preview}
-                                    type="video/mp4"
-                                  />
-                                  Your browser does not support the video tag.
-                                </video>
-                              ) : (
-                                <img
-                                  src={media.preview}
-                                  alt={`Preview ${index}`}
-                                  className="h-full w-full object-cover"
-                                />
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMedia(index)}
-                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600 focus:outline-none"
-                                title="Remove"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+                  {/* Move the useDraggable logic outside the map function */}
+                  <div className="mt-4 flex flex-wrap gap-4">
+                    {state.mediaFiles.map((media, index) => (
+                      <DraggableItem
+                        key={media.id}
+                        media={media}
+                        index={index}
+                        onRemove={handleRemoveMedia}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
               {/* Buttons for Adding Media */}
               <div className="flex gap-4">
@@ -890,5 +916,13 @@ export function PostForm() {
         </div>
       </div>
     </ShowcaseSection>
+  );
+}
+
+export function PostFormWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PostForm />
+    </Suspense>
   );
 }
