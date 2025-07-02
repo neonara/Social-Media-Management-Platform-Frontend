@@ -14,7 +14,11 @@ export function getWebSocketUrl(path: string = ""): string {
   // Use environment variable if available
   if (process.env.NEXT_PUBLIC_WS_URL) {
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}${path}`;
-    console.log("WebSocket URL (from env):", wsUrl);
+
+    return wsUrl;
+  } else if (!process.env.NEXT_PUBLIC_WS_URL) {
+    const wsUrl = `ws://localhost:8080${path}`;
+
     return wsUrl;
   }
 
@@ -38,7 +42,7 @@ export function getWebSocketUrl(path: string = ""): string {
   // Production environment
   else if (process.env.NODE_ENV === "production") {
     // Accessing through nginx proxy
-    if (port === "8081" || port === "8443") {
+    if (port === "8080" || port === "8443") {
       wsHost = hostname;
       wsPort = port;
     }
@@ -67,7 +71,6 @@ export function getWebSocketUrl(path: string = ""): string {
   // Construct the WebSocket URL
   const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}${path}`;
 
-  console.log("WebSocket URL:", wsUrl);
   return wsUrl;
 }
 

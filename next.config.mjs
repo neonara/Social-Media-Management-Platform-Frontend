@@ -37,6 +37,13 @@ const nextConfig = {
     ];
   },
   
+  // Minimal logging configuration - only logs in development
+  logging: process.env.NODE_ENV !== 'production' ? {
+    fetches: {
+      fullUrl: true,
+    },
+  } : undefined,
+  
   images: {
     remotePatterns: [
       {
