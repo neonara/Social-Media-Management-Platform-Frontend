@@ -5,14 +5,18 @@ export const metadata = {
   title: "Edit Post",
 };
 
-const EditPostPage = async ({ params }: { params: { id: string } }) => {
-  // Explicitly await the params.id
-  const postId = await Promise.resolve(params.id);
+const EditPostPage = async ({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) => {
+  const resolvedParams = await params;
+  const postId = resolvedParams.id;
 
   return (
     <>
       <Breadcrumb pageName="Edit Post" />
-      <EditPostForm postId={postId} /> {/* Pass the resolved postId */}
+      <EditPostForm postId={postId} />
     </>
   );
 };

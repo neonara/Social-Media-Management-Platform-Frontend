@@ -86,9 +86,22 @@ export default function DraftPosts() {
         Draft Posts
       </h2>
       {drafts.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-300">
-          No drafts available. Start creating your first draft!
-        </p>
+        <div>
+          <p className="text-center text-gray-600 dark:text-gray-300">
+            No drafts available. Start creating your first draft!
+          </p>
+          <Link href="/content" className="m-auto block w-fit">
+            <button
+              type="button"
+              className="mx-auto mb-2.5 mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-20 py-4 text-lg font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
+            >
+              Create New Post
+              {loading && (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+              )}
+            </button>
+          </Link>
+        </div>
       ) : (
         <>
           <div className="flex justify-end">

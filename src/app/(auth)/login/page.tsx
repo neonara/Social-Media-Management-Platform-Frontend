@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; // For navigation
 import darkLogo from "@/assets/logos/logo_white.png";
 import logo from "@/assets/logos/logo_black.png";
@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/FormElements/checkbox";
 import InputGroup from "@/components/FormElements/InputGroup";
 import { EmailIcon, PasswordIcon } from "@/assets/icons";
 import { loginUser } from "@/services/authService";
+import { checkAuthStatus } from "@/utils/token";
 
 export default function Login() {
   const [data, setData] = useState({
@@ -21,6 +22,16 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(""); // Error state
   const router = useRouter();
+
+  // Check if the user is already authenticated when the component mounts
+  useEffect(() => {
+    async function checkAuthentication() {
+      if (await checkAuthStatus()) {
+        router.push("/");
+      }
+    }
+    checkAuthentication();
+  }, [router]);
 
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

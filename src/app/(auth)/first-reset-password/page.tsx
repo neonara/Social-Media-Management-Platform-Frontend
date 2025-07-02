@@ -3,10 +3,19 @@
 import { validatePasswordStrength } from "@/services/password";
 // import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-export default function FirstResetPassword() {
+export default function FirstResetPasswordWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <FirstResetPassword />
+    </Suspense>
+  );
+}
+
+function FirstResetPassword() {
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState(searchParams.get("email") || "");

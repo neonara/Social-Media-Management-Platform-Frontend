@@ -58,7 +58,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "max-w-[290px] overflow-hidden border-r border-gray-200 bg-white transition-[width] duration-200 ease-linear dark:border-gray-800 dark:bg-gray-dark",
+          "max-w-[290px] overflow-hidden border-r border-gray-200 bg-white transition-[width] duration-200 ease-linear dark:border-gray-800 dark:bg-gray-dark min-[1260px]:min-w-[250px]",
           isMobile ? "fixed bottom-0 top-0 z-50" : "sticky top-0 h-screen",
           isOpen ? "w-full" : "w-0",
         )}
@@ -115,10 +115,12 @@ export function Sidebar() {
                                 )}
                                 onClick={() => toggleExpanded(item.title)}
                               >
-                                <item.icon
-                                  className="size-6 shrink-0"
-                                  aria-hidden="true"
-                                />
+                                {item.icon && (
+                                  <item.icon
+                                    className="size-6 shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                )}
 
                                 <span>{item.title}</span>
 
@@ -141,7 +143,7 @@ export function Sidebar() {
                                     <li key={subItem.title} role="none">
                                       <MenuItem
                                         as="link"
-                                        href={subItem.url}
+                                        href={subItem.url || "#"}
                                         isActive={pathname === subItem.url}
                                       >
                                         <span>{subItem.title}</span>
@@ -169,10 +171,12 @@ export function Sidebar() {
                                   href={href}
                                   isActive={pathname === href}
                                 >
-                                  <item.icon
-                                    className="size-6 shrink-0"
-                                    aria-hidden="true"
-                                  />
+                                  {item.icon && (
+                                    <item.icon
+                                      className="size-6 shrink-0"
+                                      aria-hidden="true"
+                                    />
+                                  )}
 
                                   <span>{item.title}</span>
                                 </MenuItem>

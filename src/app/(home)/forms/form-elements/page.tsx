@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useState } from "react";
 
 import { GlobeIcon } from "@/assets/icons";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
@@ -13,11 +15,9 @@ import { Select } from "@/components/FormElements/select";
 import { Switch } from "@/components/FormElements/switch";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 
-export const metadata: Metadata = {
-  title: "Form Elements",
-};
-
 export default function FormElementsPage() {
+  const [selectedCountry, setSelectedCountry] = useState("USA");
+
   return (
     <>
       <Breadcrumb pageName="Form Elements" />
@@ -106,7 +106,8 @@ export default function FormElementsPage() {
                 { label: "United Kingdom", value: "UK" },
                 { label: "Canada", value: "Canada" },
               ]}
-              defaultValue="USA"
+              value={selectedCountry}
+              onChange={(value) => setSelectedCountry(value)}
               prefixIcon={<GlobeIcon />}
             />
             <MultiSelect id="multiSelect" />

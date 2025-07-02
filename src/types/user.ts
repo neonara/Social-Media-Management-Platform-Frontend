@@ -13,7 +13,7 @@ export interface User {
   user_image?: string;
   assigned_moderator?: string | null;
   assigned_communitymanagers?: string | null;
-  roles: string[];
+  role?: UserRole; // Single role property for transformed API data
 }
 
 export interface GetUser {
@@ -25,9 +25,17 @@ export interface GetUser {
   phone_number?: string;
   role?: UserRole;
   user_image?: string;
-  assigned_moderator: GetUser | null;
-  assigned_communitymanagers: GetUser | null;
-  assigned_clients: GetUser | null;
+  assigned_moderator?: GetUser | null;
+  assigned_communitymanagers?: GetUser | null;
+  assigned_clients?: GetUser | null;
+}
+
+export interface UpdateUser {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  user_image?: string | null;
 }
 
 export type UserRole =

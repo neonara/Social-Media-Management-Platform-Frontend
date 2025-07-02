@@ -45,7 +45,7 @@ export default function Page() {
       <div className="overflow-hidden rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
         <div className="relative z-20 h-35 md:h-65">
           <Image
-            src={data?.coverPhoto}
+            src={data?.coverPhoto || "/avatar_placeholder.svg"}
             alt="profile cover"
             className="h-full w-full rounded-tl-[10px] rounded-tr-[10px] object-cover object-center"
             width={970}
@@ -53,6 +53,9 @@ export default function Page() {
             style={{
               width: "auto",
               height: "auto",
+            }}
+            onError={(e) => {
+              e.currentTarget.src = "/avatar_placeholder.svg"; // Fallback to placeholder image on error
             }}
           />
           <div className="absolute bottom-1 right-1 z-10 xsm:bottom-4 xsm:right-4">
@@ -81,11 +84,14 @@ export default function Page() {
               {data?.profilePhoto && (
                 <>
                   <Image
-                    src={data?.profilePhoto}
+                    src={data?.profilePhoto || "/avatar_placeholder.svg"}
                     width={160}
                     height={160}
                     className="overflow-hidden rounded-full"
                     alt="profile"
+                    onError={(e) => {
+                      e.currentTarget.src = "/avatar_placeholder.svg"; // Fallback to placeholder image on error
+                    }}
                   />
 
                   <label

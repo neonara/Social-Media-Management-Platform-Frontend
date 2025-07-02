@@ -1,20 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { getPostById, updatePost, saveDraft } from "@/services/postService";
+import { getPostById, updatePost } from "@/services/postService";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { SimpleWysiwyg } from "@/components/SimpleWysiwyg";
+import { DndContext, useDraggable, closestCenter } from "@dnd-kit/core";
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "react-beautiful-dnd";
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { formatDistanceToNow } from "date-fns";
 import DOMPurify from "dompurify";
+import Image from "next/image";
 
 interface MediaFile {
   id?: number;
@@ -60,10 +62,12 @@ const FacebookPostPreview = ({
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <img
+              <Image
                 src={media[0]}
                 alt="Post Media"
                 className="max-h-[500px] w-full object-contain"
+                width={500}
+                height={500}
               />
             )
           ) : (
@@ -79,10 +83,12 @@ const FacebookPostPreview = ({
                       <source src={item} type="video/mp4" />
                     </video>
                   ) : (
-                    <img
+                    <Image
                       src={item}
                       alt={`Media ${index + 1}`}
                       className="h-full w-full object-cover"
+                      width={500}
+                      height={500}
                     />
                   )}
                   {index === 3 && media.length > 4 && (
@@ -147,10 +153,12 @@ const InstagramPostPreview = ({
                   Your browser does not support the video tag.
                 </video>
               ) : (
-                <img
+                <Image
                   src={media[0]}
                   alt="Post Media"
                   className="aspect-square w-full object-cover"
+                  width={500}
+                  height={500}
                 />
               )
             ) : (
@@ -162,10 +170,12 @@ const InstagramPostPreview = ({
                     <source src={media[0]} type="video/mp4" />
                   </video>
                 ) : (
-                  <img
+                  <Image
                     src={media[0]}
                     alt="Post Media"
                     className="h-full w-full object-cover"
+                    width={500}
+                    height={500}
                   />
                 )}
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1">
@@ -236,10 +246,12 @@ const LinkedinPostPreview = ({
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <img
+              <Image
                 src={media[0]}
                 alt="Post Media"
                 className="max-h-[500px] w-full object-contain"
+                width={500}
+                height={500}
               />
             )
           ) : (
@@ -255,10 +267,12 @@ const LinkedinPostPreview = ({
                       <source src={item} type="video/mp4" />
                     </video>
                   ) : (
-                    <img
+                    <Image
                       src={item}
                       alt={`Media ${index + 1}`}
                       className="h-full w-full object-cover"
+                      width={500}
+                      height={500}
                     />
                   )}
                   {index === 3 && media.length > 4 && (
@@ -415,19 +429,24 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
   }, []);
 
   const handleDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!result.destination) return;
+    (event: any) => {
+      const { active, over } = event;
 
-      const reorderedMedia = [...formData.mediaFiles];
-      const [removed] = reorderedMedia.splice(result.source.index, 1);
-      reorderedMedia.splice(result.destination.index, 0, removed);
+      // Ignore if dropped outside the list
+      if (!over) return;
+
+      const oldIndex = Number(active.id);
+      const newIndex = Number(over.id);
+
+      // Ignore if dropped in the same position
+      if (oldIndex === newIndex) return;
 
       setFormData((prev) => ({
         ...prev,
-        mediaFiles: reorderedMedia,
+        mediaFiles: arrayMove(prev.mediaFiles, oldIndex, newIndex),
       }));
     },
-    [formData.mediaFiles],
+    [setFormData],
   );
 
   const handleUpdate = async (event: React.FormEvent) => {
@@ -465,12 +484,41 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
       // Append all basic fields
       formDataToSend.append("title", formData.title);
       formDataToSend.append("description", formData.caption);
+
+      // Convert platforms array to JSON string as required by the backend
       formDataToSend.append(
         "platforms",
         JSON.stringify(formData.selectedPlatforms),
       );
+
       formDataToSend.append("status", "scheduled");
-      formDataToSend.append("scheduled_for", formData.scheduledTime);
+
+      // Format the date properly with seconds and timezone (Z for UTC)
+      let formattedDate = "";
+      if (formData.scheduledTime) {
+        try {
+          // Ensure the date has seconds and timezone
+          const date = new Date(formData.scheduledTime);
+          formattedDate = date.toISOString();
+
+          // Verify the date is valid and in the expected format
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date");
+          }
+        } catch (err) {
+          console.error("Date conversion error:", err);
+          // Fallback format: add seconds and timezone if missing
+          formattedDate = formData.scheduledTime.replace(
+            /T(\d{2}):(\d{2})$/,
+            "T$1:$2:00Z",
+          );
+        }
+      }
+
+      // Log the formatted date for debugging
+      console.log("Formatted ISO date:", formattedDate);
+
+      formDataToSend.append("scheduled_for", formattedDate);
 
       // Append existing media IDs
       formData.mediaFiles.forEach((media) => {
@@ -514,12 +562,19 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
       // Append all basic fields
       formDataToSend.append("title", formData.title);
       formDataToSend.append("description", formData.caption);
+
+      // Convert platforms array to JSON string as required by the backend
       formDataToSend.append(
         "platforms",
         JSON.stringify(formData.selectedPlatforms),
       );
+
       formDataToSend.append("status", "draft"); // Set status to "draft"
-      formDataToSend.append("scheduled_for", formData.scheduledTime || "");
+      // Format the date properly if it exists
+      const formattedDate = formData.scheduledTime
+        ? new Date(formData.scheduledTime).toISOString()
+        : "";
+      formDataToSend.append("scheduled_for", formattedDate);
 
       // Append existing media IDs
       formData.mediaFiles.forEach((media) => {
@@ -793,64 +848,29 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Media
               </h2>
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="media-previews" direction="horizontal">
-                  {(provided) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
-                    >
-                      {formData.mediaFiles.map((media, index) => (
-                        <Draggable
-                          key={media.id || index}
-                          draggableId={`media-${media.id || index}`}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="relative h-40 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md dark:bg-gray-800"
-                            >
-                              {media.preview.startsWith("data:video") ||
-                              /\.(mp4|mov)$/i.test(media.preview) ? (
-                                <video
-                                  controls
-                                  preload="auto"
-                                  className="h-full w-full object-cover"
-                                >
-                                  <source
-                                    src={media.preview}
-                                    type="video/mp4"
-                                  />
-                                  Your browser does not support the video tag.
-                                </video>
-                              ) : (
-                                <img
-                                  src={media.preview}
-                                  alt={`Preview ${index}`}
-                                  className="h-full w-full object-cover"
-                                />
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMedia(index)}
-                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600 focus:outline-none"
-                                title="Remove"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
+              <DndContext
+                onDragEnd={handleDragEnd}
+                collisionDetection={closestCenter}
+              >
+                <SortableContext
+                  items={formData.mediaFiles.map((_, index) =>
+                    index.toString(),
                   )}
-                </Droppable>
-              </DragDropContext>
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                    {formData.mediaFiles.map((media, index) => (
+                      <div key={media.id || index} className="relative">
+                        <DraggableItem
+                          media={media}
+                          index={index}
+                          handleRemoveMedia={handleRemoveMedia}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
               {/* Buttons for Adding Media */}
               <div className="flex gap-4">
@@ -966,6 +986,60 @@ const EditPostForm = ({ postId }: EditPostFormProps) => {
         </div>
       )}
     </ShowcaseSection>
+  );
+};
+
+const DraggableItem = ({
+  media,
+  index,
+  handleRemoveMedia,
+}: {
+  media: MediaFile;
+  index: number;
+  handleRemoveMedia: (index: number) => void;
+}) => {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: media.id?.toString() || index.toString(),
+  });
+
+  const style = {
+    transform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+      : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="relative h-40 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md dark:bg-gray-800"
+    >
+      {media.preview.startsWith("data:video") ||
+      /\.(mp4|mov)$/i.test(media.preview) ? (
+        <video controls preload="auto" className="h-full w-full object-cover">
+          <source src={media.preview} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      ) : (
+        <Image
+          src={media.preview}
+          alt={`Preview ${index}`}
+          className="h-full w-full object-cover"
+          width={500}
+          height={500}
+        />
+      )}
+      <button
+        type="button"
+        onClick={() => handleRemoveMedia(index)}
+        className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600 focus:outline-none"
+        title="Remove"
+      >
+        ✕
+      </button>
+    </div>
   );
 };
 

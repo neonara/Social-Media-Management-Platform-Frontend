@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   format,
   isSameDay,
@@ -18,6 +18,9 @@ import {
   addMonths,
   subMonths,
   subQuarters,
+  addQuarters,
+  subYears,
+  addYears,
 } from "date-fns";
 import {
   ChevronLeft,
@@ -30,22 +33,36 @@ import * as postService from "@/services/postService";
 import { useRouter } from "next/navigation";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { SocialPage } from "@/types/social-page";
+import {
+  FacebookPostPreview,
+  InstagramPostPreview,
+  LinkedinPostPreview,
+} from "../postCreate/preview-post";
+import UserPresence from "../UserPresence/UserPresence";
+
+interface Creator {
+  id: string;
+  full_name: string;
+  type: "client" | "team_member";
+}
+
+interface Client {
+  id: string;
+  full_name: string;
+}
 
 interface ScheduledPost {
   id: string;
   title: string;
   platform: "Facebook" | "Instagram" | "LinkedIn";
+  platformPage: SocialPage;
+  mediaFiles?: Array<{ id: string; preview: string }>;
+  description: string;
   scheduled_for: string;
   status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: {
-    full_name?: string;
-    [key: string]: any;
-  };
-  client?: {
-    id?: string;
-    name?: string;
-    [key: string]: any;
-  };
+  creator?: Creator;
+  client?: Client | undefined;
 }
 
 const platformIcons = {
@@ -139,7 +156,7 @@ const PostTable = ({
   return (
     <div className="grid grid-cols-4 gap-4">
       {/* Pending Posts */}
-      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+      <div className="rounded-lg border border-stroke bg-yellow-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
         <h3 className="mb-4 text-lg font-semibold text-yellow-600 dark:text-yellow-300">
           Pending ({pendingPosts.length})
         </h3>
@@ -189,7 +206,7 @@ const PostTable = ({
       </div>
 
       {/* Rejected Posts */}
-      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+      <div className="rounded-lg border border-stroke bg-red-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
         <h3 className="mb-4 text-lg font-semibold text-red-600 dark:text-red-300">
           Rejected ({rejectedPosts.length})
         </h3>
@@ -217,8 +234,9 @@ const PostTable = ({
           </p>
         )}
       </div>
+
       {/* Scheduled Posts */}
-      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+      <div className="rounded-lg border border-stroke bg-purple-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
         <h3 className="dark:text-primary-dark mb-4 text-lg font-semibold text-primary">
           Scheduled ({scheduledPosts.length})
         </h3>
@@ -226,7 +244,7 @@ const PostTable = ({
           scheduledPosts.map((post) => (
             <div
               key={post.id}
-              className="mb-2 cursor-pointer rounded-lg bg-blue-100 p-3 text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+              className="mb-2 cursor-pointer rounded-lg bg-blue-100 p-3 text-sm text-blue-800 shadow-sm transition-all hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
               onClick={() => onPostClick(post)}
             >
               <div className="flex justify-between">
@@ -248,7 +266,7 @@ const PostTable = ({
       </div>
 
       {/* Posted Posts */}
-      <div className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+      <div className="rounded-lg border border-stroke bg-green-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
         <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-300">
           Posted ({postedPosts.length})
         </h3>
@@ -256,17 +274,17 @@ const PostTable = ({
           postedPosts.map((post) => (
             <div
               key={post.id}
-              className="mb-2 cursor-pointer rounded-lg bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900 dark:text-green-200"
+              className="mb-2 cursor-pointer rounded-lg bg-green-200 p-3 text-sm text-green-800 shadow-sm transition-all hover:bg-green-300 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
               onClick={() => onPostClick(post)}
             >
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-2">
                 <span>{post.title}</span>
                 <span className="text-xs">
                   {format(new Date(post.scheduled_for), "PPpp")}
                 </span>
               </div>
-              <div className="mt-1 flex items-center gap-2 text-xs">
-                {platformIcons[post.platform]}
+              <div className="mt-3 flex items-center gap-2 text-xs">
+                {platformIcons[post.platform]} <span>{post.platform}</span>
               </div>
             </div>
           ))
@@ -280,59 +298,57 @@ const PostTable = ({
   );
 };
 
-const ContentDashboard = () => (
-  <div className="p-4">
-    <div className="mb-6 flex gap-4">
-      {["Facebook", "Instagram", "LinkedIn"].map((platform) => (
-        <button
-          key={platform}
-          className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white"
-        >
-          {platformIcons[platform as keyof typeof platformIcons]}
-        </button>
-      ))}
-    </div>
+// ContentDashboard component (currently unused but kept for future use)
+// const ContentDashboard = () => (
+<div className="p-4">
+  <div className="mb-6 flex gap-4">
+    {["Facebook", "Instagram", "LinkedIn"].map((platform) => (
+      <button
+        key={platform}
+        className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white"
+      >
+        {platformIcons[platform as keyof typeof platformIcons]}
+      </button>
+    ))}
+  </div>
 
-    <div className="mb-6 rounded-lg border border-stroke p-4 dark:border-dark-3">
-      <h3 className="mb-4 text-lg font-semibold dark:text-white">
-        Content Approval Status
-      </h3>
-      <div className="grid grid-cols-3 gap-4">
-        {["Scheduled", "Pending Approval", "Approved"].map((status) => (
-          <div
-            key={status}
-            className="dark:bg-gray-dark-1 rounded-lg bg-gray-1 p-4"
-          >
-            <div className="text-sm font-medium text-dark dark:text-white">
-              {status}
-            </div>
-            <div className="dark:text-primary-dark text-2xl font-bold text-primary">
-              {Math.floor(Math.random() * 20)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-
+  <div className="mb-6 rounded-lg border border-stroke p-4 dark:border-dark-3">
+    <h3 className="mb-4 text-lg font-semibold dark:text-white">
+      Content Approval Status
+    </h3>
     <div className="grid grid-cols-3 gap-4">
-      {["Repurpose Content", "New Ideas", "Get Inspired"].map((action, idx) => (
+      {["Scheduled", "Pending Approval", "Approved"].map((status) => (
         <div
-          key={idx}
-          className="cursor-pointer rounded-lg border border-stroke p-4 transition-all hover:shadow-md dark:border-dark-3"
+          key={status}
+          className="dark:bg-gray-dark-1 rounded-lg bg-gray-1 p-4"
         >
-          <h4 className="mb-2 font-medium text-dark dark:text-white">
-            {action}
-          </h4>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            {action === "Repurpose Content"
-              ? "Reuse top-performing posts"
-              : "Generate new content ideas"}
-          </p>
+          <div className="text-sm font-medium text-dark dark:text-white">
+            {status}
+          </div>
+          <div className="dark:text-primary-dark text-2xl font-bold text-primary">
+            {Math.floor(Math.random() * 20)}
+          </div>
         </div>
       ))}
     </div>
   </div>
-);
+
+  <div className="grid grid-cols-3 gap-4">
+    {["Repurpose Content", "New Ideas", "Get Inspired"].map((action, idx) => (
+      <div
+        key={idx}
+        className="cursor-pointer rounded-lg border border-stroke p-4 transition-all hover:shadow-md dark:border-dark-3"
+      >
+        <h4 className="mb-2 font-medium text-dark dark:text-white">{action}</h4>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {action === "Repurpose Content"
+            ? "Reuse top-performing posts"
+            : "Generate new content ideas"}
+        </p>
+      </div>
+    ))}
+  </div>
+</div>;
 
 const CalendarBox = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -350,7 +366,7 @@ const CalendarBox = () => {
   const [filterCreator, setFilterCreator] = useState<string | null>(null);
   const [filterClient, setFilterClient] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  // const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]; // Unused variable
   const router = useRouter();
 
   const platformIcons = {
@@ -366,20 +382,30 @@ const CalendarBox = () => {
   ) => {
     setLoadingPosts(true);
     try {
-      const posts = await postService.getScheduledPosts();
+      const posts = (await postService.getScheduledPosts()) as ScheduledPost[];
       // Apply filters if they exist
-      const filteredPosts = posts.filter((post) => {
-        const matchesCreator = creatorFilter
-          ? post.creator?.full_name === creatorFilter
-          : true;
-        const matchesStatus = statusFilter
-          ? post.status === statusFilter
-          : true;
-        const matchesClient = clientFilter
-          ? post.client?.full_name === clientFilter
-          : true;
-        return matchesCreator && matchesStatus && matchesClient;
-      });
+      const filteredPosts = posts
+        .map((post) => ({
+          ...post,
+          creator: post.creator
+            ? {
+                ...post.creator,
+                type: post.creator.type as "client" | "team_member",
+              }
+            : undefined,
+        }))
+        .filter((post) => {
+          const matchesCreator = creatorFilter
+            ? post.creator?.full_name === creatorFilter
+            : true;
+          const matchesStatus = statusFilter
+            ? post.status === statusFilter
+            : true;
+          const matchesClient = clientFilter
+            ? post.client?.full_name === clientFilter
+            : true;
+          return matchesCreator && matchesStatus && matchesClient;
+        });
       setScheduledPosts(filteredPosts);
     } catch (error) {
       console.error("Error fetching scheduled posts:", error);
@@ -391,24 +417,30 @@ const CalendarBox = () => {
     fetchScheduledPosts(filterCreator, filterStatus);
   }, [filterCreator, filterStatus, filterClient, currentDate, calendarView]);
 
-  const applyFilters = (posts: ScheduledPost[]) => {
-    return posts.filter((post) => {
-      const matchesStatus = filterStatus ? post.status === filterStatus : true;
-      const matchesCreator = filterCreator
-        ? post.creator?.full_name === filterCreator
-        : true;
-      const matchesClient = filterClient
-        ? post.client?.name === filterClient
-        : true;
-      return matchesStatus && matchesCreator;
-    });
-  };
+  const applyFilters = useCallback(
+    (posts: ScheduledPost[]) => {
+      return posts.filter((post) => {
+        const matchesStatus = filterStatus
+          ? post.status === filterStatus
+          : true;
+        const matchesCreator = filterCreator
+          ? post.creator?.full_name === filterCreator
+          : true;
+        // const matchesClient = filterClient
+        //   ? post.client?.name === filterClient
+        //   : true;
+        return matchesStatus && matchesCreator;
+      });
+    },
+    [filterStatus, filterCreator],
+  );
 
   useEffect(() => {
     const fetchFilteredPosts = async () => {
       setLoadingPosts(true);
       try {
-        const posts = await postService.getScheduledPosts();
+        const posts =
+          (await postService.getScheduledPosts()) as ScheduledPost[];
         setScheduledPosts(applyFilters(posts));
       } catch (error) {
         console.error("Error fetching scheduled posts:", error);
@@ -418,7 +450,7 @@ const CalendarBox = () => {
     };
 
     fetchFilteredPosts();
-  }, [filterStatus, currentDate, calendarView]);
+  }, [filterStatus, currentDate, calendarView, applyFilters]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
     setCurrentDate(date);
@@ -665,7 +697,7 @@ const CalendarBox = () => {
                         onClick={() => day && navigateToView(day, "week")}
                         className={`relative h-32 cursor-pointer border border-stroke p-2 transition-colors dark:border-dark-3 md:p-3 ${
                           !day
-                            ? "dark:bg-gray-dark-1 bg-gray-1"
+                            ? "bg-gray-1 dark:bg-dark-2"
                             : "hover:bg-gray-2 dark:hover:bg-dark-2"
                         } ${
                           day && isSameDay(day, new Date())
@@ -733,7 +765,7 @@ const CalendarBox = () => {
               return (
                 <div
                   key={monthOffset}
-                  className="dark:bg-gray-dark-1 rounded-lg border border-stroke bg-gray-1 p-4 shadow-sm transition-all hover:shadow-md dark:border-dark-3"
+                  className="dark:bg-gray-dark-1 rounded-lg border border-stroke bg-gray-1 p-4 shadow-sm transition-all hover:shadow-md dark:border-dark-3 dark:bg-dark-3"
                   onClick={() => navigateToView(monthDate, "month")}
                 >
                   <h3 className="mb-3 text-center font-semibold dark:text-white">
@@ -787,7 +819,6 @@ const CalendarBox = () => {
                       monthIndex,
                     );
                     const monthStart = startOfMonth(monthDate);
-                    const monthEnd = endOfMonth(monthDate);
 
                     // Get first day of month and calculate offset for week start
                     const firstDay = monthStart.getDay(); // 0 (Sun) to 6 (Sat)
@@ -887,8 +918,56 @@ const CalendarBox = () => {
     }
   };
 
+  const renderPreview = () => {
+    if (!selectedPost) {
+      return (
+        <div className="py-4 text-center text-gray-400">
+          Select a platform to preview your post.
+        </div>
+      );
+    }
+
+    const platform = selectedPost.platform;
+    const mediaArray =
+      selectedPost.mediaFiles?.map((file) => file.preview) || undefined;
+
+    const socialPage = selectedPost.platformPage;
+
+    switch (platform) {
+      case "Facebook":
+        return (
+          <FacebookPostPreview
+            key="facebook"
+            pageName={socialPage?.page_name || "Facebook User"}
+            content={selectedPost.description}
+            media={mediaArray}
+          />
+        );
+      case "Instagram":
+        return (
+          <InstagramPostPreview
+            key="instagram"
+            pageName={socialPage?.page_name || "Instagram User"}
+            content={selectedPost.description}
+            media={mediaArray}
+          />
+        );
+      case "LinkedIn":
+        return (
+          <LinkedinPostPreview
+            key="linkedin"
+            pageName={socialPage?.page_name || "LinkedIn User"}
+            content={selectedPost.description}
+            media={mediaArray}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-7xl p-4">
+    <div className="mx-auto max-w-7xl p-4 transition-all">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <button
@@ -934,7 +1013,7 @@ const CalendarBox = () => {
               className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition-all ${
                 calendarView === view
                   ? "dark:bg-primary-dark bg-primary text-white shadow-sm"
-                  : "dark:bg-gray-dark-2 dark:hover:bg-gray-dark-3 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:text-gray-300"
+                  : "dark:hover:bg-gray-dark-3 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-dark dark:text-white"
               }`}
             >
               {view}
@@ -943,93 +1022,105 @@ const CalendarBox = () => {
         </div>
       </div>
 
-      <div className="mb-6 flex items-center gap-4">
-        <input
-          type="text"
-          value={searchYear}
-          onChange={(e) => setSearchYear(e.target.value)}
-          placeholder="Enter year (e.g., 2025)"
-          className="dark:bg-gray-dark-2 w-40 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
-        />
-        <button
-          onClick={handleSearchYear}
-          className="hover:bg-primary-dark dark:bg-primary-dark rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all dark:hover:bg-primary"
-        >
-          Search
-        </button>
-      </div>
-
-      <div className="mb-6 flex gap-4">
-        {/* Filter by Status */}
-        <select
-          value={filterStatus || ""}
-          onChange={(e) => setFilterStatus(e.target.value || null)}
-          className="dark:bg-gray-dark-2 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
-        >
-          <option value="">All Statuses</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="published">Published</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-        </select>
-        <select
-          value={filterCreator || ""}
-          onChange={(e) => setFilterCreator(e.target.value || null)}
-          className="dark:bg-gray-dark-2 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
-        >
-          <option value="">All Creators</option>
-          {Array.from(
-            new Set(
-              scheduledPosts
-                .map((post) => post.creator?.full_name)
-                .filter(Boolean),
-            ),
-          ).map((creatorName) => (
-            <option key={creatorName} value={creatorName}>
-              {creatorName}
-            </option>
-          ))}
-        </select>
-        {/* Filter by Client */}
-        <select
-          value={filterClient || ""}
-          onChange={(e) => setFilterClient(e.target.value || null)}
-          className="dark:bg-gray-dark-2 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
-        >
-          <option value="">All Clients</option>
-          {Array.from(
-            new Set(
-              scheduledPosts
-                .map((post) => post.client?.full_name)
-                .filter(Boolean),
-            ),
-          ).map((clientName) => (
-            <option key={clientName} value={clientName}>
-              {clientName}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="mb-6 flex gap-4 border-b border-stroke dark:border-dark-3">
-        {["Calendar", "Posts Table"].map((tab) => (
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <input
+            type="text"
+            value={searchYear}
+            onChange={(e) => setSearchYear(e.target.value)}
+            placeholder="Enter year (e.g., 2025)"
+            className="dark:bg-gray-dark-2 w-40 rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:text-white"
+          />
           <button
-            key={tab}
-            onClick={() =>
-              setActiveTab(tab.toLowerCase().replace(" ", "_") as any)
-            }
-            className={`px-4 pb-2 ${
-              activeTab === tab.toLowerCase().replace(" ", "_")
-                ? "dark:border-primary-dark dark:text-primary-dark border-b-2 border-primary text-primary"
-                : "text-dark hover:text-gray-600 dark:text-white"
-            }`}
+            onClick={handleSearchYear}
+            className="hover:bg-primary-dark dark:bg-primary-dark rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all dark:hover:bg-primary"
           >
-            {tab}
+            Search
           </button>
-        ))}
+        </div>
+
+        <div className="flex gap-4">
+          {/* Filter by Status */}
+          <select
+            value={filterStatus || ""}
+            onChange={(e) => setFilterStatus(e.target.value || null)}
+            className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+          >
+            <option value="">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="published">Published</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select>
+
+          <select
+            value={filterCreator || ""}
+            onChange={(e) => setFilterCreator(e.target.value || null)}
+            className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+          >
+            <option value="">All Creators</option>
+            {Array.from(
+              new Set(
+                scheduledPosts
+                  .map((post) => post.creator?.full_name)
+                  .filter(Boolean),
+              ),
+            ).map((creatorName) => (
+              <option key={creatorName} value={creatorName}>
+                {creatorName}
+              </option>
+            ))}
+          </select>
+          {/* Filter by Client */}
+          <select
+            value={filterClient || ""}
+            onChange={(e) => setFilterClient(e.target.value || null)}
+            className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+          >
+            <option value="">All Clients</option>
+            {Array.from(
+              new Set(
+                scheduledPosts
+                  .map((post) => post.client?.full_name)
+                  .filter(Boolean),
+              ),
+            ).map((clientName) => (
+              <option key={clientName} value={clientName}>
+                {clientName}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="border-b border-stroke dark:border-dark-3">
+          {["Calendar", "Posts Table"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => {
+                const tabValue = tab.toLowerCase().replace(" ", "_") as
+                  | "calendar"
+                  | "post_table";
+                setActiveTab(tabValue);
+              }}
+              className={`px-4 pb-2 ${
+                activeTab === tab.toLowerCase().replace(" ", "_")
+                  ? "dark:border-primary-dark dark:text-primary-dark border-b-2 border-primary text-primary"
+                  : "text-dark hover:text-gray-600 dark:text-white"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <UserPresence />
+      </div>
+
       {/*el views mta3 table*/}
-      <div className="overflow-hidden rounded-xl bg-white shadow-lg dark:bg-gray-dark dark:shadow-card">
+      <div
+        className={`overflow-hidden dark:shadow-card ${activeTab === "calendar" ? "rounded-xl bg-white shadow-lg dark:bg-gray-dark" : ""}`}
+      >
         {activeTab === "calendar" ? (
           calendarView === "month" ? (
             <table className="w-full">
@@ -1062,7 +1153,7 @@ const CalendarBox = () => {
 
       {selectedPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-dark">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl transition-all dark:bg-gray-dark">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-dark-3">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
@@ -1078,22 +1169,16 @@ const CalendarBox = () => {
 
             {/* Modal Body */}
             <div className="space-y-4 p-6">
-              {/* Platform */}
-              <p className="text-sm">
-                <span className="font-medium text-gray-600 dark:text-gray-300">
-                  Platform:
-                </span>{" "}
-                <span className="flex items-center gap-2">
-                  {platformIcons[selectedPost.platform]}
-                </span>
-              </p>
+              {/* post preview */}
+
+              {renderPreview()}
 
               {/* Scheduled For */}
               <p className="text-sm">
                 <span className="font-medium text-gray-600 dark:text-gray-300">
                   Scheduled for:
                 </span>{" "}
-                <span className="dark:text-primary-dark font-semibold text-primary">
+                <span className="dark:text-primary-dark font-semibold text-primary dark:text-purple-300">
                   {format(new Date(selectedPost.scheduled_for), "PPpp")}
                 </span>
               </p>
@@ -1164,7 +1249,7 @@ const CalendarBox = () => {
                     }
                   }
                 }}
-                className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-700"
               >
                 Delete
               </button>
@@ -1172,44 +1257,8 @@ const CalendarBox = () => {
           </div>
         </div>
       )}
-
-      <div className="mt-8 border-t border-stroke pt-4 text-center dark:border-dark-3">
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          PLANTIT BY BRAND AND COM
-        </div>
-        <div className="mt-2 flex justify-center gap-4">
-          <a
-            href="https://www.broadcast.com"
-            className="dark:text-primary-dark text-primary hover:underline"
-          >
-            Contact
-          </a>
-          <a
-            href="https://www.broadcast.com"
-            className="dark:text-primary-dark text-primary hover:underline"
-          >
-            Documentation
-          </a>
-        </div>
-      </div>
     </div>
   );
 };
 
-function subYears(date: Date, amount: number): Date {
-  const newDate = new Date(date);
-  newDate.setFullYear(newDate.getFullYear() - amount);
-  return newDate;
-}
-
 export default CalendarBox;
-function addQuarters(date: Date, amount: number): Date {
-  const newDate = new Date(date);
-  newDate.setMonth(newDate.getMonth() + amount * 3);
-  return newDate;
-}
-function addYears(date: Date, amount: number): Date {
-  const newDate = new Date(date);
-  newDate.setFullYear(newDate.getFullYear() + amount);
-  return newDate;
-}

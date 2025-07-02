@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  Suspense,
+} from "react";
 import {
   createPost,
   saveDraft,
@@ -8,12 +14,12 @@ import {
 } from "@/services/postService";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { SimpleWysiwyg } from "@/components/SimpleWysiwyg";
+import { DndContext, useDraggable, closestCenter } from "@dnd-kit/core";
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "react-beautiful-dnd";
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import {
   FaFacebook as Facebook,
   FaInstagram as Instagram,
@@ -21,8 +27,15 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { useSearchParams } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
-import DOMPurify from "dompurify";
+import Image from "next/image";
+
+import { getClientPages } from "@/services/socialMedia";
+import { SocialPage } from "@/types/social-page";
+import {
+  FacebookPostPreview,
+  InstagramPostPreview,
+  LinkedinPostPreview,
+} from "./preview-post";
 
 interface MediaFile {
   id: string;
@@ -36,260 +49,6 @@ interface Client {
   name: string;
   email: string;
 }
-
-// Preview Components
-const FacebookPostPreview = ({
-  content,
-  media,
-}: {
-  content: string;
-  media?: string[];
-}) => {
-  const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
-  return (
-    <div className="max-w-[500px] rounded-lg bg-white p-4 shadow-md">
-      <div className="mb-2 flex items-center gap-3">
-        <Facebook className="h-8 w-8 text-blue-600" />
-        <div>
-          <div className="font-semibold text-gray-800">Facebook User</div>
-          <div className="text-xs text-gray-500">{timeAgo}</div>
-        </div>
-      </div>
-      <div
-        className="mb-2 whitespace-pre-wrap break-words text-gray-800"
-        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
-      />
-      {media && media.length > 0 && (
-        <div className="mt-2 overflow-hidden rounded-md">
-          {media.length === 1 ? (
-            media[0].startsWith("data:video") ||
-            media[0].endsWith(".mp4") ||
-            media[0].endsWith(".mov") ? (
-              <video controls className="max-h-[500px] w-full object-contain">
-                <source src={media[0]} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            ) : (
-              <img
-                src={media[0]}
-                alt="Post Media"
-                className="max-h-[500px] w-full object-contain"
-              />
-            )
-          ) : (
-            <div
-              className={`grid gap-0.5 ${media.length === 2 ? "grid-cols-2" : media.length === 3 ? "grid-cols-2" : "grid-cols-2"}`}
-            >
-              {media.slice(0, 4).map((item, index) => (
-                <div key={index} className="relative aspect-square">
-                  {item.startsWith("data:video") ||
-                  item.endsWith(".mp4") ||
-                  item.endsWith(".mov") ? (
-                    <video controls className="h-full w-full object-cover">
-                      <source src={item} type="video/mp4" />
-                    </video>
-                  ) : (
-                    <img
-                      src={item}
-                      alt={`Media ${index + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                  {index === 3 && media.length > 4 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-2xl font-bold text-white">
-                      +{media.length - 4}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      <div className="mt-2 flex gap-4 text-sm text-gray-600">
-        <span>Like</span>
-        <span>Comment</span>
-        <span>Share</span>
-      </div>
-    </div>
-  );
-};
-
-const InstagramPostPreview = ({
-  content,
-  media,
-}: {
-  content: string;
-  media?: string[];
-}) => {
-  const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
-  return (
-    <div className="max-w-[470px] rounded-lg bg-white shadow-md">
-      <div className="flex items-center justify-between p-3">
-        <div className="flex items-center gap-3">
-          <Instagram className="h-8 w-8 text-pink-500" />
-          <div className="font-semibold text-gray-800">Instagram User</div>
-        </div>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-6 w-6 text-gray-600"
-        >
-          <circle cx="12" cy="12" r="1.5"></circle>
-          <circle cx="6" cy="12" r="1.5"></circle>
-          <circle cx="18" cy="12" r="1.5"></circle>
-        </svg>
-      </div>
-      <div className="rounded-md border border-gray-300">
-        {media && media.length > 0 ? (
-          <div className="relative">
-            {media.length === 1 ? (
-              media[0].startsWith("data:video") ||
-              media[0].endsWith(".mp4") ||
-              media[0].endsWith(".mov") ? (
-                <video controls className="aspect-square w-full object-cover">
-                  <source src={media[0]} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-              ) : (
-                <img
-                  src={media[0]}
-                  alt="Post Media"
-                  className="aspect-square w-full object-cover"
-                />
-              )
-            ) : (
-              <div className="relative aspect-square overflow-hidden">
-                {media[0].startsWith("data:video") ||
-                media[0].endsWith(".mp4") ||
-                media[0].endsWith(".mov") ? (
-                  <video controls className="h-full w-full object-cover">
-                    <source src={media[0]} type="video/mp4" />
-                  </video>
-                ) : (
-                  <img
-                    src={media[0]}
-                    alt="Post Media"
-                    className="h-full w-full object-cover"
-                  />
-                )}
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1">
-                  {media.map((_, index) => (
-                    <div
-                      key={index}
-                      className={`h-2 w-2 rounded-full ${index === 0 ? "bg-blue-500" : "bg-gray-300"}`}
-                    ></div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex aspect-square items-center justify-center rounded-t-md bg-gray-200 text-gray-400">
-            Image/Video Placeholder
-          </div>
-        )}
-        <div className="p-3">
-          <div className="mb-1 flex items-center gap-2">
-            <Instagram className="h-5 w-5 text-pink-500" />
-            <span className="font-semibold text-gray-800">Instagram User</span>
-            <span className="ml-1 text-xs text-gray-500">{timeAgo}</span>
-          </div>
-          <div
-            className="whitespace-pre-wrap break-words text-gray-800"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
-          />
-          <div className="mt-2 text-sm text-gray-600">
-            <span>Like</span>
-            <span>Comment</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const LinkedinPostPreview = ({
-  content,
-  media,
-}: {
-  content: string;
-  media?: string[];
-}) => {
-  const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
-  return (
-    <div className="max-w-[550px] rounded-lg bg-white p-4 shadow-md">
-      <div className="mb-2 flex items-center gap-3">
-        <Linkedin className="h-8 w-8 text-blue-700" />
-        <div>
-          <div className="font-semibold text-gray-800">LinkedIn User</div>
-          <div className="text-xs text-gray-500">{timeAgo}</div>
-        </div>
-      </div>
-      <div
-        className="mb-2 whitespace-pre-wrap break-words text-gray-800"
-        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
-      />
-      {media && media.length > 0 && (
-        <div className="mt-2 overflow-hidden rounded-md border border-gray-200">
-          {media.length === 1 ? (
-            media[0].startsWith("data:video") ||
-            media[0].endsWith(".mp4") ||
-            media[0].endsWith(".mov") ? (
-              <video controls className="max-h-[500px] w-full object-contain">
-                <source src={media[0]} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            ) : (
-              <img
-                src={media[0]}
-                alt="Post Media"
-                className="max-h-[500px] w-full object-contain"
-              />
-            )
-          ) : (
-            <div
-              className={`grid gap-0.5 ${media.length === 2 ? "grid-cols-2" : "grid-cols-2"}`}
-            >
-              {media.slice(0, 4).map((item, index) => (
-                <div key={index} className="relative aspect-square">
-                  {item.startsWith("data:video") ||
-                  item.endsWith(".mp4") ||
-                  item.endsWith(".mov") ? (
-                    <video controls className="h-full w-full object-cover">
-                      <source src={item} type="video/mp4" />
-                    </video>
-                  ) : (
-                    <img
-                      src={item}
-                      alt={`Media ${index + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                  {index === 3 && media.length > 4 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-2xl font-bold text-white">
-                      +{media.length - 4}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      <div className="mt-2 flex gap-4 text-sm text-gray-600">
-        <span>Like</span>
-        <span>Comment</span>
-        <span>Share</span>
-      </div>
-    </div>
-  );
-};
 
 export function PostForm() {
   const searchParams = useSearchParams();
@@ -315,6 +74,7 @@ export function PostForm() {
     clientId: clientId || null,
   });
 
+  // State to hold client data
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
 
@@ -351,9 +111,9 @@ export function PostForm() {
 
   // Platform icons
   const platformIcons = {
-    facebook: <Facebook className="text-blue-600" />,
-    instagram: <Instagram className="text-pink-500" />,
-    linkedin: <Linkedin className="text-blue-700" />,
+    facebook: <Facebook className="size-5 text-blue-600" />,
+    instagram: <Instagram className="size-5 text-pink-500" />,
+    linkedin: <Linkedin className="size-5 text-blue-700" />,
   };
 
   // File handling
@@ -407,16 +167,25 @@ export function PostForm() {
 
   // Drag and drop
   const onDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!result.destination) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (event: any) => {
+      const { active, over } = event;
 
-      const items = [...state.mediaFiles];
-      const [reorderedItem] = items.splice(result.source.index, 1);
-      items.splice(result.destination.index, 0, reorderedItem);
+      if (active.id !== over.id) {
+        setState((prev) => {
+          const oldIndex = prev.mediaFiles.findIndex(
+            (file) => file.id === active.id,
+          );
+          const newIndex = prev.mediaFiles.findIndex(
+            (file) => file.id === over.id,
+          );
+          const mediaFiles = arrayMove(prev.mediaFiles, oldIndex, newIndex);
 
-      setState((prev) => ({ ...prev, mediaFiles: items }));
+          return { ...prev, mediaFiles };
+        });
+      }
     },
-    [state.mediaFiles],
+    [setState],
   );
 
   // Hashtag management
@@ -458,6 +227,40 @@ export function PostForm() {
       hashtagInputRef.current.focus();
     }
   }, []);
+
+  // State to hold client pages
+  const [clientPages, setClientPages] = useState<SocialPage[]>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
+
+  // Fetch client social media pages
+  const fetchClientPages = useCallback(async () => {
+    if (!state.clientId) return;
+
+    setLoadingPages(true);
+    try {
+      const pages = await getClientPages(state.clientId);
+      console.log("Client pages fetched:", pages);
+      if (Array.isArray(pages)) {
+        setClientPages(pages);
+      } else if ("error" in pages) {
+        console.error("Error fetching pages:", pages.error);
+        toast.error("Failed to load client social media pages");
+        setClientPages([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch client pages:", error);
+      toast.error("Failed to load client social media pages");
+      setClientPages([]);
+    } finally {
+      setLoadingPages(false);
+    }
+  }, [state.clientId]);
+
+  useEffect(() => {
+    if (state.clientId) {
+      fetchClientPages();
+    }
+  }, [state.clientId, fetchClientPages]);
 
   // Form submission
   const handleSubmit = async (event: React.FormEvent) => {
@@ -507,14 +310,45 @@ export function PostForm() {
       const formData = new FormData();
       formData.append("title", title);
       formData.append("description", updatedCaption);
+
+      // Convert platforms array to JSON string as required by the backend
       formData.append("platforms", JSON.stringify(state.selectedPlatforms));
+
       formData.append("status", "scheduled");
-      formData.append("scheduled_for", state.scheduledAt);
+
+      // Log the input date for debugging
+      console.log("Original scheduled date:", state.scheduledAt);
+
+      // Format the date properly with seconds and timezone (Z for UTC)
+      let formattedDate = "";
+      if (state.scheduledAt) {
+        try {
+          // Ensure the date has seconds and timezone
+          const date = new Date(state.scheduledAt);
+          formattedDate = date.toISOString();
+
+          // Verify the date is valid and in the expected format
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date");
+          }
+        } catch (err) {
+          console.error("Date conversion error:", err);
+          // Fallback format: add seconds and timezone if missing
+          formattedDate = state.scheduledAt.replace(
+            /T(\d{2}):(\d{2})$/,
+            "T$1:$2:00Z",
+          );
+        }
+      }
+
+      // Log the formatted date to verify it's correct
+      console.log("Formatted ISO date:", formattedDate);
+
+      formData.append("scheduled_for", formattedDate);
 
       // Add client ID if present
       if (state.clientId) {
         formData.append("client_id", state.clientId.toString());
-        console.log("Client ID:", state.clientId);
       }
 
       state.mediaFiles.forEach((media) => {
@@ -523,6 +357,7 @@ export function PostForm() {
         }
       });
 
+      console.log("Post create result:", formData.get("platforms"));
       const result = await createPost(formData);
 
       if (result.success) {
@@ -533,7 +368,7 @@ export function PostForm() {
         );
         resetForm();
       } else {
-        throw new Error(result.error || "Failed to create post");
+        throw new Error(String(result.error) || "Failed to create post");
       }
     } catch (error) {
       const message =
@@ -544,6 +379,7 @@ export function PostForm() {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
   };
+
   const resetForm = useCallback(() => {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (titleRef.current) titleRef.current.value = "";
@@ -604,12 +440,15 @@ export function PostForm() {
         const formData = new FormData();
         formData.append("title", title);
         formData.append("description", updatedCaption);
+
+        // Convert platforms array to JSON string as required by the backend
         formData.append("platforms", JSON.stringify(state.selectedPlatforms));
+
         formData.append("status", "draft");
 
         // Add client ID if present
         if (state.clientId) {
-          formData.append("client", state.clientId.toString());
+          formData.append("client_id", state.clientId.toString());
         }
 
         state.mediaFiles.forEach((media) => {
@@ -655,10 +494,6 @@ export function PostForm() {
     }));
   }, []);
 
-  const handleChooseFileClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
   const renderPreview = () => {
     if (state.selectedPlatforms.length === 0 && state.caption.trim() === "") {
       return (
@@ -674,11 +509,15 @@ export function PostForm() {
           ? state.mediaFiles.map((file) => file.preview)
           : undefined;
 
+      // Find the matching social page for this platform from clientPages if available
+      const socialPage = clientPages.find((page) => page.platform === platform);
+
       switch (platform) {
         case "facebook":
           return (
             <FacebookPostPreview
               key="facebook"
+              pageName={socialPage?.page_name || "Facebook User"}
               content={state.caption}
               media={mediaArray}
             />
@@ -687,6 +526,7 @@ export function PostForm() {
           return (
             <InstagramPostPreview
               key="instagram"
+              pageName={socialPage?.page_name || "Instagram User"}
               content={state.caption}
               media={mediaArray}
             />
@@ -695,6 +535,7 @@ export function PostForm() {
           return (
             <LinkedinPostPreview
               key="linkedin"
+              pageName={socialPage?.page_name || "LinkedIn User"}
               content={state.caption}
               media={mediaArray}
             />
@@ -705,6 +546,57 @@ export function PostForm() {
     });
   };
 
+  // Create a reusable DraggableItem component
+  const DraggableItem = ({
+    media,
+    index,
+    onRemove,
+  }: {
+    media: MediaFile;
+    index: number;
+    onRemove: (index: number) => void;
+  }) => {
+    const { setNodeRef, listeners, isDragging } = useDraggable({
+      id: media.id,
+      data: { index },
+    });
+
+    return (
+      <div
+        ref={setNodeRef}
+        {...listeners}
+        className={`relative h-40 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md dark:bg-gray-800 ${
+          isDragging ? "opacity-50" : ""
+        }`}
+      >
+        {media.preview.startsWith("data:video") ||
+        /\.(mp4|mov)$/i.test(media.preview) ? (
+          <video controls preload="auto" className="h-full w-full object-cover">
+            <source src={media.preview} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <Image
+            src={media.preview}
+            alt={`Preview ${index}`}
+            className="h-full w-full object-cover"
+            width={500}
+            height={500}
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600 focus:outline-none"
+          title="Remove"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  };
+
+  // Use the DraggableItem component in the PostForm
   return (
     <ShowcaseSection
       title={state.isForClient ? "Create Post for Client" : "Create Post"}
@@ -716,15 +608,12 @@ export function PostForm() {
           {/* Client Selection Dropdown */}
           {!clientId && (
             <div className="mb-6">
-              <label
-                htmlFor="client-select"
-                className="text-lg font-semibold text-gray-800 dark:text-white"
-              >
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Select Client
-              </label>
+              </h2>
               <select
                 id="client-select"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                className="mt-1 block w-full rounded-md border-gray-300 p-3 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 value={state.clientId || ""}
                 onChange={(e) =>
                   setState((prev) => ({
@@ -830,18 +719,16 @@ export function PostForm() {
 
             {/* Scheduled At */}
             <div className="space-y-4">
-              <label
-                htmlFor="scheduled_at"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-              >
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Scheduled At
-              </label>
+              </h2>
               <input
                 type="datetime-local"
                 id="scheduled_at"
                 name="scheduled_at"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 value={state.scheduledAt}
+                min={new Date().toISOString().slice(0, 16)}
                 onChange={(e) =>
                   setState((prev) => ({ ...prev, scheduledAt: e.target.value }))
                 }
@@ -853,23 +740,67 @@ export function PostForm() {
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Platforms
               </h2>
-              <div className="mt-4 flex space-x-4">
-                {["facebook", "instagram", "linkedin"].map((platform) => (
-                  <button
-                    key={platform}
-                    type="button"
-                    onClick={() => togglePlatform(platform)}
-                    className={`flex items-center justify-center rounded-md border px-4 py-2 ${
-                      state.selectedPlatforms.includes(platform)
-                        ? "border-primary bg-primary text-white"
-                        : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                    }`}
-                  >
-                    {platformIcons[platform as keyof typeof platformIcons]}
-                    <span className="ml-2 capitalize">{platform}</span>
-                  </button>
-                ))}
-              </div>
+              {state.clientId && clientPages.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-4">
+                  {clientPages.map((page) => (
+                    <button
+                      key={page.id}
+                      type="button"
+                      onClick={() => togglePlatform(page.platform)}
+                      className={`flex flex-col items-center justify-center gap-1 rounded-md border px-3 py-2 ${
+                        state.selectedPlatforms.includes(page.platform)
+                          ? "border-primary bg-secondary text-white"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
+                    >
+                      <span className="flex items-center justify-items-start gap-2 font-semibold capitalize">
+                        {
+                          platformIcons[
+                            page.platform as keyof typeof platformIcons
+                          ]
+                        }
+                        {page.platform}
+                      </span>
+
+                      {page.page_name && (
+                        <span
+                          className={`text-blue-900 dark:text-white ${
+                            state.selectedPlatforms.includes(page.platform)
+                              ? "border-primary text-white"
+                              : "text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
+                        >
+                          {page.page_name}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : state.clientId ? (
+                <div className="mt-4 text-gray-500">
+                  {loadingPages
+                    ? "Loading available platforms..."
+                    : "No connected social media accounts found for this client."}
+                </div>
+              ) : (
+                <div className="mt-4 flex space-x-4">
+                  {["facebook", "instagram", "linkedin"].map((platform) => (
+                    <button
+                      key={platform}
+                      type="button"
+                      onClick={() => togglePlatform(platform)}
+                      className={`flex items-center justify-center rounded-md border px-4 py-2 ${
+                        state.selectedPlatforms.includes(platform)
+                          ? "border-primary bg-primary text-white"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
+                    >
+                      {platformIcons[platform as keyof typeof platformIcons]}
+                      <span className="ml-2 capitalize">{platform}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Media */}
@@ -877,64 +808,27 @@ export function PostForm() {
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Media
               </h2>
-              <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId="media-previews" direction="horizontal">
-                  {(provided) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
-                    >
-                      {state.mediaFiles.map((media, index) => (
-                        <Draggable
-                          key={media.id}
-                          draggableId={media.id}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="relative h-40 w-40 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md dark:bg-gray-800"
-                            >
-                              {media.preview.startsWith("data:video") ||
-                              /\.(mp4|mov)$/i.test(media.preview) ? (
-                                <video
-                                  controls
-                                  preload="auto"
-                                  className="h-full w-full object-cover"
-                                >
-                                  <source
-                                    src={media.preview}
-                                    type="video/mp4"
-                                  />
-                                  Your browser does not support the video tag.
-                                </video>
-                              ) : (
-                                <img
-                                  src={media.preview}
-                                  alt={`Preview ${index}`}
-                                  className="h-full w-full object-cover"
-                                />
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMedia(index)}
-                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600 focus:outline-none"
-                                title="Remove"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+              <DndContext
+                onDragEnd={onDragEnd}
+                collisionDetection={closestCenter}
+              >
+                <SortableContext
+                  items={state.mediaFiles.map((file) => file.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {/* Move the useDraggable logic outside the map function */}
+                  <div className="mt-4 flex flex-wrap gap-4">
+                    {state.mediaFiles.map((media, index) => (
+                      <DraggableItem
+                        key={media.id}
+                        media={media}
+                        index={index}
+                        onRemove={handleRemoveMedia}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
               {/* Buttons for Adding Media */}
               <div className="flex gap-4">
@@ -1022,5 +916,13 @@ export function PostForm() {
         </div>
       </div>
     </ShowcaseSection>
+  );
+}
+
+export function PostFormWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PostForm />
+    </Suspense>
   );
 }

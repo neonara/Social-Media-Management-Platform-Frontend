@@ -1,6 +1,15 @@
+import React, { JSX } from "react";
 import * as Icons from "../icons";
 
-export const NAV_DATA = [
+export type NavItem = {
+  title: string;
+  url?: string;
+  icon?: (props: React.SVGProps<SVGSVGElement>) => JSX.Element;
+  items: NavItem[];
+  roles?: string[];
+};
+
+export const NAV_DATA: { label: string; items: NavItem[] }[] = [
   {
     label: "DASHBOARD",
     items: [

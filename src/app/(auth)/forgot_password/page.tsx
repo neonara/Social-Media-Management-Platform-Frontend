@@ -1,22 +1,21 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { forgotPassword } from '@/services/authService';
-import Link from 'next/link';
-import { EmailIcon } from '@/assets/icons'; // You can still use the icon if you want to render it separately
+import { useState } from "react";
+import { forgotPassword } from "@/services/authService";
+import Link from "next/link";
+import { EmailIcon } from "@/assets/icons"; // You can still use the icon if you want to render it separately
+import InputGroup from "@/components/FormElements/InputGroup";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setMessage('');
-    setError('');
+    setMessage("");
+    setError("");
     setLoading(true);
 
     try {
@@ -26,7 +25,7 @@ export default function ForgotPasswordPage() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Failed to send reset email. Please try again.');
+        setError("Failed to send reset email. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -42,26 +41,17 @@ export default function ForgotPasswordPage() {
         {message && <p className="mb-4 text-sm text-green-500">{message}</p>}
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
         <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Email Address
-            </label>
-            <div className="relative mt-1 rounded-md shadow-sm">
-              <input
-                type="email"
-                id="email"
-                className="block w-full py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary dark:focus:border-primary"
-                placeholder="Enter your registered email"
-                name="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              {/* You can still position the icon if you have styling for it */}
-              {/* <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <EmailIcon className="h-5 w-5 text-gray-400" />
-              </div> */}
-            </div>
+          <div className="relative mb-6 mt-1 rounded-md shadow-sm">
+            <InputGroup
+              type="email"
+              label="Email Address"
+              className="mb-4 [&_input]:py-[15px]"
+              placeholder="Enter your email"
+              name="email"
+              handleChange={(e) => setEmail(e.target.value)}
+              value={email}
+              icon={<EmailIcon />}
+            />
           </div>
           <div className="mb-4.5">
             <button
@@ -72,12 +62,12 @@ export default function ForgotPasswordPage() {
               {loading ? (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent dark:border-primary dark:border-t-transparent" />
               ) : (
-                'Send Reset Link'
+                "Send Reset Link"
               )}
             </button>
           </div>
           <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            Remember your password?{' '}
+            Remember your password?{" "}
             <Link href="/auth/login" className="text-primary hover:underline">
               Log In
             </Link>
