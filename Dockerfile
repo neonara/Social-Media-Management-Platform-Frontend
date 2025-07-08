@@ -39,6 +39,8 @@ RUN addgroup --system --gid 1001 nodejs \
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV API_URL=http://backend:8000/api
+ENV NEXT_PUBLIC_API_URL=http://backend:8000/api
 
 # Copy necessary files
 COPY --from=builder /app/public ./public

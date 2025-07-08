@@ -50,18 +50,31 @@ export default function Login() {
 
     try {
       // Use the loginUser service function
-      await loginUser(data.email, data.password, data.remember); // Include the remember field
+      const result = await loginUser(data.email, data.password, data.remember);
 
-      // Redirect to dashboard
-      router.push("/");
+      // Check if login was successful
+      if (result.success) {
+        // Redirect to dashboard
+        router.push("/");
+      } else {
+        // Handle login errors
+        setError(result.error || "Login failed. Please try again.");
+        setLoading(false);
+      }
     } catch (error) {
-      // Handle login errors
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Login failed. Please try again.",
-      );
-    } finally {
+      // Handle network or unexpected errors
+      console.error("Login error:", error);
+      if (error instanceof Error) {
+        if (error.message.includes("fetch")) {
+          setError(
+            "Network error. Please check your connection and try again.",
+          );
+        } else {
+          setError("An unexpected error occurred. Please try again.");
+        }
+      } else {
+        setError("Login failed. Please try again.");
+      }
       setLoading(false);
     }
   };
@@ -73,7 +86,7 @@ export default function Login() {
 
   return (
     <div className="rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
-      <div className="flex flex-wrap items-center">
+      <div className="flex max-w-[1200px] flex-wrap items-center">
         {/* Left Side - Login Form */}
         <div className="w-full xl:w-1/2">
           <div className="w-full p-4 sm:p-12.5 xl:p-15">

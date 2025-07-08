@@ -1,85 +1,223 @@
-# NextAdmin - Next.js Admin Dashboard Template and Components
+# PlanIt - Social Media Management Platform
 
-**NextAdmin** is a Free, open-source Next.js admin dashboard toolkit featuring 200+ UI components and templates that come with pre-built elements, components, pages, high-quality design, integrations, and much more to help you create powerful admin dashboards with ease.
+A modern, feature-rich social media management platform built with Next.js 15, designed to help brands and content managers streamline their social media operations.
 
+## 🚀 Features
 
-[![nextjs admin template](https://cdn.pimjo.com/nextadmin-2.png)](https://nextadmin.co/)
+- **Content Management**: Create, edit, and schedule social media posts
+- **Multi-Platform Support**: Manage content across various social media platforms
+- **User Management**: Role-based access control for teams and clients
+- **Analytics Dashboard**: Track performance with interactive charts and metrics
+- **Drag & Drop Interface**: Intuitive content organization and post scheduling
+- **Rich Text Editor**: Advanced WYSIWYG editor with image support
+- **Real-time Notifications**: Stay updated with live notifications
+- **Responsive Design**: Optimized for desktop and mobile devices
+- **Dark/Light Theme**: Toggle between themes for better user experience
 
+## �️ Tech Stack
 
-**NextAdmin** provides you with a diverse set of dashboard UI components, elements, examples and pages necessary for creating top-notch admin panels or dashboards with **powerful** features and integrations. Whether you are working on a complex web application or a basic website, **NextAdmin** has got you covered.
+- **Framework**: Next.js 15.1.6 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI primitives
+- **State Management**: React Context API
+- **Charts**: ApexCharts with React integration
+- **Drag & Drop**: DnD Kit
+- **Rich Text Editing**: TipTap, Quill, Draft.js
+- **Authentication**: NextAuth.js
+- **Date Handling**: Day.js, date-fns
+- **Icons**: Lucide React, React Icons
+- **Maps**: JSVectorMap
+- **HTTP Client**: Axios
+- **Notifications**: React Hot Toast, React Toastify
 
-### [✨ Visit Website](https://nextadmin.co/)
-### [🚀 Live Demo](https://demo.nextadmin.co/)
-### [📖 Docs](https://docs.nextadmin.co/)
+## 📋 Prerequisites
 
-By leveraging the latest features of **Next.js 14** and key functionalities like **server-side rendering (SSR)**, **static site generation (SSG)**, and seamless **API route integration**, **NextAdmin** ensures optimal performance. With the added benefits of **React 18 advancements** and **TypeScript** reliability, **NextAdmin** is the ultimate choice to kickstart your **Next.js** project efficiently.
+Before you begin, ensure you have the following installed:
 
-## Installation
+- **Node.js** (v18 or later)
+- **npm** or **yarn** or **pnpm**
+- **Git**
 
-1. Download/fork/clone the repo and Once you're in the correct directory, it's time to install all the necessary dependencies. You can do this by typing the following command:
+## 🚀 Getting Started
 
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd planit/frontend
 ```
+
+### 2. Install dependencies
+
+```bash
 npm install
-```
-If you're using **Yarn** as your package manager, the command will be:
-
-```
+# or
 yarn install
+# or
+pnpm install
 ```
 
-2. Okay, you're almost there. Now all you need to do is start the development server. If you're using **npm**, the command is:
+### 3. Environment Setup
 
+Create a `.env.local` file in the root directory and add your environment variables:
+
+```env
+# Add your environment variables here
+NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3000
+# Add other required environment variables
 ```
+
+### 4. Run the development server
+
+```bash
 npm run dev
-```
-And if you're using **Yarn**, it's:
-
-```
+# or
 yarn dev
+# or
+pnpm dev
 ```
 
-And voila! You're now ready to start developing. **Happy coding**!
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-## Highlighted Features
-**200+ Next.js Dashboard Ul Components and Templates** - includes a variety of prebuilt **Ul elements, components, pages, and examples** crafted with a high-quality design.
-Additionally, features seamless **essential integrations and extensive functionalities**.
+## 📂 Project Structure
 
-- A library of over **200** professional dashboard UI components and elements.
-- Five distinctive dashboard variations, catering to diverse use-cases.
-- A comprehensive set of essential dashboard and admin pages.
-- More than **45** **Next.js** files, ready for use.
-- Styling facilitated by **Tailwind CSS** files.
-- A design that resonates premium quality and high aesthetics.
-- A handy UI kit with assets.
-- Over ten web apps complete with examples.
-- Support for both **dark mode** and **light mode**.
-- Essential integrations including - Authentication (**NextAuth**), Database (**Postgres** with **Prisma**), and Search (**Algolia**).
-- Detailed and user-friendly documentation.
-- Customizable plugins and add-ons.
-- **TypeScript** compatibility.
-- Plus, much more!
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # Authentication routes
+│   ├── (home)/            # Main application routes
+│   ├── globals.css        # Global styles
+│   └── layout.tsx         # Root layout
+├── components/            # Reusable UI components
+│   ├── Auth/             # Authentication components
+│   ├── Charts/           # Chart components
+│   ├── Tables/           # Data table components
+│   ├── ui/               # Base UI components
+│   └── ...
+├── context/              # React Context providers
+├── hooks/                # Custom React hooks
+├── lib/                  # Utility libraries
+├── services/             # API service functions
+├── types/                # TypeScript type definitions
+└── utils/                # Helper utilities
+```
 
-All these features and more make **NextAdmin** a robust, well-rounded solution for all your dashboard development needs.
+## 🔧 Available Scripts
 
-## Update Logs
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
 
-### Version 1.2.1 - [Mar 20, 2025]
-- Fix Peer dependency issues and NextConfig warning.
-- Updated apexcharts and react-apexhcarts to the latest version.
+## 🎨 Styling
 
-### Version 1.2.0 - Major Upgrade and UI Improvements - [Jan 27, 2025]
+This project uses:
 
-- Upgraded to Next.js v15 and updated dependencies
-- API integration with loading skeleton for tables and charts.
-- Improved code structure for better readability.
-- Rebuilt components like dropdown, sidebar, and all ui-elements using accessibility practices.
-- Using search-params to store dropdown selection and refetch data.
-- Semantic markups, better separation of concerns and more.
+- **Tailwind CSS** for utility-first styling
+- **Custom CSS** for specific design requirements
+- **CSS Variables** for theme management
+- **Responsive Design** principles
 
-### Version 1.1.0
-- Updated Dependencies
-- Removed Unused Integrations
-- Optimized App
+## 🔐 Authentication
 
-### Version 1.0
-- Initial Release - [May 13, 2024]
+The application includes a robust authentication system with:
+
+- User registration and login
+- Role-based access control
+- Session management with NextAuth.js
+- Protected routes and middleware
+
+## 📊 Dashboard Features
+
+- **Analytics Charts**: Interactive charts showing social media metrics
+- **Content Calendar**: Visual scheduling interface
+- **User Management**: Admin panel for managing team members
+- **Content Library**: Organize and manage media assets
+- **Performance Tracking**: Monitor engagement and reach
+
+## 🔌 API Integration
+
+The frontend communicates with backend services through:
+
+- RESTful API endpoints
+- Axios for HTTP requests
+- Service layer architecture
+- Error handling and loading states
+
+## 📱 Responsive Design
+
+The application is fully responsive and optimized for:
+
+- Desktop computers
+- Tablets
+- Mobile devices
+- Various screen sizes and orientations
+
+## 🌙 Theme Support
+
+- Light and dark theme modes
+- System theme detection
+- Persistent theme preferences
+- Smooth theme transitions
+
+## 🚀 Deployment
+
+### Production Build
+
+```bash
+npm run build
+npm run start
+```
+
+### Docker Support
+
+The project includes a Dockerfile for containerized deployment:
+
+```bash
+docker build -t planit-frontend .
+docker run -p 3000:3000 planit-frontend
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 Code Style
+
+This project follows:
+
+- **ESLint** configuration for code quality
+- **Prettier** for code formatting
+- **TypeScript** for type safety
+- **Conventional commit** messages
+
+## 🐛 Known Issues
+
+- Check the [Issues](../../issues) page for current known issues
+- Report bugs using the issue template
+
+## 📄 License
+
+This project is private and proprietary. All rights reserved.
+
+## 👥 Team
+
+This project is maintained by the Brand And Com development team.
+
+## 📞 Support
+
+For support and questions:
+
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+---
+
+**Note**: This is a Next.js application focused on social media management. Make sure to configure all environment variables properly before deployment.

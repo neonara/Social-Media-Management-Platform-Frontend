@@ -48,7 +48,7 @@ export default function ResetPasswordConfirmPage() {
         newPassword,
         confirmPassword,
       );
-      setMessage(response.message);
+      setMessage(response.message || "");
       setTimeout(() => {
         router.push("/auth/login");
       }, 2000);

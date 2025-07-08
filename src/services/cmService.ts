@@ -9,24 +9,41 @@ export async function getCMAssignments() {
     const token = cookieStore.get("access_token")?.value;
 
     if (!token) {
-      throw new Error("Authentication required");
+      return {
+        success: false,
+        error: "Authentication required",
+      };
     }
 
-    const response = await fetch(`${API_BASE_URL}/community-manager/assignments`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/community-manager/assignments`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
-      throw new Error("Failed to fetch assignments");
+      return {
+        success: false,
+        error: "Failed to fetch assignments",
+      };
     }
 
-    return await response.json();
+    const data = await response.json();
+    return {
+      success: true,
+      data,
+    };
   } catch (error) {
     console.error("Error fetching CM assignments:", error);
-    throw error;
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
   }
 }
