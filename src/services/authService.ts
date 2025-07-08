@@ -36,12 +36,17 @@ export async function loginUser(
     if (!response.ok) {
       const errorData = await response.json();
       if (response.status === 403) {
-        throw new Error(
-          errorData.message ||
+        return {
+          success: false,
+          error:
+            errorData.message ||
             "Authorization failed. Please check your credentials or account status.",
-        );
+        };
       } else {
-        throw new Error(errorData.message || "Invalid email or password");
+        return {
+          success: false,
+          error: errorData.message || "Invalid email or password",
+        };
       }
     }
 
@@ -127,9 +132,12 @@ export async function loginUser(
       profile: data.profile || {},
     };
   } catch (error) {
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred");
+    console.error("Login error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
   }
 }
 
@@ -214,7 +222,7 @@ export async function logout() {
 
 export async function forgotPassword(
   email: string,
-): Promise<{ message: string }> {
+): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password/`, {
       method: "POST",
@@ -227,15 +235,24 @@ export async function forgotPassword(
     if (!response.ok) {
       const errorData = await response.json();
       console.error("Backend error response:", errorData);
-      throw new Error(errorData.message || "Failed to send reset email");
+      return {
+        success: false,
+        error: errorData.message || "Failed to send reset email",
+      };
     }
 
-    return await response.json();
+    const result = await response.json();
+    return {
+      success: true,
+      message: result.message,
+    };
   } catch (error) {
     console.error("Forgot password error:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred");
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
   }
 }
 
@@ -244,18 +261,27 @@ export async function resetPasswordConfirm(
   token: string,
   newPassword: string,
   confirmPassword: string,
-): Promise<{ message: string }> {
+): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     if (!uid || !token) {
-      throw new Error("Invalid reset link.");
+      return {
+        success: false,
+        error: "Invalid reset link.",
+      };
     }
 
     if (newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters long.");
+      return {
+        success: false,
+        error: "Password must be at least 8 characters long.",
+      };
     }
 
     if (newPassword !== confirmPassword) {
-      throw new Error("Passwords do not match.");
+      return {
+        success: false,
+        error: "Passwords do not match.",
+      };
     }
 
     const response = await fetch(
@@ -275,14 +301,23 @@ export async function resetPasswordConfirm(
     if (!response.ok) {
       const errorData = await response.json();
       console.error("Backend error response:", errorData);
-      throw new Error(errorData.message || "Failed to reset password.");
+      return {
+        success: false,
+        error: errorData.message || "Failed to reset password.",
+      };
     }
 
-    return await response.json();
+    const result = await response.json();
+    return {
+      success: true,
+      message: result.message,
+    };
   } catch (error) {
     console.error("Reset password error:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unknown error occurred");
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
   }
 }

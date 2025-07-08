@@ -50,18 +50,31 @@ export default function Login() {
 
     try {
       // Use the loginUser service function
-      await loginUser(data.email, data.password, data.remember); // Include the remember field
+      const result = await loginUser(data.email, data.password, data.remember);
 
-      // Redirect to dashboard
-      router.push("/");
+      // Check if login was successful
+      if (result.success) {
+        // Redirect to dashboard
+        router.push("/");
+      } else {
+        // Handle login errors
+        setError(result.error || "Login failed. Please try again.");
+        setLoading(false);
+      }
     } catch (error) {
-      // Handle login errors
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Login failed. Please try again.",
-      );
-    } finally {
+      // Handle network or unexpected errors
+      console.error("Login error:", error);
+      if (error instanceof Error) {
+        if (error.message.includes("fetch")) {
+          setError(
+            "Network error. Please check your connection and try again.",
+          );
+        } else {
+          setError("An unexpected error occurred. Please try again.");
+        }
+      } else {
+        setError("Login failed. Please try again.");
+      }
       setLoading(false);
     }
   };

@@ -28,7 +28,11 @@ export default function CmAssignmentsTable() {
   useEffect(() => {
     async function fetchAssignments() {
       try {
-        const data = await getCMAssignments();
+        const response = await getCMAssignments();
+        const data = response.data as {
+          clients?: Assignment[];
+          moderators?: Assignment[];
+        };
         setClients(data.clients || []);
         setModerators(data.moderators || []);
       } catch (err: unknown) {
@@ -99,8 +103,12 @@ export default function CmAssignmentsTable() {
           <table className="mb-6 min-w-full table-auto bg-white dark:bg-gray-800">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">Name</th>
-                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">Email</th>
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+                  Name
+                </th>
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+                  Email
+                </th>
                 <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                   Phone Number
                 </th>
@@ -111,7 +119,10 @@ export default function CmAssignmentsTable() {
             </thead>
             <tbody>
               {filteredClients.map((client) => (
-                <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr
+                  key={client.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
                   <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                     <div className="flex items-center gap-3">
                       <Image
@@ -160,8 +171,12 @@ export default function CmAssignmentsTable() {
           <table className="mb-6 min-w-full table-auto bg-white dark:bg-gray-800">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">Name</th>
-                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">Email</th>
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+                  Name
+                </th>
+                <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
+                  Email
+                </th>
                 <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                   Phone Number
                 </th>
@@ -169,7 +184,10 @@ export default function CmAssignmentsTable() {
             </thead>
             <tbody>
               {filteredModerators.map((moderator) => (
-                <tr key={moderator.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr
+                  key={moderator.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
                   <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
                     <div className="flex items-center gap-3">
                       <Image
