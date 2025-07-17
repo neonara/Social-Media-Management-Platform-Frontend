@@ -45,6 +45,15 @@ interface ScheduledPost {
   client?: Client | undefined;
 }
 
+async function getAuthToken() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
+  if (!token) {
+    throw new Error("Authentication required");
+  }
+  return token;
+}
+
 // In your postService.ts
 export async function getAssignedClients(): Promise<
   Array<{ id: string; name: string; email: string }>
@@ -105,7 +114,7 @@ export async function rejectPost(postId: number): Promise<void> {
     const response = await fetch(
       `${API_BASE_URL}/content/posts/${postId}/reject/`,
       {
-        method: "POST",
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "X-CSRFToken": csrfToken,
@@ -164,15 +173,6 @@ export async function updatePostToDraft(
       error: error instanceof Error ? error.message : "Network error",
     };
   }
-}
-
-async function getAuthToken() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
-  if (!token) {
-    throw new Error("Authentication required");
-  }
-  return token;
 }
 
 async function getCsrfToken() {

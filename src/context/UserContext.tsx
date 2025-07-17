@@ -9,8 +9,11 @@ import React, {
 } from "react";
 import { getCurrentUser } from "@/services/userService";
 import { getUserRole, type GetUser } from "@/types/user";
-import { getToken, deleteToken } from "@/utils/token";
-import { useRouter } from "next/navigation";
+import {
+  clientValidateToken,
+  clientSecureLogout,
+} from "@/utils/clientAuthWrapper";
+import { useRouter, usePathname } from "next/navigation";
 
 interface UserContextType {
   userProfile: GetUser | null;
@@ -36,19 +39,43 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [role, setRole] = useState<string>(""); // State for role
   const router = useRouter(); // For redirection
+  const pathname = usePathname(); // Get current path
+
+  // Define public paths that don't require authentication
+  const publicPaths = [
+    "/login",
+    "/first-reset-password",
+    "/password-reset",
+    "/forgot_password",
+    "/reset-password-confirm",
+  ];
+
+  // Check if current path is public
+  const isPublicPath = publicPaths.some((publicPath) =>
+    pathname?.startsWith(publicPath),
+  );
 
   // Function to fetch the current user profile
   const refreshUserProfile = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      // Check for valid token before calling getCurrentUser
-      const token = await getToken();
-      if (!token) {
-        console.warn("No valid token found. Skipping user profile refresh.");
+      // Skip token validation on public paths
+      if (isPublicPath) {
+        console.log("Skipping profile refresh on public path:", pathname);
         setUserProfile(null);
         setRole("");
-        router.push("/login"); // Redirect to login
+        return;
+      }
+
+      // Use secure token validation instead of just checking for token existence
+      const tokenValidation = await clientValidateToken();
+      if (!tokenValidation.isValid) {
+        console.warn("Token validation failed:", tokenValidation.error);
+        setUserProfile(null);
+        setRole("");
+        await clientSecureLogout(); // Use secure logout
+        router.push("/login");
         return;
       }
 
@@ -65,18 +92,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         });
         window.dispatchEvent(event);
       } else if (userData?.error === "Token expired") {
-        console.warn("Token expired. Deleting token and redirecting to login.");
-        await deleteToken(); // Delete the expired token
+        console.warn("Token expired. Logging out securely.");
+        await clientSecureLogout();
         setUserProfile(null);
         setRole("");
-        router.push("/login"); // Redirect to login
+        router.push("/login");
       }
     } catch (error) {
       console.error("Error refreshing user profile:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [router, isPublicPath, pathname]);
 
   // Initial fetch of user profile
   useEffect(() => {
@@ -84,15 +111,25 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         setIsLoading(true);
 
-        // Check for valid token before calling getCurrentUser
-        const token = await getToken();
-        if (!token) {
+        // Skip token validation on public paths (login, password reset, etc.)
+        if (isPublicPath) {
+          console.log("Skipping token validation on public path:", pathname);
+          setUserProfile(null);
+          setRole("");
+          setIsLoading(false);
+          return;
+        }
+
+        // Use secure token validation instead of just checking for token existence
+        const tokenValidation = await clientValidateToken();
+        if (!tokenValidation.isValid) {
           console.warn(
-            "No valid token found. Skipping initial user profile fetch.",
+            "No valid token found or token validation failed:",
+            tokenValidation.error,
           );
           setUserProfile(null);
           setRole("");
-          router.push("/login"); // Redirect to login
+          router.push("/login");
           return;
         }
 
@@ -102,12 +139,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
           setRole(getUserRole(userData)); // Set role from user data
         } else if (userData?.error === "Token expired") {
           console.warn(
-            "Token expired. Deleting token and redirecting to login.",
+            "Token expired during initial fetch. Logging out securely.",
           );
-          await deleteToken(); // Delete the expired token
+          await clientSecureLogout();
           setUserProfile(null);
           setRole("");
-          router.push("/login"); // Redirect to login
+          router.push("/login");
         }
       } catch (error) {
         console.error("Error fetching initial user profile:", error);
@@ -117,7 +154,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     fetchInitialProfile();
-  }, [router]);
+  }, [router, pathname, isPublicPath]);
 
   return (
     <UserContext.Provider

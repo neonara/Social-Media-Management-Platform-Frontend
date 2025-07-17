@@ -17,7 +17,7 @@ export function getWebSocketUrl(path: string = ""): string {
 
     return wsUrl;
   } else if (!process.env.NEXT_PUBLIC_WS_URL) {
-    const wsUrl = `ws://localhost:8080${path}`;
+    const wsUrl = `ws://localhost:8000${path}`;
 
     return wsUrl;
   }

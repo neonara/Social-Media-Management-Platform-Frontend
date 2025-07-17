@@ -23,7 +23,7 @@ A modern, feature-rich social media management platform built with Next.js 15, d
 - **State Management**: React Context API
 - **Charts**: ApexCharts with React integration
 - **Drag & Drop**: DnD Kit
-- **Rich Text Editing**: TipTap, Quill, Draft.js
+- **Rich Text Editing**: TipTap
 - **Authentication**: NextAuth.js
 - **Date Handling**: Day.js, date-fns
 - **Icons**: Lucide React, React Icons

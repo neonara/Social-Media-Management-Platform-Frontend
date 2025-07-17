@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { getDraftPosts, deletePost } from "@/services/postService";
 import type { DraftPost } from "@/services/postService";
+import { format } from "date-fns";
 
 export default function DraftPosts() {
   const [drafts, setDrafts] = useState<DraftPost[]>([]);
@@ -134,7 +135,7 @@ export default function DraftPosts() {
                     className="form-checkbox h-5 w-5 text-primary"
                   />
                 </div>
-                <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                <p className="mt-4 line-clamp-2 text-sm text-gray-600">
                   {draft.description || "No description available."}
                 </p>
                 {draft.hashtags && draft.hashtags.length > 0 && (
@@ -149,14 +150,14 @@ export default function DraftPosts() {
                     ))}
                   </div>
                 )}
-                <div className="mt-4 flex items-center justify-between">
+                <div className="mt-2 flex items-center justify-between">
                   <span
                     className={`text-sm font-medium ${
                       draft.scheduled_for ? "text-green-600" : "text-gray-500"
                     }`}
                   >
                     {draft.scheduled_for
-                      ? `Scheduled: ${new Date(draft.scheduled_for).toLocaleString()}`
+                      ? `Publish time: ${format(new Date(draft.scheduled_for), "PPpp")}`
                       : "Not scheduled"}
                   </span>
                   <span

@@ -9,7 +9,7 @@ import { handleCreateUser } from "@/actions/createUser";
 // import { roles } from "@/types/user";
 import { useRouter } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import { useUser } from "@/context/UserContext";
+import { useSecureRoles } from "@/hooks/useSecureRoles";
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
@@ -29,7 +29,12 @@ export default function CreateUser() {
     }
   }, [showAlert]);
 
-  const { role } = useUser();
+  const {
+    isAdmin,
+    isModerator,
+    isSuperAdmin,
+    isLoading: roleLoading,
+  } = useSecureRoles();
 
   const roles = [
     { value: "client", label: "Client" },
@@ -38,23 +43,29 @@ export default function CreateUser() {
     { value: "administrator", label: "Administrator" },
   ];
 
-  // Check if the user is an administrator or moderator
-  if (
-    role !== "administrator" &&
-    role !== "moderator" &&
-    role !== "super_administrator"
-  ) {
+  // Show loading while checking roles
+  if (roleLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-32 w-32 animate-spin rounded-full border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  // Check if the user has the required permissions using secure backend validation
+  if (!isAdmin && !isModerator && !isSuperAdmin) {
     router.push("/");
     return null;
   }
 
-  if (role === "administrator") {
-    roles.splice(3, 1); // Remove Client role
+  // Filter roles based on user permissions
+  if (isAdmin && !isSuperAdmin) {
+    roles.splice(3, 1); // Remove Administrator role for regular admins
   }
 
-  if (role === "moderator") {
+  if (isModerator && !isAdmin && !isSuperAdmin) {
     roles.splice(0, 1); // Remove Client role
-    roles.splice(1, 3); // Remove Rest of the roles
+    roles.splice(1, 3); // Remove the rest of the roles, keeping only what moderators can create
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

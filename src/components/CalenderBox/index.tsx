@@ -28,9 +28,30 @@ import {
   CalendarDays,
   RefreshCw,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import * as postService from "@/services/postService";
 import { useRouter } from "next/navigation";
+import {
+  usePostWebSocket,
+  PostWebSocketMessage,
+} from "@/hooks/usePostWebSocket";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { SocialPage } from "@/types/social-page";
@@ -40,6 +61,7 @@ import {
   LinkedinPostPreview,
 } from "../postCreate/preview-post";
 import UserPresence from "../UserPresence/UserPresence";
+import Link from "next/link";
 
 interface Creator {
   id: string;
@@ -71,19 +93,178 @@ const platformIcons = {
   LinkedIn: <FaLinkedin className="text-blue-700" />,
 };
 
+// Draggable Post Card Component
+const PostCard = React.memo(
+  ({
+    post,
+    color,
+    onPostClick,
+    onApprove,
+    onReject,
+  }: {
+    post: ScheduledPost;
+    color: string;
+    onPostClick: (post: ScheduledPost) => void;
+    onApprove: (postId: string) => void;
+    onReject: (postId: string) => void;
+  }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: post.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`mb-2 cursor-pointer rounded-lg ${color} p-3 text-sm shadow-sm transition-all ${
+          isDragging
+            ? "z-50 rotate-2 scale-105 opacity-50 shadow-lg"
+            : "hover:shadow-md"
+        }`}
+        onClick={() => onPostClick(post)}
+      >
+        <div className="flex flex-wrap justify-between gap-2">
+          <span className="font-medium">{post.title}</span>
+          <span className="text-xs opacity-75">
+            {format(new Date(post.scheduled_for), "PPpp")}
+          </span>
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-xs">
+          {platformIcons[post.platform]} <span>{post.platform}</span>
+        </div>
+
+        {post.status === "pending" && (
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onApprove(post.id);
+              }}
+              className="rounded-md bg-green-500 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-green-600"
+            >
+              Approve
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReject(post.id);
+              }}
+              className="rounded-md bg-red-500 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-red-600"
+            >
+              Reject
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+PostCard.displayName = "PostCard";
+
+// Droppable Column Component
+const DroppableColumn = React.memo(
+  ({
+    droppableId,
+    title,
+    posts,
+    bgColor,
+    titleColor,
+    cardColor,
+    onPostClick,
+    onApprove,
+    onReject,
+  }: {
+    droppableId: string;
+    title: string;
+    posts: ScheduledPost[];
+    bgColor: string;
+    titleColor: string;
+    cardColor: string;
+    onPostClick: (post: ScheduledPost) => void;
+    onApprove: (postId: string) => void;
+    onReject: (postId: string) => void;
+  }) => {
+    const { setNodeRef, isOver } = useDroppable({
+      id: droppableId,
+    });
+
+    return (
+      <div
+        ref={setNodeRef}
+        className={`rounded-lg border border-stroke ${bgColor} p-4 dark:border-dark-3 dark:bg-gray-dark ${
+          isOver ? "border-2 border-dashed border-primary bg-primary/5" : ""
+        }`}
+      >
+        <h3 className={`mb-4 text-lg font-semibold ${titleColor}`}>
+          {title} ({posts.length})
+        </h3>
+        <SortableContext
+          items={posts.map((post) => post.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="min-h-[200px] transition-colors">
+            {posts.length > 0 ? (
+              posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  color={cardColor}
+                  onPostClick={onPostClick}
+                  onApprove={onApprove}
+                  onReject={onReject}
+                />
+              ))
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {isOver ? "Drop here" : `No ${title.toLowerCase()} posts.`}
+                </p>
+              </div>
+            )}
+          </div>
+        </SortableContext>
+      </div>
+    );
+  },
+);
+
+DroppableColumn.displayName = "DroppableColumn";
+
 const PostTable = ({
   posts,
   onRefresh,
   currentDate,
   calendarView,
   onPostClick,
+  onDragEnd,
 }: {
   posts: ScheduledPost[];
   onRefresh: () => void;
   currentDate: Date;
   calendarView: "week" | "month" | "quarter" | "year";
   onPostClick: (post: ScheduledPost) => void;
+  onDragEnd: (event: DragEndEvent) => void;
 }) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
   // Filter posts based on the current calendar view and date
   const filterPostsByDateRange = (post: ScheduledPost) => {
     const postDate = new Date(post.scheduled_for);
@@ -153,148 +334,123 @@ const PostTable = ({
     }
   };
 
+  // Don't render drag and drop if we don't have posts
+  if (posts.length === 0) {
+    return (
+      <div className="grid grid-cols-4 gap-4">
+        <div className="rounded-lg border border-stroke bg-yellow-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
+          <h3 className="mb-4 text-lg font-semibold text-yellow-600 dark:text-yellow-300">
+            Pending (0)
+          </h3>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              No pending posts.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-stroke bg-red-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
+          <h3 className="mb-4 text-lg font-semibold text-red-600 dark:text-red-300">
+            Rejected (0)
+          </h3>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              No rejected posts.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-stroke bg-purple-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
+          <h3 className="dark:text-primary-dark mb-4 text-lg font-semibold text-primary">
+            Scheduled (0)
+          </h3>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              No scheduled posts.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-stroke bg-green-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
+          <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-300">
+            Posted (0)
+          </h3>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              No posted posts.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-4 gap-4">
-      {/* Pending Posts */}
-      <div className="rounded-lg border border-stroke bg-yellow-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
-        <h3 className="mb-4 text-lg font-semibold text-yellow-600 dark:text-yellow-300">
-          Pending ({pendingPosts.length})
-        </h3>
-        {pendingPosts.length > 0 ? (
-          pendingPosts.map((post) => (
-            <div
-              key={post.id}
-              className="mb-2 cursor-pointer rounded-lg bg-yellow-100 p-3 text-sm text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-              onClick={() => onPostClick(post)}
-            >
-              <div className="flex justify-between">
-                <span>{post.title}</span>
-                <span className="text-xs">
-                  {format(new Date(post.scheduled_for), "PPpp")}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-xs">
-                {platformIcons[post.platform]}
-              </div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleApprove(post.id);
-                  }}
-                  className="rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-600"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleReject(post.id);
-                  }}
-                  className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            No pending posts.
-          </p>
-        )}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+    >
+      <div className="grid grid-cols-4 gap-4">
+        <DroppableColumn
+          key="pending-column"
+          droppableId="pending"
+          title="Pending"
+          posts={pendingPosts}
+          bgColor="bg-yellow-50"
+          titleColor="text-yellow-600 dark:text-yellow-300"
+          cardColor="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800"
+          onPostClick={onPostClick}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+
+        <DroppableColumn
+          key="rejected-column"
+          droppableId="rejected"
+          title="Rejected"
+          posts={rejectedPosts}
+          bgColor="bg-red-50"
+          titleColor="text-red-600 dark:text-red-300"
+          cardColor="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
+          onPostClick={onPostClick}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+
+        <DroppableColumn
+          key="scheduled-column"
+          droppableId="scheduled"
+          title="Scheduled"
+          posts={scheduledPosts}
+          bgColor="bg-purple-50"
+          titleColor="dark:text-primary-dark text-primary"
+          cardColor="bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+          onPostClick={onPostClick}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+
+        <DroppableColumn
+          key="published-column"
+          droppableId="published"
+          title="Posted"
+          posts={postedPosts}
+          bgColor="bg-green-50"
+          titleColor="text-green-600 dark:text-green-300"
+          cardColor="bg-green-200 text-green-800 hover:bg-green-300 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
+          onPostClick={onPostClick}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
       </div>
 
-      {/* Rejected Posts */}
-      <div className="rounded-lg border border-stroke bg-red-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
-        <h3 className="mb-4 text-lg font-semibold text-red-600 dark:text-red-300">
-          Rejected ({rejectedPosts.length})
-        </h3>
-        {rejectedPosts.length > 0 ? (
-          rejectedPosts.map((post) => (
-            <div
-              key={post.id}
-              className="mb-2 cursor-pointer rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900 dark:text-red-200"
-              onClick={() => onPostClick(post)}
-            >
-              <div className="flex justify-between">
-                <span>{post.title}</span>
-                <span className="text-xs">
-                  {format(new Date(post.scheduled_for), "PPpp")}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-xs">
-                {platformIcons[post.platform]}
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            No rejected posts.
-          </p>
-        )}
-      </div>
-
-      {/* Scheduled Posts */}
-      <div className="rounded-lg border border-stroke bg-purple-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
-        <h3 className="dark:text-primary-dark mb-4 text-lg font-semibold text-primary">
-          Scheduled ({scheduledPosts.length})
-        </h3>
-        {scheduledPosts.length > 0 ? (
-          scheduledPosts.map((post) => (
-            <div
-              key={post.id}
-              className="mb-2 cursor-pointer rounded-lg bg-blue-100 p-3 text-sm text-blue-800 shadow-sm transition-all hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
-              onClick={() => onPostClick(post)}
-            >
-              <div className="flex justify-between">
-                <span>{post.title}</span>
-                <span className="text-xs">
-                  {format(new Date(post.scheduled_for), "PPpp")}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-xs">
-                {platformIcons[post.platform]}
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            No scheduled posts.
-          </p>
-        )}
-      </div>
-
-      {/* Posted Posts */}
-      <div className="rounded-lg border border-stroke bg-green-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
-        <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-300">
-          Posted ({postedPosts.length})
-        </h3>
-        {postedPosts.length > 0 ? (
-          postedPosts.map((post) => (
-            <div
-              key={post.id}
-              className="mb-2 cursor-pointer rounded-lg bg-green-200 p-3 text-sm text-green-800 shadow-sm transition-all hover:bg-green-300 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
-              onClick={() => onPostClick(post)}
-            >
-              <div className="flex flex-wrap justify-between gap-2">
-                <span>{post.title}</span>
-                <span className="text-xs">
-                  {format(new Date(post.scheduled_for), "PPpp")}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center gap-2 text-xs">
-                {platformIcons[post.platform]} <span>{post.platform}</span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            No posted posts.
-          </p>
-        )}
-      </div>
-    </div>
+      <Link href="/content" className="m-auto block w-fit">
+        <button
+          type="button"
+          className="mx-auto mb-2.5 mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-18 py-4 text-lg font-medium text-white transition hover:bg-opacity-90 disabled:opacity-80"
+        >
+          Create New Post
+        </button>
+      </Link>
+    </DndContext>
   );
 };
 
@@ -368,6 +524,76 @@ const CalendarBox = () => {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   // const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]; // Unused variable
   const router = useRouter();
+
+  // WebSocket integration for real-time updates
+  const handleWebSocketMessage = useCallback(
+    (message: PostWebSocketMessage) => {
+      console.log("WebSocket message received:", message);
+
+      // Handle the message based on the type (which comes from our signal's type field)
+      switch (message.type) {
+        case "post_updated":
+          // Check the action to determine what kind of update this is
+          if (message.action === "created" && message.post_data) {
+            console.log("New post created:", message.post_data);
+            setScheduledPosts((prev) => [
+              ...prev,
+              message.post_data as unknown as ScheduledPost,
+            ]);
+            toast.success("New post created!");
+          } else if (
+            message.action === "updated" &&
+            message.post_data &&
+            message.post_id
+          ) {
+            console.log("Post updated:", message.post_data);
+            setScheduledPosts((prev) =>
+              prev.map((p) =>
+                p.id === message.post_id
+                  ? (message.post_data as unknown as ScheduledPost)
+                  : p,
+              ),
+            );
+            toast.info("Post updated!");
+          } else if (message.action === "deleted" && message.post_id) {
+            console.log("Post deleted:", message.post_id);
+            setScheduledPosts((prev) =>
+              prev.filter((p) => p.id !== message.post_id),
+            );
+            toast.info("Post deleted!");
+          } else if (
+            message.action === "status_changed" &&
+            message.post_data &&
+            message.post_id
+          ) {
+            console.log(
+              `Post ${message.post_id} status changed from ${message.old_status} to ${message.new_status}`,
+            );
+            setScheduledPosts((prev) =>
+              prev.map((p) =>
+                p.id === message.post_id
+                  ? (message.post_data as unknown as ScheduledPost)
+                  : p,
+              ),
+            );
+            toast.success(`Post status changed to ${message.new_status}!`);
+          }
+          break;
+
+        case "connection_established":
+          console.log("WebSocket connection established for post updates");
+          break;
+
+        case "error":
+          console.error("WebSocket error:", message.message);
+          toast.error("WebSocket error occurred");
+          break;
+      }
+    },
+    [],
+  );
+
+  usePostWebSocket(handleWebSocketMessage);
 
   const platformIcons = {
     Facebook: <FaFacebook className="text-blue-600" />,
@@ -966,6 +1192,88 @@ const CalendarBox = () => {
     }
   };
 
+  // Inside the CalendarBox component, before the return statement
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    console.log("Drag ended:", { active, over });
+
+    // 1. Do nothing if the item is dropped outside a valid droppable area
+    if (!over) {
+      console.log("No destination, drag cancelled");
+      return;
+    }
+
+    // 2. Do nothing if the item is dropped in the same place
+    if (active.id === over.id) {
+      console.log("Dropped in same place, no change");
+      return;
+    }
+
+    // 3. Find the dragged post
+    const draggedPost = scheduledPosts.find((p) => p.id === active.id);
+    if (!draggedPost) {
+      console.error("Could not find dragged post with id:", active.id);
+      return;
+    }
+
+    // 4. Update the status of the post based on the destination column
+    const validDroppableIds = ["pending", "rejected", "scheduled", "published"];
+    // For @dnd-kit, we need to determine the droppable area from the over element
+    // We'll need to implement this logic based on your UI structure
+    // For now, let's assume the over.id tells us the column
+    const destinationColumn = over.id;
+
+    if (!validDroppableIds.includes(destinationColumn as string)) {
+      console.error("Invalid droppable ID:", destinationColumn);
+      return;
+    }
+
+    const newStatus = destinationColumn as ScheduledPost["status"];
+    console.log("Updating post status to:", newStatus);
+
+    // OPTIMISTIC UPDATE: Update the UI immediately for a smooth experience
+    setScheduledPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post.id === active.id ? { ...post, status: newStatus } : post,
+      ),
+    );
+
+    // 5. PERSIST THE CHANGE: Call your backend API to save the new status
+    // This is a crucial step!
+    handlePostStatusUpdate(draggedPost.id, newStatus);
+  };
+
+  const handlePostStatusUpdate = async (
+    postId: string,
+    newStatus: ScheduledPost["status"],
+  ) => {
+    try {
+      // Use existing approve/reject functions when available
+      if (newStatus === "scheduled") {
+        await postService.approvePost(parseInt(postId));
+      } else if (newStatus === "rejected") {
+        await postService.rejectPost(parseInt(postId));
+      } else {
+        // For other status changes, you might need to implement a generic updatePostStatus function
+        console.log(`Status change to ${newStatus} not yet implemented`);
+        toast.info(
+          `Status change to ${newStatus} noted (implementation needed)`,
+        );
+        return;
+      }
+      toast.success(`Post moved to ${newStatus}!`);
+      // Optional: you can refetch all posts here to ensure data consistency,
+      // but the optimistic update often feels better to the user.
+      // fetchScheduledPosts();
+    } catch (error) {
+      console.error("Failed to update post status:", error);
+      toast.error("Failed to update post status. Reverting change.");
+      // If the API call fails, revert the optimistic update
+      fetchScheduledPosts();
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl p-4 transition-all">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -1147,6 +1455,7 @@ const CalendarBox = () => {
             currentDate={currentDate}
             calendarView={calendarView}
             onPostClick={setSelectedPost}
+            onDragEnd={onDragEnd}
           />
         )}
       </div>
