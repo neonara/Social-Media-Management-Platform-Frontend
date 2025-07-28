@@ -10,7 +10,7 @@ export function Logo() {
         src={logo}
         fill
         priority
-        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 20vw, 33vw"
         className="object-contain object-left dark:hidden"
         alt="NextAdmin logo"
         role="presentation"

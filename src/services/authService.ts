@@ -67,28 +67,35 @@ export async function loginUser(
     // Set secure cookies on the server side (these will be HTTP-only)
     const cookieStore = await cookies();
 
-    // Set access token cookie (HTTP-only, Secure in production)
+    // Check if we need secure cookies - either in production or when using HTTPS (like ngrok)
+    const headers = await import('next/headers');
+    const headersList = headers.headers ? await headers.headers() : null;
+    const isHttps = headersList?.get('x-forwarded-proto') === 'https' || 
+                    headersList?.get('x-forwarded-protocol') === 'https' ||
+                    process.env.NODE_ENV === "production";
+
+    // Set access token cookie (HTTP-only, Secure when using HTTPS)
     cookieStore.set("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax", // Use "none" for HTTPS cross-origin, "lax" for HTTP
       path: "/",
       maxAge: 60 * 60 * 24, // 1 day
     });
 
-    // Set refresh token cookie (HTTP-only, Secure in production)
+    // Set refresh token cookie (HTTP-only, Secure when using HTTPS)
     cookieStore.set("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     cookieStore.set("is_superadministrator", String(isSuperAdmin), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24, // 1 day
     });
@@ -96,31 +103,31 @@ export async function loginUser(
     // Set role cookies
     cookieStore.set("is_administrator", String(isAdmin), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24, // 1 day
     });
 
     cookieStore.set("is_moderator", String(isModerator), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24, // 1 day
     });
 
     cookieStore.set("is_community_manager", String(isCommunityManager), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24, // 1 day
     });
 
     cookieStore.set("is_client", String(isClient), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24, // 1 day

@@ -1,18 +1,12 @@
 "use server";
 
 import { API_BASE_URL } from "@/config/api";
-import { GetUser } from "@/types/user";
+import { GetUser, Client } from "@/types/user";
 import { cookies } from "next/headers";
 
 type CreateUserData = {
   email: string;
   role: string;
-};
-
-type Client = {
-  id: number;
-  full_name: string;
-  // ... other client properties as needed
 };
 
 export async function getAssignedCommunityManagers(): Promise<

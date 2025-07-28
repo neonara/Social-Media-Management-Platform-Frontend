@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { getWebSocketUrl } from "@/utils/websocket";
 import { clientValidateToken } from "@/utils/clientAuthWrapper";
+import { getToken } from "@/utils/token";
 
 export interface PostWebSocketMessage {
   type:
@@ -11,7 +12,7 @@ export interface PostWebSocketMessage {
     | "post_status_changed"
     | "error";
   action?: "created" | "updated" | "deleted" | "status_changed";
-  post_data?: Record<string, unknown>;
+  data?: Record<string, unknown>; // Changed from post_data to data
   post_id?: string;
   old_status?: string;
   new_status?: string;
@@ -49,11 +50,8 @@ export const usePostWebSocket = (
         return;
       }
 
-      // Get the validated token for WebSocket connection
-      const cookieStore = await import("next/headers").then((mod) =>
-        mod.cookies(),
-      );
-      const token = (await cookieStore).get("access_token")?.value;
+      // Get the token from server action
+      const token = await getToken();
 
       if (!token) {
         console.error(

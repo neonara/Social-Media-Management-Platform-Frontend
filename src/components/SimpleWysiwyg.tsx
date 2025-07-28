@@ -85,6 +85,7 @@ const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
 
 export const SimpleWysiwyg = ({ value, onChange }: SimpleWysiwygProps) => {
   const editor = useEditor({
+    immediatelyRender: false, // Prevent SSR hydration mismatches
     extensions: [
       StarterKit.configure({
         // Disable heading since it's not needed for captions

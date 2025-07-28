@@ -105,9 +105,7 @@ export function Notification() {
           socketRef.current.close();
         }
 
-        const socket = new WebSocket(
-          getNotificationWebSocketUrl(token)
-        );
+        const socket = new WebSocket(getNotificationWebSocketUrl(token));
 
         socketRef.current = socket;
 

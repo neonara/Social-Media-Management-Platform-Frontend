@@ -7,17 +7,18 @@ import {
   assignCommunityManagerToClient,
   getClients,
 } from "@/services/moderatorsService";
+import { removeClientCommunityManagerServerAction } from "@/services/userService";
 import { FaSearch, FaPlus } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import { GetUser } from "@/types/user";
+import { GetUser, Client } from "@/types/user";
 import { getImageUrl } from "@/utils/image-url";
 
-const tabs = ["Community Managers", "Clients"];
+const tabs = ["Clients", "Community Managers"];
 
 export default function AssignedCommunityManagersTable() {
   const [assignedCMs, setAssignedCMs] = useState<GetUser[]>([]);
-  const [clients, setClients] = useState<GetUser[]>([]);
-  const [activeTab, setActiveTab] = useState("Community Managers");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [activeTab, setActiveTab] = useState("Clients");
   const [isLoadingCMs, setIsLoadingCMs] = useState(true);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [fetchCMsError, setFetchCMsError] = useState<string | null>(null);
@@ -37,6 +38,9 @@ export default function AssignedCommunityManagersTable() {
   const [assignError, setAssignError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false); // State for modal
   const [onConfirm, setOnConfirm] = useState<() => void>(() => () => {}); // Callback for confirm action
+  const [confirmModalAction, setConfirmModalAction] = useState<
+    "assign" | "remove"
+  >("assign"); // Track what action is being confirmed
 
   useEffect(() => {
     loadAssignedCMs();
@@ -53,10 +57,11 @@ export default function AssignedCommunityManagersTable() {
         console.error("Error fetching assigned CMs:", data.error);
         return;
       }
+      console.log("Raw CM data from API:", data);
       // Adjusted to use `role` instead of `roles`
-      setAssignedCMs(
-        data.map((cm: GetUser) => ({ ...cm, role: cm.role ?? undefined })),
-      );
+      const processedCMs = data.map((cm: GetUser) => ({ ...cm, role: cm.role ?? undefined }));
+      console.log("Processed CMs with assigned clients:", processedCMs);
+      setAssignedCMs(processedCMs);
     } catch (error: unknown) {
       if (error instanceof Error) {
         setFetchCMsError(`An unexpected error occurred: ${error.message}`);
@@ -77,7 +82,7 @@ export default function AssignedCommunityManagersTable() {
         console.error("Error fetching clients:", data.error);
         return;
       }
-      setClients(data as GetUser[]);
+      setClients(data as Client[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         setFetchClientsError(`An unexpected error occurred: ${error.message}`);
@@ -105,11 +110,14 @@ export default function AssignedCommunityManagersTable() {
 
   const handleAssignCMToClient = async () => {
     if (!selectedCMToAssign || !selectedClientToAssign) {
-      setAssignError("Please select a client to assign to.");
+      setAssignError(
+        "Please select both a Community Manager and a client to assign.",
+      );
       return;
     }
 
     // Show the confirmation modal
+    setConfirmModalAction("assign");
     setOnConfirm(() => async () => {
       setIsAssigning(true);
       setAssignError(null);
@@ -145,6 +153,39 @@ export default function AssignedCommunityManagersTable() {
     setShowConfirmModal(true);
   };
 
+  const handleAssignCMToClientNew = (client: Client) => {
+    // Set the selected client for assignment
+    setSelectedClientToAssign(client.id);
+    setSelectedCMToAssign(null); // Clear any previously selected CM
+    setShowAssignModal(true);
+  };
+
+  const handleRemoveCMFromClient = async (clientId: number, cmId: number) => {
+    // Show confirmation modal
+    setConfirmModalAction("remove");
+    setOnConfirm(() => async () => {
+      try {
+        const result = await removeClientCommunityManagerServerAction(
+          clientId,
+          cmId,
+        );
+        if (result.error) {
+          console.error("Error removing CM from client:", result.error);
+          setFetchClientsError(result.error);
+        } else {
+          // Refresh the clients list to show updated assignments
+          await loadClients();
+        }
+      } catch (error) {
+        console.error("Error removing CM from client:", error);
+        setFetchClientsError("Failed to remove community manager from client");
+      } finally {
+        setShowConfirmModal(false);
+      }
+    });
+    setShowConfirmModal(true);
+  };
+
   if (isLoadingCMs || isLoadingClients) {
     return <div>Loading data...</div>;
   }
@@ -153,18 +194,26 @@ export default function AssignedCommunityManagersTable() {
     return <div>Error loading data: {fetchCMsError || fetchClientsError}</div>;
   }
   console.log(
-    "Assigned Client:",
-    assignedCMs.map((cm) => cm.assigned_clients?.full_name),
-    "Clients:",
-    clients.map((client) => client.assigned_communitymanagers?.full_name),
+    "Assigned Clients for CMs:",
+    assignedCMs.map((cm) => ({
+      cm_name: cm.full_name,
+      assigned_clients:
+        cm.assigned_clients?.map((client) => client.full_name) || [],
+    })),
+    "Clients with CMs:",
+    clients.map((client) => ({
+      client_name: client.full_name,
+      assigned_cms:
+        client.assigned_community_managers?.map((cm) => cm.full_name) || [],
+    })),
   );
 
   return (
     <div className="rounded-xl bg-white p-6 shadow dark:bg-gray-800">
       <h1 className="mb-7 text-body-2xlg font-bold text-dark dark:text-white">
         {activeTab === "Community Managers"
-          ? "Assigned Community Managers"
-          : "Clients"}
+          ? "Clients"
+          : "Assigned Community Managers"}
       </h1>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex space-x-2">
@@ -217,7 +266,7 @@ export default function AssignedCommunityManagersTable() {
                   Phone Number
                 </th>
                 <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
-                  Assigned Client
+                  Assigned Clients
                 </th>
                 <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                   Actions
@@ -253,20 +302,28 @@ export default function AssignedCommunityManagersTable() {
                     {cm.phone_number}
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
-                    {cm.assigned_clients ? (
-                      <div className="flex items-center gap-3">
-                        <Image
-                          src={getImageUrl(cm.assigned_clients.user_image)}
-                          className="size-8 rounded-full object-cover"
-                          alt={`Avatar of ${cm.assigned_clients.full_name || "user"}`}
-                          role="presentation"
-                          width={32}
-                          height={32}
-                          onError={(e) => {
-                            e.currentTarget.src = "/images/user/user-03.png";
-                          }}
-                        />
-                        <span>{cm.assigned_clients.full_name}</span>
+                    {cm.assigned_clients && cm.assigned_clients.length > 0 ? (
+                      <div className="space-y-1">
+                        {cm.assigned_clients.map((client) => (
+                          <div
+                            key={client.id}
+                            className="flex items-center gap-3"
+                          >
+                            <Image
+                              src={getImageUrl(client.user_image)}
+                              className="size-8 rounded-full object-cover"
+                              alt={`Avatar of ${client.full_name || "user"}`}
+                              role="presentation"
+                              width={32}
+                              height={32}
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "/images/user/user-03.png";
+                              }}
+                            />
+                            <span className="text-sm">{client.full_name}</span>
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       "Not Assigned"
@@ -282,7 +339,9 @@ export default function AssignedCommunityManagersTable() {
                         setSelectedClientToAssign(null);
                       }}
                     >
-                      {cm.assigned_clients ? "Edit Assign" : "Assign to Client"}
+                      {cm.assigned_clients && cm.assigned_clients.length > 0
+                        ? "Assign to Another Client"
+                        : "Assign to Client"}
                     </button>
                   </td>
                 </tr>
@@ -312,7 +371,7 @@ export default function AssignedCommunityManagersTable() {
                   Phone Number
                 </th>
                 <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
-                  Assigned Community Manager
+                  Assigned Community Managers
                 </th>
                 <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
                   Actions
@@ -348,28 +407,54 @@ export default function AssignedCommunityManagersTable() {
                     {client.phone_number}
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
-                    {client.assigned_communitymanagers ? (
-                      <div className="flex items-center gap-3">
-                        <Image
-                          src={getImageUrl(
-                            client.assigned_communitymanagers.user_image,
-                          )}
-                          className="size-8 rounded-full object-cover"
-                          alt={`Avatar of ${client.assigned_communitymanagers.full_name || client.assigned_communitymanagers.email || "user"}`}
-                          role="presentation"
-                          width={32}
-                          height={32}
-                          onError={(e) => {
-                            e.currentTarget.src = "/images/user/user-03.png";
-                          }}
-                        />
-                        <span>
-                          {client.assigned_communitymanagers.full_name ||
-                            client.assigned_communitymanagers.email}
-                        </span>
+                    {client.assigned_community_managers &&
+                    client.assigned_community_managers.length > 0 ? (
+                      <div className="space-y-2">
+                        {client.assigned_community_managers.map((cm) => (
+                          <div key={cm.id} className="flex items-center gap-3">
+                            <Image
+                              src={getImageUrl(cm.user_image)}
+                              className="size-8 rounded-full object-cover"
+                              alt={`Avatar of ${cm.full_name || cm.email || "user"}`}
+                              role="presentation"
+                              width={32}
+                              height={32}
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "/images/user/user-03.png";
+                              }}
+                            />
+                            <span>{cm.full_name || cm.email}</span>
+                            <button
+                              className="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                              onClick={() =>
+                                handleRemoveCMFromClient(client.id, cm.id)
+                              }
+                              title="Remove CM from client"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          className="mt-2 rounded bg-green-500 px-2 py-1 text-xs text-white hover:bg-green-600"
+                          onClick={() => handleAssignCMToClientNew(client)}
+                          title="Assign additional CM to client"
+                        >
+                          + Add CM
+                        </button>
                       </div>
                     ) : (
-                      "Not Assigned"
+                      <div>
+                        <span className="text-gray-500">Not Assigned</span>
+                        <button
+                          className="ml-2 rounded bg-green-500 px-2 py-1 text-xs text-white hover:bg-green-600"
+                          onClick={() => handleAssignCMToClientNew(client)}
+                          title="Assign CM to client"
+                        >
+                          + Add CM
+                        </button>
+                      </div>
                     )}
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
@@ -394,13 +479,45 @@ export default function AssignedCommunityManagersTable() {
           </p>
         ))}
 
-      {showAssignModal && selectedCMToAssign && (
+      {showAssignModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50 dark:bg-black dark:bg-opacity-60">
           <div className="rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
             <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-              Assign {selectedCMToAssign.full_name} to Client
+              {selectedCMToAssign
+                ? `Assign ${selectedCMToAssign.full_name} to Client`
+                : "Assign Community Manager to Client"}
             </h2>
             {assignError && <p className="mb-2 text-red-500">{assignError}</p>}
+
+            {/* Show CM selector if no CM is pre-selected */}
+            {!selectedCMToAssign && (
+              <div className="mb-4">
+                <label
+                  htmlFor="cmId"
+                  className="mb-2 block text-gray-700 dark:text-gray-300"
+                >
+                  Select Community Manager:
+                </label>
+                <select
+                  id="cmId"
+                  className="w-full rounded border border-gray-300 bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  onChange={(e) => {
+                    const cmId = Number(e.target.value);
+                    const selectedCM = assignedCMs.find((cm) => cm.id === cmId);
+                    setSelectedCMToAssign(selectedCM || null);
+                  }}
+                  value=""
+                >
+                  <option value="">-- Select Community Manager --</option>
+                  {assignedCMs.map((cm) => (
+                    <option key={cm.id} value={cm.id}>
+                      {cm.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="clientId"
@@ -427,14 +544,20 @@ export default function AssignedCommunityManagersTable() {
             <div className="mt-4 flex justify-end">
               <button
                 className="mr-2 rounded-full bg-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-                onClick={() => setShowAssignModal(false)}
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setSelectedCMToAssign(null);
+                  setSelectedClientToAssign(null);
+                }}
               >
                 Cancel
               </button>
               <button
                 className="rounded-full bg-primary px-4 py-2 text-white hover:bg-blue-600"
                 onClick={handleAssignCMToClient}
-                disabled={!selectedClientToAssign || isAssigning}
+                disabled={
+                  !selectedClientToAssign || !selectedCMToAssign || isAssigning
+                }
               >
                 {isAssigning ? "Assigning..." : "Assign"}
               </button>
@@ -448,11 +571,14 @@ export default function AssignedCommunityManagersTable() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70">
           <div className="w-96 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-              Confirm Changes
+              {confirmModalAction === "assign"
+                ? "Confirm Assignment"
+                : "Confirm Removal"}
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Are you sure you want to assign this Community Manager to the
-              selected client?
+              {confirmModalAction === "assign"
+                ? "Are you sure you want to assign this Community Manager to the selected client?"
+                : "Are you sure you want to remove this Community Manager from the client?"}
             </p>
             <div className="mt-4 flex justify-end gap-3">
               <button
@@ -465,7 +591,7 @@ export default function AssignedCommunityManagersTable() {
                 onClick={onConfirm}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
               >
-                Confirm
+                {confirmModalAction === "assign" ? "Assign" : "Remove"}
               </button>
             </div>
           </div>

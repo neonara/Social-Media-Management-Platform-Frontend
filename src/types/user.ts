@@ -27,7 +27,26 @@ export interface GetUser {
   user_image?: string;
   assigned_moderator?: GetUser | null;
   assigned_communitymanagers?: GetUser | null;
-  assigned_clients?: GetUser | null;
+  assigned_clients?: {
+    id: number;
+    full_name: string;
+    email: string;
+    user_image?: string;
+  }[] | null;
+}
+
+export interface Client {
+  id: number;
+  full_name: string;
+  email: string;
+  user_image?: string;
+  phone_number?: string;
+  assigned_community_managers: {
+    id: number;
+    full_name: string;
+    email: string;
+    user_image?: string;
+  }[];
 }
 
 export interface UpdateUser {

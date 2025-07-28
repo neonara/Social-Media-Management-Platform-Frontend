@@ -20,6 +20,9 @@ const nextConfig = {
         'localhost:8081',  // Nginx proxy
         'localhost:3100',  // Direct frontend
         'localhost:3000',  // Internal frontend
+        '*.ngrok-free.app',  // Allow all ngrok free domains
+        '*.ngrok.app',       // Allow all ngrok domains
+        '*.ngrok.io',        // Allow legacy ngrok domains
       ],
     },
   },

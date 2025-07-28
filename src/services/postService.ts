@@ -20,6 +20,11 @@ export interface DraftPost {
     file_type: string;
   }[];
   hashtags: string[];
+  client_id?: number;
+  client?: {
+    id: number;
+    full_name: string;
+  };
 }
 interface Creator {
   id: string;
@@ -38,6 +43,13 @@ interface ScheduledPost {
   platform: "Facebook" | "Instagram" | "LinkedIn";
   platformPage: SocialPage;
   mediaFiles?: Array<{ id: string; preview: string }>;
+  media?: Array<{
+    id: number;
+    file: string;
+    name: string;
+    uploaded_at: string;
+    file_type: string;
+  }>;
   description: string;
   scheduled_for: string;
   status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
@@ -106,7 +118,10 @@ export async function approvePost(postId: number): Promise<void> {
   }
 }
 
-export async function rejectPost(postId: number): Promise<void> {
+export async function rejectPost(
+  postId: number,
+  feedback?: string,
+): Promise<void> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
@@ -118,7 +133,9 @@ export async function rejectPost(postId: number): Promise<void> {
         headers: {
           Authorization: `Bearer ${token}`,
           "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
         },
+        body: feedback ? JSON.stringify({ feedback }) : undefined,
       },
     );
 
@@ -511,6 +528,89 @@ export async function deletePost(postId: number): Promise<void> {
     }
   } catch (error) {
     console.error("Error deleting post:", error);
+    throw error;
+  }
+}
+
+export async function publishPost(postId: number): Promise<void> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/publish/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to publish post");
+    }
+  } catch (error) {
+    console.error("Error publishing post:", error);
+    throw error;
+  }
+}
+
+export async function resubmitPost(postId: number): Promise<void> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/resubmit/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to resubmit post");
+    }
+  } catch (error) {
+    console.error("Error resubmitting post:", error);
+    throw error;
+  }
+}
+
+export async function cancelApproval(
+  postId: number,
+  feedback?: string,
+): Promise<void> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/cancel-approval/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ feedback }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to cancel approval");
+    }
+  } catch (error) {
+    console.error("Error cancelling approval:", error);
     throw error;
   }
 }

@@ -2,48 +2,48 @@
 
 import { SearchIcon } from "@/assets/icons";
 import Image from "next/image";
-import Link from "next/link";
 import { useSidebarContext } from "../sidebar/sidebar-context";
-import { MenuIcon } from "./icons";
 import { Notification } from "./notification";
 import { ThemeToggleSwitch } from "./theme-toggle";
 import { UserInfo } from "./user-info";
+import logoDark from "@/assets/logos/logo_white_icon.png";
+import logo from "@/assets/logos/logo_black_icon.png";
 
 export function Header() {
   const { toggleSidebar, isMobile } = useSidebarContext();
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-stroke bg-white px-4 py-5 shadow-1 dark:border-stroke-dark dark:bg-gray-dark md:px-5 2xl:px-10">
-      <button
-        onClick={toggleSidebar}
-        className="rounded-lg border px-1.5 py-1 dark:border-stroke-dark dark:bg-[#020D1A] hover:dark:bg-[#FFFFFF1A] xl:hidden"
-      >
-        <MenuIcon />
-        <span className="sr-only">Toggle Sidebar</span>
-      </button>
-
+    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stroke bg-white px-4 py-5 shadow-1 dark:border-stroke-dark dark:bg-gray-dark md:px-5 2xl:px-10">
       {isMobile && (
-        <Link href={"/"} className="mx-2 max-[430px]:hidden min-[375px]:ml-4">
+        <button onClick={toggleSidebar} className="mr-4">
           <Image
-            src={"/images/logo/logo-icon.svg"}
-            width={32}
-            height={32}
-            alt=""
-            role="presentation"
+            src={logo}
+            width={40}
+            height={40}
+            alt="Toggle Sidebar"
+            className="block dark:hidden"
           />
-        </Link>
+          <Image
+            src={logoDark}
+            width={40}
+            height={40}
+            alt="Toggle Sidebar"
+            className="hidden dark:block"
+          />
+          <span className="sr-only">Toggle Sidebar</span>
+        </button>
       )}
 
-      <div className="max-xl:hidden">
-        <h1 className="mb-0.5 text-heading-5 font-bold text-dark dark:text-white">
+      <div className="mr-4 max-md:mr-0 max-md:hidden">
+        <h1 className="mb-0.5 text-heading-5 font-bold text-dark dark:text-white max-lg:text-heading-6">
           Dashboard
         </h1>
-        <p className="font-medium">
-          Brand And Com Social Media Management Dashboard Solution
+        <p className="font-medium max-[920px]:hidden">
+          Plan&apos;It Social Media Management Dashboard Solution
         </p>
       </div>
 
-      <div className="flex flex-1 items-center justify-end gap-2 min-[375px]:gap-4">
+      <div className="flex flex-1 items-center justify-end gap-2 min-[575px]:gap-4">
         <div className="relative w-full max-w-[300px]">
           <input
             type="search"

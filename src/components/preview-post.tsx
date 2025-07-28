@@ -19,16 +19,20 @@ export const FacebookPostPreview = ({
 }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
-    <div className="max-w-[500px] rounded-lg bg-white p-4 shadow-md">
+    <div className="max-w-[500px] rounded-lg bg-white p-4 shadow-md dark:bg-gray-800">
       <div className="mb-2 flex items-center gap-3">
-        <Facebook className="h-8 w-8 text-blue-600" />
+        <Facebook className="h-8 w-8 text-blue-600 dark:text-blue-500" />
         <div>
-          <div className="font-semibold text-gray-800">{pageName}</div>
-          <div className="text-xs text-gray-500">{timeAgo}</div>
+          <div className="font-semibold text-gray-800 dark:text-gray-200">
+            {pageName}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-300">
+            {timeAgo}
+          </div>
         </div>
       </div>
       <div
-        className="mb-2 whitespace-pre-wrap break-words text-gray-800"
+        className="mb-2 whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200"
         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
       />
       {media && media.length > 0 && (
@@ -82,7 +86,7 @@ export const FacebookPostPreview = ({
           )}
         </div>
       )}
-      <div className="mt-2 flex gap-4 text-sm text-gray-600">
+      <div className="mt-2 flex gap-4 text-sm text-gray-600 dark:text-gray-300">
         <span>Like</span>
         <span>Comment</span>
         <span>Share</span>
@@ -102,11 +106,13 @@ export const InstagramPostPreview = ({
 }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
-    <div className="max-w-[470px] rounded-lg bg-white shadow-md">
+    <div className="max-w-[470px] rounded-lg bg-white shadow-md dark:bg-gray-800">
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-3">
-          <Instagram className="h-8 w-8 text-pink-500" />
-          <div className="font-semibold text-gray-800">{pageName}</div>
+          <Instagram className="h-8 w-8 text-pink-500 dark:text-pink-400" />
+          <div className="font-semibold text-gray-800 dark:text-gray-200">
+            {pageName}
+          </div>
         </div>
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -116,14 +122,14 @@ export const InstagramPostPreview = ({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-6 w-6 text-gray-600"
+          className="h-6 w-6 text-gray-600 dark:text-gray-300"
         >
           <circle cx="12" cy="12" r="1.5"></circle>
           <circle cx="6" cy="12" r="1.5"></circle>
           <circle cx="18" cy="12" r="1.5"></circle>
         </svg>
       </div>
-      <div className="rounded-md border border-gray-300">
+      <div className="rounded-md border border-gray-300 dark:border-gray-600">
         {media && media.length > 0 ? (
           <div className="relative">
             {media.length === 1 ? (
@@ -172,21 +178,25 @@ export const InstagramPostPreview = ({
             )}
           </div>
         ) : (
-          <div className="flex aspect-square items-center justify-center rounded-t-md bg-gray-200 text-gray-400">
+          <div className="flex aspect-square items-center justify-center rounded-t-md bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500">
             Image/Video Placeholder
           </div>
         )}
         <div className="p-3">
           <div className="mb-1 flex items-center gap-2">
-            <Instagram className="h-5 w-5 text-pink-500" />
-            <span className="font-semibold text-gray-800">Instagram User</span>
-            <span className="ml-1 text-xs text-gray-500">{timeAgo}</span>
+            <Instagram className="h-5 w-5 text-pink-500 dark:text-pink-400" />
+            <span className="font-semibold text-gray-800 dark:text-gray-200">
+              Instagram User
+            </span>
+            <span className="ml-1 text-xs text-gray-500 dark:text-gray-300">
+              {timeAgo}
+            </span>
           </div>
           <div
-            className="whitespace-pre-wrap break-words text-gray-800"
+            className="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
           />
-          <div className="mt-2 text-sm text-gray-600">
+          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
             <span>Like</span>
             <span>Comment</span>
           </div>
@@ -207,20 +217,24 @@ export const LinkedinPostPreview = ({
 }) => {
   const timeAgo = formatDistanceToNow(new Date(), { addSuffix: true });
   return (
-    <div className="max-w-[550px] rounded-lg bg-white p-4 shadow-md">
+    <div className="max-w-[550px] rounded-lg bg-white p-4 shadow-md dark:bg-gray-800">
       <div className="mb-2 flex items-center gap-3">
-        <Linkedin className="h-8 w-8 text-blue-700" />
+        <Linkedin className="h-8 w-8 text-blue-700 dark:text-blue-600" />
         <div>
-          <div className="font-semibold text-gray-800">{pageName}</div>
-          <div className="text-xs text-gray-500">{timeAgo}</div>
+          <div className="font-semibold text-gray-800 dark:text-gray-200">
+            {pageName}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-300">
+            {timeAgo}
+          </div>
         </div>
       </div>
       <div
-        className="mb-2 whitespace-pre-wrap break-words text-gray-800"
+        className="mb-2 whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200"
         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
       />
       {media && media.length > 0 && (
-        <div className="mt-2 overflow-hidden rounded-md border border-gray-200">
+        <div className="mt-2 overflow-hidden rounded-md">
           {media.length === 1 ? (
             media[0].startsWith("data:video") ||
             media[0].endsWith(".mp4") ||
@@ -270,7 +284,7 @@ export const LinkedinPostPreview = ({
           )}
         </div>
       )}
-      <div className="mt-2 flex gap-4 text-sm text-gray-600">
+      <div className="mt-2 flex gap-4 text-sm text-gray-600 dark:text-gray-300">
         <span>Like</span>
         <span>Comment</span>
         <span>Share</span>

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   format,
   isSameDay,
+  isSameMonth,
   startOfWeek,
   endOfWeek,
   addWeeks,
@@ -36,6 +37,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
   useDroppable,
 } from "@dnd-kit/core";
 import {
@@ -47,6 +50,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import * as postService from "@/services/postService";
+import * as moderatorsService from "@/services/moderatorsService";
+import { getCurrentUser } from "@/services/userService";
 import { useRouter } from "next/navigation";
 import {
   usePostWebSocket,
@@ -55,24 +60,16 @@ import {
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { SocialPage } from "@/types/social-page";
+import { GetUser } from "@/types/user";
 import {
   FacebookPostPreview,
   InstagramPostPreview,
   LinkedinPostPreview,
-} from "../postCreate/preview-post";
+} from "../preview-post";
 import UserPresence from "../UserPresence/UserPresence";
 import Link from "next/link";
-
-interface Creator {
-  id: string;
-  full_name: string;
-  type: "client" | "team_member";
-}
-
-interface Client {
-  id: string;
-  full_name: string;
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Button } from "../ui/button";
 
 interface ScheduledPost {
   id: string;
@@ -80,17 +77,32 @@ interface ScheduledPost {
   platform: "Facebook" | "Instagram" | "LinkedIn";
   platformPage: SocialPage;
   mediaFiles?: Array<{ id: string; preview: string }>;
+  media?: Array<{
+    id: number;
+    file: string;
+    name: string;
+    uploaded_at: string;
+    file_type: string;
+  }>;
   description: string;
   scheduled_for: string;
   status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: Creator;
-  client?: Client | undefined;
+  creator?: Partial<GetUser> & {
+    id: string;
+    full_name: string;
+    type?: "client" | "team_member";
+  };
+  client?: Partial<GetUser> & {
+    id: string;
+    full_name: string;
+  };
 }
 
+// Global platform icons - used throughout the component
 const platformIcons = {
-  Facebook: <FaFacebook className="text-blue-600" />,
-  Instagram: <FaInstagram className="text-pink-500" />,
-  LinkedIn: <FaLinkedin className="text-blue-700" />,
+  Facebook: <FaFacebook className="text-blue-600 dark:text-blue-300" />,
+  Instagram: <FaInstagram className="text-pink-500 dark:text-pink-300" />,
+  LinkedIn: <FaLinkedin className="text-blue-700 dark:text-blue-300" />,
 };
 
 // Draggable Post Card Component
@@ -101,13 +113,19 @@ const PostCard = React.memo(
     onPostClick,
     onApprove,
     onReject,
+    canApproveReject = false,
   }: {
     post: ScheduledPost;
     color: string;
     onPostClick: (post: ScheduledPost) => void;
     onApprove: (postId: string) => void;
     onReject: (postId: string) => void;
+    canApproveReject?: boolean;
   }) => {
+    const isPublished = post.status === "published";
+    const isPendingAndCantApprove =
+      post.status === "pending" && !canApproveReject;
+
     const {
       attributes,
       listeners,
@@ -115,58 +133,99 @@ const PostCard = React.memo(
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: post.id });
+    } = useSortable({
+      id: post.id,
+      disabled: isPublished || isPendingAndCantApprove, // Disable dragging for published posts and pending posts for CMs
+    });
 
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
     };
 
+    const postDate = new Date(post.scheduled_for);
+    const isToday = isSameDay(postDate, new Date());
+
     return (
       <div
         ref={setNodeRef}
         style={style}
         {...attributes}
-        {...listeners}
-        className={`mb-2 cursor-pointer rounded-lg ${color} p-3 text-sm shadow-sm transition-all ${
-          isDragging
-            ? "z-50 rotate-2 scale-105 opacity-50 shadow-lg"
-            : "hover:shadow-md"
+        {...(isPublished || isPendingAndCantApprove ? {} : listeners)} // Only add listeners if dragging is allowed
+        className={`mb-2 rounded-lg ${color} border border-gray-300 bg-white p-3 text-sm text-black transition-all hover:shadow-sm dark:border-gray-800 dark:bg-gray-dark dark:text-gray-1 ${
+          isPublished || isPendingAndCantApprove
+            ? "cursor-default opacity-75" // Published posts and restricted pending posts are not draggable
+            : isDragging
+              ? "cursor-grabbing opacity-80"
+              : "cursor-grab hover:shadow-md active:cursor-grabbing"
         }`}
-        onClick={() => onPostClick(post)}
+        title={
+          isPublished
+            ? "Published posts cannot be moved"
+            : isPendingAndCantApprove
+              ? "You don't have permission to approve/reject posts"
+              : "Drag to change status"
+        }
       >
-        <div className="flex flex-wrap justify-between gap-2">
-          <span className="font-medium">{post.title}</span>
-          <span className="text-xs opacity-75">
-            {format(new Date(post.scheduled_for), "PPpp")}
-          </span>
-        </div>
-        <div className="mt-3 flex items-center gap-2 text-xs">
-          {platformIcons[post.platform]} <span>{post.platform}</span>
-        </div>
-
-        {post.status === "pending" && (
-          <div className="mt-2 flex gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onApprove(post.id);
-              }}
-              className="rounded-md bg-green-500 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-green-600"
-            >
-              Approve
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onReject(post.id);
-              }}
-              className="rounded-md bg-red-500 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-red-600"
-            >
-              Reject
-            </button>
+        {/* Clickable content area */}
+        <div
+          className="cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPostClick(post);
+          }}
+        >
+          <div className="flex flex-wrap justify-between gap-2">
+            <span className="font-medium">{post.title}</span>
+            <span className="text-xs opacity-75">
+              {isToday
+                ? format(postDate, "HH:mm")
+                : format(postDate, "d MMM, HH:mm")}
+            </span>
           </div>
-        )}
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            {platformIcons[post.platform]} <span>{post.platform}</span>
+          </div>
+
+          {post.status === "pending" && canApproveReject && (
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApprove(post.id);
+                }}
+                className="rounded-md bg-green-500 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors dark:bg-green-600 dark:hover:bg-green-700"
+              >
+                Approve
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReject(post.id);
+                }}
+                className="rounded-md bg-red-500 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800"
+              >
+                Reject
+              </button>
+            </div>
+          )}
+
+          {post.status === "pending" && !canApproveReject && (
+            <div className="mt-2">
+              <span className="inline-block rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                ⏳ Awaiting approval
+              </span>
+            </div>
+          )}
+
+          {isPublished && (
+            <div className="mt-2">
+              <span className="inline-block rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+                📱 Published
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     );
   },
@@ -186,6 +245,7 @@ const DroppableColumn = React.memo(
     onPostClick,
     onApprove,
     onReject,
+    canApproveReject = false,
   }: {
     droppableId: string;
     title: string;
@@ -196,6 +256,7 @@ const DroppableColumn = React.memo(
     onPostClick: (post: ScheduledPost) => void;
     onApprove: (postId: string) => void;
     onReject: (postId: string) => void;
+    canApproveReject?: boolean;
   }) => {
     const { setNodeRef, isOver } = useDroppable({
       id: droppableId,
@@ -204,8 +265,8 @@ const DroppableColumn = React.memo(
     return (
       <div
         ref={setNodeRef}
-        className={`rounded-lg border border-stroke ${bgColor} p-4 dark:border-dark-3 dark:bg-gray-dark ${
-          isOver ? "border-2 border-dashed border-primary bg-primary/5" : ""
+        className={`rounded-lg border border-stroke ${bgColor} p-4 transition-all dark:border-dark dark:bg-gray-dark ${
+          isOver ? "transform bg-primary/10 shadow-lg" : ""
         }`}
       >
         <h3 className={`mb-4 text-lg font-semibold ${titleColor}`}>
@@ -215,7 +276,9 @@ const DroppableColumn = React.memo(
           items={posts.map((post) => post.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="min-h-[200px] transition-colors">
+          <div
+            className={`min-h-[200px] transition-colors ${isOver ? "border-t-2 border-primary border-opacity-70 dark:border-purple-500" : "border-t-2 border-transparent"}`}
+          >
             {posts.length > 0 ? (
               posts.map((post) => (
                 <PostCard
@@ -225,10 +288,11 @@ const DroppableColumn = React.memo(
                   onPostClick={onPostClick}
                   onApprove={onApprove}
                   onReject={onReject}
+                  canApproveReject={canApproveReject}
                 />
               ))
             ) : (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-8 transition-all">
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   {isOver ? "Drop here" : `No ${title.toLowerCase()} posts.`}
                 </p>
@@ -250,6 +314,7 @@ const PostTable = ({
   calendarView,
   onPostClick,
   onDragEnd,
+  canApproveReject = false,
 }: {
   posts: ScheduledPost[];
   onRefresh: () => void;
@@ -257,9 +322,16 @@ const PostTable = ({
   calendarView: "week" | "month" | "quarter" | "year";
   onPostClick: (post: ScheduledPost) => void;
   onDragEnd: (event: DragEndEvent) => void;
+  canApproveReject?: boolean;
 }) => {
+  const [activeId, setActiveId] = useState<string | null>(null);
+
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 15, // Increased distance to prevent accidental drags during clicks
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -369,7 +441,7 @@ const PostTable = ({
           </div>
         </div>
         <div className="rounded-lg border border-stroke bg-green-50 p-4 dark:border-dark-3 dark:bg-gray-dark">
-          <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-300">
+          <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-500">
             Posted (0)
           </h3>
           <div className="flex min-h-[200px] items-center justify-center">
@@ -382,11 +454,26 @@ const PostTable = ({
     );
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
+    onDragEnd(event);
+  };
+
+  // Find the active post for the drag overlay
+  const activePost = activeId
+    ? posts.find((post) => post.id === activeId)
+    : null;
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragEnd={onDragEnd}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
     >
       <div className="grid grid-cols-4 gap-4">
         <DroppableColumn
@@ -394,12 +481,13 @@ const PostTable = ({
           droppableId="pending"
           title="Pending"
           posts={pendingPosts}
-          bgColor="bg-yellow-50"
-          titleColor="text-yellow-600 dark:text-yellow-300"
-          cardColor="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800"
+          bgColor="bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-30"
+          titleColor="text-yellow-600 dark:text-yellow-500"
+          cardColor="hover:bg-yellow-100 dark:bg-yellow-900 dark:hover:bg-yellow-800"
           onPostClick={onPostClick}
           onApprove={handleApprove}
           onReject={handleReject}
+          canApproveReject={canApproveReject}
         />
 
         <DroppableColumn
@@ -407,12 +495,13 @@ const PostTable = ({
           droppableId="rejected"
           title="Rejected"
           posts={rejectedPosts}
-          bgColor="bg-red-50"
-          titleColor="text-red-600 dark:text-red-300"
-          cardColor="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
+          bgColor="bg-red-50 dark:bg-red-900 dark:bg-opacity-20"
+          titleColor="text-red-600 dark:text-red-700"
+          cardColor="hover:bg-red-100 dark:bg-red-900 dark:hover:bg-red-800"
           onPostClick={onPostClick}
           onApprove={handleApprove}
           onReject={handleReject}
+          canApproveReject={canApproveReject}
         />
 
         <DroppableColumn
@@ -420,12 +509,13 @@ const PostTable = ({
           droppableId="scheduled"
           title="Scheduled"
           posts={scheduledPosts}
-          bgColor="bg-purple-50"
+          bgColor="bg-purple-50 dark:bg-purple-950 dark:bg-opacity-30"
           titleColor="dark:text-primary-dark text-primary"
-          cardColor="bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+          cardColor="hover:bg-blue-100 dark:bg-blue-900 dark:hover:bg-blue-800"
           onPostClick={onPostClick}
           onApprove={handleApprove}
           onReject={handleReject}
+          canApproveReject={canApproveReject}
         />
 
         <DroppableColumn
@@ -433,12 +523,13 @@ const PostTable = ({
           droppableId="published"
           title="Posted"
           posts={postedPosts}
-          bgColor="bg-green-50"
-          titleColor="text-green-600 dark:text-green-300"
-          cardColor="bg-green-200 text-green-800 hover:bg-green-300 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
+          bgColor="bg-green-50 dark:bg-green-900 dark:bg-opacity-30"
+          titleColor="text-green-600 dark:text-green-500"
+          cardColor="hover:bg-green-100 dark:bg-green-800 dark:hover:bg-green-900"
           onPostClick={onPostClick}
           onApprove={handleApprove}
           onReject={handleReject}
+          canApproveReject={canApproveReject}
         />
       </div>
 
@@ -450,6 +541,25 @@ const PostTable = ({
           Create New Post
         </button>
       </Link>
+
+      <DragOverlay>
+        {activePost ? (
+          <div className="mb-2 scale-105 transform cursor-grabbing rounded-lg bg-blue-50 p-3 text-sm opacity-85 shadow-lg ring-2 ring-primary ring-opacity-30 dark:bg-purple-900 dark:text-blue-50">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className="font-medium">{activePost.title}</span>
+              <span className="text-xs opacity-75">
+                {isSameDay(new Date(activePost.scheduled_for), new Date())
+                  ? format(new Date(activePost.scheduled_for), "HH:mm")
+                  : format(new Date(activePost.scheduled_for), "d MMM, HH:mm")}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-xs">
+              {platformIcons[activePost.platform]}{" "}
+              <span>{activePost.platform}</span>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 };
@@ -517,40 +627,62 @@ const CalendarBox = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchYear, setSearchYear] = useState<string>("");
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [allPosts, setAllPosts] = useState<ScheduledPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null);
   const [filterCreator, setFilterCreator] = useState<string | null>(null);
   const [filterClient, setFilterClient] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [assignedCMs, setAssignedCMs] = useState<GetUser[]>([]);
+  const [loadingCMs, setLoadingCMs] = useState(false);
+  const [currentUser, setCurrentUser] = useState<GetUser | null>(null);
+  // Feedback modal state
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [pendingRejection, setPendingRejection] = useState<{
+    postId: string;
+    postTitle: string;
+  } | null>(null);
+  // Multi-post selection modal state
+  const [showMultiPostModal, setShowMultiPostModal] = useState(false);
+  const [selectedDayPosts, setSelectedDayPosts] = useState<ScheduledPost[]>([]);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   // const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]; // Unused variable
   const router = useRouter();
+
+  // Check if current user can approve/reject posts (only moderators and admins)
+  const canApproveReject =
+    currentUser?.role === "moderator" ||
+    currentUser?.role === "administrator" ||
+    currentUser?.role === "super_administrator";
 
   // WebSocket integration for real-time updates
   const handleWebSocketMessage = useCallback(
     (message: PostWebSocketMessage) => {
       console.log("WebSocket message received:", message);
+      console.log("Message type:", message.type, "Action:", message.action);
 
       // Handle the message based on the type (which comes from our signal's type field)
       switch (message.type) {
         case "post_updated":
           // Check the action to determine what kind of update this is
-          if (message.action === "created" && message.post_data) {
-            console.log("New post created:", message.post_data);
+          if (message.action === "created" && message.data) {
+            console.log("New post created:", message.data);
             setScheduledPosts((prev) => [
               ...prev,
-              message.post_data as unknown as ScheduledPost,
+              message.data as unknown as ScheduledPost,
             ]);
             toast.success("New post created!");
           } else if (
             message.action === "updated" &&
-            message.post_data &&
+            message.data &&
             message.post_id
           ) {
-            console.log("Post updated:", message.post_data);
+            console.log("Post updated:", message.data);
             setScheduledPosts((prev) =>
               prev.map((p) =>
                 p.id === message.post_id
-                  ? (message.post_data as unknown as ScheduledPost)
+                  ? (message.data as unknown as ScheduledPost)
                   : p,
               ),
             );
@@ -563,7 +695,7 @@ const CalendarBox = () => {
             toast.info("Post deleted!");
           } else if (
             message.action === "status_changed" &&
-            message.post_data &&
+            message.data &&
             message.post_id
           ) {
             console.log(
@@ -572,11 +704,14 @@ const CalendarBox = () => {
             setScheduledPosts((prev) =>
               prev.map((p) =>
                 p.id === message.post_id
-                  ? (message.post_data as unknown as ScheduledPost)
+                  ? (message.data as unknown as ScheduledPost)
                   : p,
               ),
             );
-            toast.success(`Post status changed to ${message.new_status}!`);
+            // Only show toast if this update is from another user
+            if (message.user_id !== "self") {
+              toast.success(`Post status changed to ${message.new_status}!`);
+            }
           }
           break;
 
@@ -590,28 +725,56 @@ const CalendarBox = () => {
           break;
       }
     },
-    [],
+    [], // Remove the dependency that was causing infinite re-renders
   );
 
   usePostWebSocket(handleWebSocketMessage);
 
-  const platformIcons = {
-    Facebook: <FaFacebook className="text-blue-600" />,
-    Instagram: <FaInstagram className="text-pink-500" />,
-    LinkedIn: <FaLinkedin className="text-blue-700" />,
-  };
-
-  const fetchScheduledPosts = async (
-    creatorFilter?: string | null,
-    statusFilter?: string | null,
-    clientFilter?: string | null,
-  ) => {
-    setLoadingPosts(true);
+  const fetchAssignedCMs = useCallback(async () => {
+    setLoadingCMs(true);
     try {
-      const posts = (await postService.getScheduledPosts()) as ScheduledPost[];
-      // Apply filters if they exist
-      const filteredPosts = posts
-        .map((post) => ({
+      const result = await moderatorsService.getAssignedCommunityManagers();
+      if (Array.isArray(result)) {
+        setAssignedCMs(result);
+      } else {
+        console.error("Error fetching assigned CMs:", result.error);
+        setAssignedCMs([]);
+      }
+    } catch (error) {
+      console.error("Error fetching assigned CMs:", error);
+      setAssignedCMs([]);
+    } finally {
+      setLoadingCMs(false);
+    }
+  }, []);
+
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      setCurrentUser(null);
+    }
+  }, []);
+
+  const fetchScheduledPosts = useCallback(
+    async (
+      creatorFilter?: string | null,
+      statusFilter?: string | null,
+      clientFilter?: string | null,
+    ) => {
+      setLoadingPosts(true);
+      try {
+        const posts =
+          (await postService.getScheduledPosts()) as ScheduledPost[];
+
+        console.log("Current user:", currentUser);
+        console.log("Total posts fetched:", posts.length);
+        console.log("Assigned CMs:", assignedCMs);
+
+        // Format all posts first
+        const allPostsFormatted = posts.map((post) => ({
           ...post,
           creator: post.creator
             ? {
@@ -619,8 +782,68 @@ const CalendarBox = () => {
                 type: post.creator.type as "client" | "team_member",
               }
             : undefined,
-        }))
-        .filter((post) => {
+        }));
+
+        // Filter posts to only include those from assigned CMs, the moderator, or posts for the current client
+        const authorizedPosts = allPostsFormatted.filter((post) => {
+          // Check if creator is an assigned CM
+          const isAssignedCM = assignedCMs.some(
+            (cm) => cm.full_name === post.creator?.full_name,
+          );
+
+          // Check if creator is the current moderator
+          const isModerator =
+            currentUser && post.creator?.full_name === currentUser.full_name;
+
+          // Check if the current user is the client for this post (using email for better matching)
+          const isClient =
+            currentUser &&
+            post.client &&
+            (post.client.email === currentUser.email ||
+              post.client.full_name === currentUser.full_name ||
+              post.client.id === currentUser.id);
+
+          // Debug logging for client posts
+          if (currentUser && post.client) {
+            console.log("Checking client post:", {
+              postId: post.id,
+              postTitle: post.title,
+              clientEmail: post.client.email,
+              clientFullName: post.client.full_name,
+              clientId: post.client.id,
+              currentUserEmail: currentUser.email,
+              currentUserFullName: currentUser.full_name,
+              currentUserId: currentUser.id,
+              isClient: isClient,
+            });
+          }
+
+          return isAssignedCM || isModerator || isClient;
+        });
+
+        console.log("Authorized posts:", authorizedPosts.length);
+        console.log("Filtered posts breakdown:", {
+          assignedCMPosts: authorizedPosts.filter((post) =>
+            assignedCMs.some((cm) => cm.full_name === post.creator?.full_name),
+          ).length,
+          moderatorPosts: authorizedPosts.filter(
+            (post) =>
+              currentUser && post.creator?.full_name === currentUser.full_name,
+          ).length,
+          clientPosts: authorizedPosts.filter(
+            (post) =>
+              currentUser &&
+              post.client &&
+              (post.client.email === currentUser.email ||
+                post.client.full_name === currentUser.full_name ||
+                post.client.id === currentUser.id),
+          ).length,
+        });
+
+        setAllPosts(authorizedPosts);
+
+        // Apply additional filters for display
+        const filteredPosts = authorizedPosts.filter((post) => {
           const matchesCreator = creatorFilter
             ? post.creator?.full_name === creatorFilter
             : true;
@@ -632,51 +855,32 @@ const CalendarBox = () => {
             : true;
           return matchesCreator && matchesStatus && matchesClient;
         });
-      setScheduledPosts(filteredPosts);
-    } catch (error) {
-      console.error("Error fetching scheduled posts:", error);
-    } finally {
-      setLoadingPosts(false);
-    }
-  };
-  useEffect(() => {
-    fetchScheduledPosts(filterCreator, filterStatus);
-  }, [filterCreator, filterStatus, filterClient, currentDate, calendarView]);
 
-  const applyFilters = useCallback(
-    (posts: ScheduledPost[]) => {
-      return posts.filter((post) => {
-        const matchesStatus = filterStatus
-          ? post.status === filterStatus
-          : true;
-        const matchesCreator = filterCreator
-          ? post.creator?.full_name === filterCreator
-          : true;
-        // const matchesClient = filterClient
-        //   ? post.client?.name === filterClient
-        //   : true;
-        return matchesStatus && matchesCreator;
-      });
-    },
-    [filterStatus, filterCreator],
-  );
-
-  useEffect(() => {
-    const fetchFilteredPosts = async () => {
-      setLoadingPosts(true);
-      try {
-        const posts =
-          (await postService.getScheduledPosts()) as ScheduledPost[];
-        setScheduledPosts(applyFilters(posts));
+        setScheduledPosts(filteredPosts);
       } catch (error) {
         console.error("Error fetching scheduled posts:", error);
       } finally {
         setLoadingPosts(false);
       }
-    };
+    },
+    [assignedCMs, currentUser],
+  );
 
-    fetchFilteredPosts();
-  }, [filterStatus, currentDate, calendarView, applyFilters]);
+  useEffect(() => {
+    fetchAssignedCMs();
+    fetchCurrentUser();
+  }, [fetchAssignedCMs, fetchCurrentUser]);
+
+  useEffect(() => {
+    fetchScheduledPosts(filterCreator, filterStatus, filterClient);
+  }, [
+    fetchScheduledPosts,
+    filterCreator,
+    filterStatus,
+    filterClient,
+    currentDate,
+    calendarView,
+  ]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
     setCurrentDate(date);
@@ -982,11 +1186,6 @@ const CalendarBox = () => {
                 startOfQuarter(currentDate),
                 monthOffset,
               );
-              function setDate(date: Date, day: number): Date {
-                const newDate = new Date(date);
-                newDate.setDate(day);
-                return newDate;
-              }
 
               return (
                 <div
@@ -998,21 +1197,73 @@ const CalendarBox = () => {
                     {format(monthDate, "MMMM")}
                   </h3>
                   <div className="grid grid-cols-7 gap-1">
-                    {eachDayOfInterval({
-                      start: startOfMonth(monthDate),
-                      end: setDate(endOfMonth(monthDate), 7),
-                    }).map((day, i) => (
-                      <div
-                        key={i}
-                        className={`flex h-8 items-center justify-center rounded text-sm ${
-                          isSameDay(day, new Date())
-                            ? "dark:bg-primary-dark bg-primary text-white"
-                            : "hover:bg-gray-2 dark:hover:bg-dark-2"
-                        }`}
-                      >
-                        {i < 7 ? format(day, "EEEEE") : format(day, "d")}
-                      </div>
-                    ))}
+                    {/* Day headers */}
+                    {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(
+                      (dayName) => (
+                        <div
+                          key={dayName}
+                          className="h-6 text-center text-xs font-medium text-gray-500 dark:text-gray-400"
+                        >
+                          {dayName}
+                        </div>
+                      ),
+                    )}
+
+                    {/* Calendar days */}
+                    {(() => {
+                      const monthStart = startOfMonth(monthDate);
+                      const firstDay = monthStart.getDay();
+                      const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Adjust for Monday start
+
+                      // Get all days to display (previous month + current month + next month to fill grid)
+                      const startDate = addDays(monthStart, -startOffset);
+                      const endDate = addDays(startDate, 41); // 6 weeks * 7 days = 42 days
+
+                      return eachDayOfInterval({
+                        start: startDate,
+                        end: endDate,
+                      }).map((day, i) => {
+                        const isCurrentMonth = isSameMonth(day, monthDate);
+                        const dayPosts = scheduledPosts.filter((post) =>
+                          isSameDay(new Date(post.scheduled_for), day),
+                        );
+
+                        return (
+                          <div
+                            key={i}
+                            className={`relative flex h-8 cursor-pointer items-center justify-center rounded text-sm ${
+                              isSameDay(day, new Date())
+                                ? "dark:bg-primary-dark bg-primary text-white"
+                                : isCurrentMonth && dayPosts.length > 0
+                                  ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800 dark:text-green-200 dark:hover:bg-green-700"
+                                  : isCurrentMonth
+                                    ? "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-2"
+                                    : "text-gray-400 dark:text-gray-600"
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isCurrentMonth && dayPosts.length > 0) {
+                                if (dayPosts.length === 1) {
+                                  setSelectedPost(dayPosts[0]);
+                                } else {
+                                  // Show multi-post modal
+                                  setSelectedDayPosts(dayPosts);
+                                  setSelectedDay(day);
+                                  setShowMultiPostModal(true);
+                                }
+                              }
+                            }}
+                          >
+                            <span className="text-xs">{format(day, "d")}</span>
+                            {isCurrentMonth && dayPosts.length > 1 && (
+                              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                                {dayPosts.length}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               );
@@ -1022,12 +1273,6 @@ const CalendarBox = () => {
       }
 
       case "year": {
-        function subDays(date: Date, amount: number): Date {
-          const newDate = new Date(date);
-          newDate.setDate(newDate.getDate() - amount);
-          return newDate;
-        }
-
         return (
           <table className="w-full">
             <tbody>
@@ -1044,20 +1289,6 @@ const CalendarBox = () => {
                       startOfYear(currentDate),
                       monthIndex,
                     );
-                    const monthStart = startOfMonth(monthDate);
-
-                    // Get first day of month and calculate offset for week start
-                    const firstDay = monthStart.getDay(); // 0 (Sun) to 6 (Sat)
-                    const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Adjust for Monday start
-
-                    // Create complete weeks array (6 weeks to cover all possibilities)
-                    const weeks = [];
-                    let weekStartDate = subDays(monthStart, startOffset);
-
-                    for (let i = 0; i < 6; i++) {
-                      weeks.push(weekStartDate);
-                      weekStartDate = addDays(weekStartDate, 7);
-                    }
 
                     function isSameMonth(date1: Date, date2: Date): boolean {
                       return (
@@ -1081,57 +1312,80 @@ const CalendarBox = () => {
                         >
                           {format(monthDate, "MMMM")}
                         </div>
-                        <table className="w-full">
-                          <thead>
-                            <tr className="text-xs">
-                              {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(
-                                (day) => (
-                                  <th
-                                    key={day}
-                                    className="h-8 text-center font-medium"
-                                  >
-                                    {day}
-                                  </th>
-                                ),
-                              )}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {weeks.map((weekStart) => {
-                              const weekDays = eachDayOfInterval({
-                                start: weekStart,
-                                end: addDays(weekStart, 6),
-                              });
+                        <div className="grid grid-cols-7 gap-1">
+                          {/* Day headers */}
+                          {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(
+                            (dayName) => (
+                              <div
+                                key={dayName}
+                                className="h-6 text-center text-xs font-medium text-gray-500 dark:text-gray-400"
+                              >
+                                {dayName}
+                              </div>
+                            ),
+                          )}
+
+                          {/* Calendar days */}
+                          {(() => {
+                            const monthStart = startOfMonth(monthDate);
+                            const firstDay = monthStart.getDay();
+                            const startOffset =
+                              firstDay === 0 ? 6 : firstDay - 1; // Adjust for Monday start
+
+                            // Get all days to display (previous month + current month + next month to fill grid)
+                            const startDate = addDays(monthStart, -startOffset);
+                            const endDate = addDays(startDate, 41); // 6 weeks * 7 days = 42 days
+
+                            return eachDayOfInterval({
+                              start: startDate,
+                              end: endDate,
+                            }).map((day, i) => {
+                              const isCurrentMonth = isSameMonth(
+                                day,
+                                monthDate,
+                              );
+                              const isToday = isSameDay(day, new Date());
+                              const dayPosts = scheduledPosts.filter((post) =>
+                                isSameDay(new Date(post.scheduled_for), day),
+                              );
 
                               return (
-                                <tr key={weekStart.toString()}>
-                                  {weekDays.map((day, dayIndex) => {
-                                    const isCurrentMonth = isSameMonth(
-                                      day,
-                                      monthDate,
-                                    );
-                                    const isToday = isSameDay(day, new Date());
-
-                                    return (
-                                      <td
-                                        key={dayIndex}
-                                        className={`h-8 text-center text-sm ${
-                                          !isCurrentMonth ? "opacity-50" : ""
-                                        } ${
-                                          isToday
-                                            ? "dark:bg-primary-dark rounded-full bg-primary text-white"
-                                            : "text-dark dark:text-white"
-                                        }`}
-                                      >
-                                        {isCurrentMonth ? format(day, "d") : ""}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
+                                <div
+                                  key={i}
+                                  className={`relative flex h-6 cursor-pointer items-center justify-center rounded text-xs ${
+                                    isToday
+                                      ? "dark:bg-primary-dark bg-primary text-white"
+                                      : isCurrentMonth && dayPosts.length > 0
+                                        ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800 dark:text-green-200 dark:hover:bg-green-700"
+                                        : isCurrentMonth
+                                          ? "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-2"
+                                          : "text-gray-400 dark:text-gray-600"
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isCurrentMonth && dayPosts.length > 0) {
+                                      if (dayPosts.length === 1) {
+                                        setSelectedPost(dayPosts[0]);
+                                      } else {
+                                        // Show multi-post modal
+                                        setSelectedDayPosts(dayPosts);
+                                        setSelectedDay(day);
+                                        setShowMultiPostModal(true);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <span>{format(day, "d")}</span>
+                                  {isCurrentMonth && dayPosts.length > 1 && (
+                                    <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                                      {dayPosts.length}
+                                    </span>
+                                  )}
+                                </div>
                               );
-                            })}
-                          </tbody>
-                        </table>
+                            });
+                          })()}
+                        </div>
                       </td>
                     );
                   })}
@@ -1155,7 +1409,9 @@ const CalendarBox = () => {
 
     const platform = selectedPost.platform;
     const mediaArray =
-      selectedPost.mediaFiles?.map((file) => file.preview) || undefined;
+      selectedPost.mediaFiles?.map((file) => file.preview) ||
+      selectedPost.media?.map((media) => media.file) ||
+      undefined;
 
     const socialPage = selectedPost.platformPage;
 
@@ -1204,24 +1460,15 @@ const CalendarBox = () => {
       return;
     }
 
-    // 2. Do nothing if the item is dropped in the same place
-    if (active.id === over.id) {
-      console.log("Dropped in same place, no change");
-      return;
-    }
-
-    // 3. Find the dragged post
+    // 2. Find the dragged post to get its current status
     const draggedPost = scheduledPosts.find((p) => p.id === active.id);
     if (!draggedPost) {
       console.error("Could not find dragged post with id:", active.id);
       return;
     }
 
-    // 4. Update the status of the post based on the destination column
+    // 3. Get the destination column status
     const validDroppableIds = ["pending", "rejected", "scheduled", "published"];
-    // For @dnd-kit, we need to determine the droppable area from the over element
-    // We'll need to implement this logic based on your UI structure
-    // For now, let's assume the over.id tells us the column
     const destinationColumn = over.id;
 
     if (!validDroppableIds.includes(destinationColumn as string)) {
@@ -1230,18 +1477,146 @@ const CalendarBox = () => {
     }
 
     const newStatus = destinationColumn as ScheduledPost["status"];
-    console.log("Updating post status to:", newStatus);
 
-    // OPTIMISTIC UPDATE: Update the UI immediately for a smooth experience
+    // 4. Do nothing if the item is dropped in the same status column
+    if (draggedPost.status === newStatus) {
+      console.log("Dropped in same status column, no change needed");
+      return;
+    }
+
+    // 5. VALIDATE MOVEMENT RULES
+    const isValidMove = validatePostMovement(draggedPost.status, newStatus);
+    if (!isValidMove.valid) {
+      toast.error(isValidMove.message);
+      return;
+    }
+
+    // 5.5. CHECK USER PERMISSIONS for approval actions
+    if (
+      !canApproveReject &&
+      ((draggedPost.status === "pending" && newStatus === "scheduled") ||
+        (draggedPost.status === "pending" && newStatus === "rejected"))
+    ) {
+      toast.error(
+        "You don't have permission to approve or reject posts. Only moderators can approve/reject posts.",
+      );
+      return;
+    }
+
+    // 6. Check if this is a rejection - show feedback modal
+    if (newStatus === "rejected") {
+      setPendingRejection({
+        postId: draggedPost.id,
+        postTitle:
+          draggedPost.title || draggedPost.description.substring(0, 50) + "...",
+      });
+      setShowFeedbackModal(true);
+      return;
+    }
+
+    console.log(
+      "Updating post status from",
+      draggedPost.status,
+      "to:",
+      newStatus,
+    );
+
+    // 7. OPTIMISTIC UPDATE: Update the UI immediately for a smooth experience
     setScheduledPosts((prevPosts) =>
       prevPosts.map((post) =>
         post.id === active.id ? { ...post, status: newStatus } : post,
       ),
     );
 
-    // 5. PERSIST THE CHANGE: Call your backend API to save the new status
-    // This is a crucial step!
+    // 8. PERSIST THE CHANGE: Call your backend API to save the new status
     handlePostStatusUpdate(draggedPost.id, newStatus);
+  };
+
+  // Validate post movement rules
+  const validatePostMovement = (
+    currentStatus: ScheduledPost["status"],
+    newStatus: ScheduledPost["status"],
+  ): { valid: boolean; message: string } => {
+    const rules: Record<
+      string,
+      Record<string, { valid: boolean; message: string }>
+    > = {
+      pending: {
+        scheduled: { valid: true, message: "" },
+        rejected: { valid: true, message: "" },
+        published: {
+          valid: false,
+          message: "Posts must be scheduled before publishing",
+        },
+      },
+      rejected: {
+        pending: { valid: true, message: "" },
+        scheduled: {
+          valid: false,
+          message: "Rejected posts must be resubmitted as pending first",
+        },
+        published: {
+          valid: false,
+          message: "Rejected posts cannot be published directly",
+        },
+      },
+      scheduled: {
+        published: { valid: true, message: "" },
+        rejected: { valid: true, message: "" },
+        pending: {
+          valid: false,
+          message: "Scheduled posts cannot be moved back to pending",
+        },
+      },
+      published: {
+        pending: { valid: false, message: "Published posts cannot be moved" },
+        rejected: { valid: false, message: "Published posts cannot be moved" },
+        scheduled: { valid: false, message: "Published posts cannot be moved" },
+      },
+    };
+
+    const rule = rules[currentStatus || ""]?.[newStatus || ""];
+    return rule || { valid: false, message: "Invalid status transition" };
+  };
+
+  // Feedback modal handlers
+  const handleRejectWithFeedback = async () => {
+    if (!pendingRejection) return;
+
+    try {
+      // Optimistically update UI
+      setScheduledPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.id === pendingRejection.postId
+            ? { ...post, status: "rejected" }
+            : post,
+        ),
+      );
+
+      // Call API with feedback
+      await postService.rejectPost(
+        parseInt(pendingRejection.postId),
+        feedbackText,
+      );
+
+      toast.success("Post rejected with feedback!");
+
+      // Clean up
+      setShowFeedbackModal(false);
+      setPendingRejection(null);
+      setFeedbackText("");
+    } catch (error) {
+      console.error("Failed to reject post:", error);
+      toast.error("Failed to reject post. Reverting change.");
+      // Revert optimistic update on error
+      fetchScheduledPosts();
+    }
+  };
+
+  const handleCancelRejection = () => {
+    setShowFeedbackModal(false);
+    setPendingRejection(null);
+    setFeedbackText("");
   };
 
   const handlePostStatusUpdate = async (
@@ -1249,13 +1624,16 @@ const CalendarBox = () => {
     newStatus: ScheduledPost["status"],
   ) => {
     try {
-      // Use existing approve/reject functions when available
+      // Use appropriate API endpoints based on status change
       if (newStatus === "scheduled") {
         await postService.approvePost(parseInt(postId));
       } else if (newStatus === "rejected") {
         await postService.rejectPost(parseInt(postId));
+      } else if (newStatus === "published") {
+        await postService.publishPost(parseInt(postId));
+      } else if (newStatus === "pending") {
+        await postService.resubmitPost(parseInt(postId));
       } else {
-        // For other status changes, you might need to implement a generic updatePostStatus function
         console.log(`Status change to ${newStatus} not yet implemented`);
         toast.info(
           `Status change to ${newStatus} noted (implementation needed)`,
@@ -1263,9 +1641,6 @@ const CalendarBox = () => {
         return;
       }
       toast.success(`Post moved to ${newStatus}!`);
-      // Optional: you can refetch all posts here to ensure data consistency,
-      // but the optimistic update often feels better to the user.
-      // fetchScheduledPosts();
     } catch (error) {
       console.error("Failed to update post status:", error);
       toast.error("Failed to update post status. Reverting change.");
@@ -1279,25 +1654,6 @@ const CalendarBox = () => {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <button
-            onClick={goToPrevious}
-            className="dark:bg-gray-dark-2 dark:hover:bg-gray-dark-3 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200 transition-all hover:bg-gray-300"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            onClick={goToNext}
-            className="dark:bg-gray-dark-2 dark:hover:bg-gray-dark-3 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200 transition-all hover:bg-gray-300"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-          <button
-            onClick={goToToday}
-            className="hover:bg-primary-dark dark:bg-primary-dark ml-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all dark:hover:bg-primary"
-          >
-            <CalendarDays className="h-4 w-4" />
-            <span className="hidden sm:block">Today</span>
-          </button>
-          <button
             onClick={() => fetchScheduledPosts()}
             disabled={loadingPosts}
             className="hover:bg-primary-dark dark:bg-primary-dark ml-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-all dark:hover:bg-primary"
@@ -1308,20 +1664,39 @@ const CalendarBox = () => {
             <span className="hidden sm:block">Refresh</span>
           </button>
         </div>
-
-        <h2 className="text-xl font-semibold dark:text-white sm:text-2xl">
-          {renderCalendarHeader()}
-        </h2>
-
+        <div className="flex items-center gap-14">
+          <button
+            onClick={goToPrevious}
+            className="dark:bg-gray-dark-2 dark:hover:bg-gray-dark-3 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200 text-gray-700 transition-all hover:bg-gray-300 dark:bg-gray-dark dark:text-white dark:hover:bg-gray-700"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <h2 className="text-xl font-semibold transition-all dark:text-white sm:text-2xl">
+            {renderCalendarHeader()}
+          </h2>
+          <button
+            onClick={goToNext}
+            className="dark:bg-gray-dark-2 dark:hover:bg-gray-dark-3 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200 text-gray-700 transition-all hover:bg-gray-300 dark:bg-gray-dark dark:text-white dark:hover:bg-gray-700"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={goToToday}
+            className="ml-2 flex items-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-300 dark:bg-gray-dark dark:text-white dark:hover:bg-gray-700"
+          >
+            <CalendarDays className="h-4 w-4" />
+            <span className="hidden sm:block">Today</span>
+          </button>
           {(["week", "month", "quarter", "year"] as const).map((view) => (
             <button
               key={view}
               onClick={() => setCalendarView(view)}
               className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition-all ${
                 calendarView === view
-                  ? "dark:bg-primary-dark bg-primary text-white shadow-sm"
-                  : "dark:hover:bg-gray-dark-3 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-dark dark:text-white"
+                  ? "dark:bg-primary-dark bg-primary text-white shadow-sm hover:bg-opacity-85"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-dark dark:text-white dark:hover:bg-gray-700"
               }`}
             >
               {view}
@@ -1361,43 +1736,61 @@ const CalendarBox = () => {
             <option value="rejected">Rejected</option>
           </select>
 
+          {/* Filter by Creators (CMs & Moderator) */}
           <select
             value={filterCreator || ""}
             onChange={(e) => setFilterCreator(e.target.value || null)}
             className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            disabled={loadingCMs}
           >
-            <option value="">All Creators</option>
+            <option value="">
+              {loadingCMs ? "Loading..." : "All Creators"}
+            </option>
+            {/* Assigned CMs */}
+            {assignedCMs.map((cm) => (
+              <option key={`cm-${cm.id}`} value={cm.full_name}>
+                {cm.full_name} (CM)
+              </option>
+            ))}
+            {/* Other creators from posts (including moderator) */}
             {Array.from(
               new Set(
-                scheduledPosts
+                allPosts
                   .map((post) => post.creator?.full_name)
-                  .filter(Boolean),
+                  .filter(Boolean)
+                  .filter(
+                    (creatorName) =>
+                      !assignedCMs.some((cm) => cm.full_name === creatorName),
+                  ),
               ),
             ).map((creatorName) => (
-              <option key={creatorName} value={creatorName}>
+              <option key={`creator-${creatorName}`} value={creatorName}>
                 {creatorName}
               </option>
             ))}
           </select>
-          {/* Filter by Client */}
-          <select
-            value={filterClient || ""}
-            onChange={(e) => setFilterClient(e.target.value || null)}
-            className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-          >
-            <option value="">All Clients</option>
-            {Array.from(
-              new Set(
-                scheduledPosts
-                  .map((post) => post.client?.full_name)
-                  .filter(Boolean),
-              ),
-            ).map((clientName) => (
-              <option key={clientName} value={clientName}>
-                {clientName}
-              </option>
-            ))}
-          </select>
+
+          {/* Filter by Client - Only show for moderators and admins */}
+          {canApproveReject && (
+            <select
+              value={filterClient || ""}
+              onChange={(e) => setFilterClient(e.target.value || null)}
+              className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            >
+              <option value="">All Clients</option>
+              {Array.from(
+                new Set(
+                  scheduledPosts
+                    .map((post) => post.client?.full_name)
+                    .filter(Boolean),
+                ),
+              ).map((clientName) => (
+                <option key={clientName} value={clientName}>
+                  {clientName}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -1456,6 +1849,7 @@ const CalendarBox = () => {
             calendarView={calendarView}
             onPostClick={setSelectedPost}
             onDragEnd={onDragEnd}
+            canApproveReject={canApproveReject}
           />
         )}
       </div>
@@ -1561,6 +1955,159 @@ const CalendarBox = () => {
                 className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-700"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback Modal for Rejection */}
+      <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Post with Feedback</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Post: {pendingRejection?.postTitle}
+              </label>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="feedback" className="text-sm font-medium">
+                Feedback (optional)
+              </label>
+              <textarea
+                id="feedback"
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Provide feedback to help improve this post..."
+                className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-[100px] w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={handleCancelRejection}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRejectWithFeedback}>
+              Reject
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Multi-Post Selection Modal */}
+      {showMultiPostModal && selectedDay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl transition-all dark:bg-gray-dark">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-dark-3">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                Posts for {format(selectedDay, "MMMM d, yyyy")} (
+                {selectedDayPosts.length} posts)
+              </h3>
+              <button
+                onClick={() => {
+                  setShowMultiPostModal(false);
+                  setSelectedDayPosts([]);
+                  setSelectedDay(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="max-h-96 space-y-3 overflow-y-auto p-6">
+              {selectedDayPosts.map((post) => (
+                <div
+                  key={post.id}
+                  onClick={() => {
+                    setSelectedPost(post);
+                    setShowMultiPostModal(false);
+                    setSelectedDayPosts([]);
+                    setSelectedDay(null);
+                  }}
+                  className="cursor-pointer rounded-lg border border-gray-200 p-4 transition-all hover:bg-gray-50 hover:shadow-md dark:border-dark-3 dark:hover:bg-dark-2"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        {post.title || "Untitled Post"}
+                      </h4>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                        {post.description.length > 100
+                          ? post.description.substring(0, 100) + "..."
+                          : post.description}
+                      </p>
+                      <div className="mt-2 flex items-center gap-3">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {format(new Date(post.scheduled_for), "h:mm a")}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            post.status === "published"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : post.status === "scheduled"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                : post.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                  : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                          }`}
+                        >
+                          {post.status}
+                        </span>
+                        <span
+                          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                            post.platform === "Facebook"
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              : post.platform === "Instagram"
+                                ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                          }`}
+                        >
+                          {post.platform === "Facebook" && (
+                            <FaFacebook className="h-3 w-3" />
+                          )}
+                          {post.platform === "Instagram" && (
+                            <FaInstagram className="h-3 w-3" />
+                          )}
+                          {post.platform === "LinkedIn" && (
+                            <FaLinkedin className="h-3 w-3" />
+                          )}
+                          {post.platform}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex flex-col gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/editPost/${post.id}`);
+                        }}
+                        className="hover:bg-primary-dark rounded-md bg-primary px-3 py-1 text-xs font-medium text-white shadow-sm focus:outline-none"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end border-t border-gray-300 p-4 dark:border-dark-3">
+              <button
+                onClick={() => {
+                  setShowMultiPostModal(false);
+                  setSelectedDayPosts([]);
+                  setSelectedDay(null);
+                }}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:border-dark-3 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-dark-2"
+              >
+                Close
               </button>
             </div>
           </div>
