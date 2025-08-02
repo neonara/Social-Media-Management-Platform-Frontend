@@ -38,7 +38,7 @@ interface MediaFile {
 }
 
 interface Client {
-  id: string;
+  id: number;
   name: string;
   email: string;
 }
@@ -685,7 +685,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                   <option disabled>Loading clients...</option>
                 ) : (
                   clients.map((client) => (
-                    <option key={client.id} value={client.id}>
+                    <option key={client.id} value={client.id.toString()}>
                       {client.name}
                     </option>
                   ))

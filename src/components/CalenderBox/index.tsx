@@ -59,7 +59,6 @@ import {
 } from "@/hooks/usePostWebSocket";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { SocialPage } from "@/types/social-page";
 import { GetUser } from "@/types/user";
 import {
   FacebookPostPreview,
@@ -70,33 +69,7 @@ import UserPresence from "../UserPresence/UserPresence";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
-
-interface ScheduledPost {
-  id: string;
-  title: string;
-  platform: "Facebook" | "Instagram" | "LinkedIn";
-  platformPage: SocialPage;
-  mediaFiles?: Array<{ id: string; preview: string }>;
-  media?: Array<{
-    id: number;
-    file: string;
-    name: string;
-    uploaded_at: string;
-    file_type: string;
-  }>;
-  description: string;
-  scheduled_for: string;
-  status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: Partial<GetUser> & {
-    id: string;
-    full_name: string;
-    type?: "client" | "team_member";
-  };
-  client?: Partial<GetUser> & {
-    id: string;
-    full_name: string;
-  };
-}
+import { ScheduledPost } from "@/types/post";
 
 // Global platform icons - used throughout the component
 const platformIcons = {
@@ -118,8 +91,8 @@ const PostCard = React.memo(
     post: ScheduledPost;
     color: string;
     onPostClick: (post: ScheduledPost) => void;
-    onApprove: (postId: string) => void;
-    onReject: (postId: string) => void;
+    onApprove: (postId: number) => void;
+    onReject: (postId: number) => void;
     canApproveReject?: boolean;
   }) => {
     const isPublished = post.status === "published";
@@ -134,7 +107,7 @@ const PostCard = React.memo(
       transition,
       isDragging,
     } = useSortable({
-      id: post.id,
+      id: post.id.toString(), // Convert number to string for drag-and-drop
       disabled: isPublished || isPendingAndCantApprove, // Disable dragging for published posts and pending posts for CMs
     });
 
@@ -254,8 +227,8 @@ const DroppableColumn = React.memo(
     titleColor: string;
     cardColor: string;
     onPostClick: (post: ScheduledPost) => void;
-    onApprove: (postId: string) => void;
-    onReject: (postId: string) => void;
+    onApprove: (postId: number) => void;
+    onReject: (postId: number) => void;
     canApproveReject?: boolean;
   }) => {
     const { setNodeRef, isOver } = useDroppable({
@@ -273,7 +246,7 @@ const DroppableColumn = React.memo(
           {title} ({posts.length})
         </h3>
         <SortableContext
-          items={posts.map((post) => post.id)}
+          items={posts.map((post) => post.id.toString())} // Convert numbers to strings for drag-and-drop
           strategy={verticalListSortingStrategy}
         >
           <div
@@ -384,9 +357,9 @@ const PostTable = ({
   );
 
   // Rest of your component remains the same...
-  const handleApprove = async (postId: string) => {
+  const handleApprove = async (postId: number) => {
     try {
-      await postService.approvePost(parseInt(postId));
+      await postService.approvePost(postId);
       toast.success("Post approved successfully!");
       onRefresh();
     } catch (error) {
@@ -395,9 +368,9 @@ const PostTable = ({
     }
   };
 
-  const handleReject = async (postId: string) => {
+  const handleReject = async (postId: number) => {
     try {
-      await postService.rejectPost(parseInt(postId));
+      await postService.rejectPost(postId);
       toast.success("Post rejected successfully!");
       onRefresh();
     } catch (error) {
@@ -465,7 +438,7 @@ const PostTable = ({
 
   // Find the active post for the drag overlay
   const activePost = activeId
-    ? posts.find((post) => post.id === activeId)
+    ? posts.find((post) => post.id.toString() === activeId)
     : null;
 
   return (
@@ -564,58 +537,6 @@ const PostTable = ({
   );
 };
 
-// ContentDashboard component (currently unused but kept for future use)
-// const ContentDashboard = () => (
-<div className="p-4">
-  <div className="mb-6 flex gap-4">
-    {["Facebook", "Instagram", "LinkedIn"].map((platform) => (
-      <button
-        key={platform}
-        className="dark:bg-primary-dark flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white"
-      >
-        {platformIcons[platform as keyof typeof platformIcons]}
-      </button>
-    ))}
-  </div>
-
-  <div className="mb-6 rounded-lg border border-stroke p-4 dark:border-dark-3">
-    <h3 className="mb-4 text-lg font-semibold dark:text-white">
-      Content Approval Status
-    </h3>
-    <div className="grid grid-cols-3 gap-4">
-      {["Scheduled", "Pending Approval", "Approved"].map((status) => (
-        <div
-          key={status}
-          className="dark:bg-gray-dark-1 rounded-lg bg-gray-1 p-4"
-        >
-          <div className="text-sm font-medium text-dark dark:text-white">
-            {status}
-          </div>
-          <div className="dark:text-primary-dark text-2xl font-bold text-primary">
-            {Math.floor(Math.random() * 20)}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-
-  <div className="grid grid-cols-3 gap-4">
-    {["Repurpose Content", "New Ideas", "Get Inspired"].map((action, idx) => (
-      <div
-        key={idx}
-        className="cursor-pointer rounded-lg border border-stroke p-4 transition-all hover:shadow-md dark:border-dark-3"
-      >
-        <h4 className="mb-2 font-medium text-dark dark:text-white">{action}</h4>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {action === "Repurpose Content"
-            ? "Reuse top-performing posts"
-            : "Generate new content ideas"}
-        </p>
-      </div>
-    ))}
-  </div>
-</div>;
-
 const CalendarBox = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<
@@ -640,7 +561,7 @@ const CalendarBox = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [pendingRejection, setPendingRejection] = useState<{
-    postId: string;
+    postId: number;
     postTitle: string;
   } | null>(null);
   // Multi-post selection modal state
@@ -681,7 +602,7 @@ const CalendarBox = () => {
             console.log("Post updated:", message.data);
             setScheduledPosts((prev) =>
               prev.map((p) =>
-                p.id === message.post_id
+                p.id.toString() === message.post_id
                   ? (message.data as unknown as ScheduledPost)
                   : p,
               ),
@@ -690,7 +611,7 @@ const CalendarBox = () => {
           } else if (message.action === "deleted" && message.post_id) {
             console.log("Post deleted:", message.post_id);
             setScheduledPosts((prev) =>
-              prev.filter((p) => p.id !== message.post_id),
+              prev.filter((p) => p.id.toString() !== message.post_id),
             );
             toast.info("Post deleted!");
           } else if (
@@ -703,7 +624,7 @@ const CalendarBox = () => {
             );
             setScheduledPosts((prev) =>
               prev.map((p) =>
-                p.id === message.post_id
+                p.id.toString() === message.post_id
                   ? (message.data as unknown as ScheduledPost)
                   : p,
               ),
@@ -770,6 +691,12 @@ const CalendarBox = () => {
           (await postService.getScheduledPosts()) as ScheduledPost[];
 
         console.log("Current user:", currentUser);
+        console.log("Current user role:", currentUser?.role);
+        console.log(
+          "Is admin:",
+          currentUser?.role === "administrator" ||
+            currentUser?.role === "super_administrator",
+        );
         console.log("Total posts fetched:", posts.length);
         console.log("Assigned CMs:", assignedCMs);
 
@@ -784,8 +711,21 @@ const CalendarBox = () => {
             : undefined,
         }));
 
-        // Filter posts to only include those from assigned CMs, the moderator, or posts for the current client
+        // Filter posts based on user role and permissions
         const authorizedPosts = allPostsFormatted.filter((post) => {
+          // Administrators have full access to all posts
+          if (
+            currentUser?.role === "administrator" ||
+            currentUser?.role === "super_administrator"
+          ) {
+            console.log(
+              "Administrator access granted for post:",
+              post.id,
+              post.title,
+            );
+            return true;
+          }
+
           // Check if creator is an assigned CM
           const isAssignedCM = assignedCMs.some(
             (cm) => cm.full_name === post.creator?.full_name,
@@ -823,6 +763,11 @@ const CalendarBox = () => {
 
         console.log("Authorized posts:", authorizedPosts.length);
         console.log("Filtered posts breakdown:", {
+          totalPosts: allPostsFormatted.length,
+          authorizedPosts: authorizedPosts.length,
+          isAdmin:
+            currentUser?.role === "administrator" ||
+            currentUser?.role === "super_administrator",
           assignedCMPosts: authorizedPosts.filter((post) =>
             assignedCMs.some((cm) => cm.full_name === post.creator?.full_name),
           ).length,
@@ -872,7 +817,10 @@ const CalendarBox = () => {
   }, [fetchAssignedCMs, fetchCurrentUser]);
 
   useEffect(() => {
-    fetchScheduledPosts(filterCreator, filterStatus, filterClient);
+    // Only fetch posts after currentUser is loaded
+    if (currentUser) {
+      fetchScheduledPosts(filterCreator, filterStatus, filterClient);
+    }
   }, [
     fetchScheduledPosts,
     filterCreator,
@@ -880,6 +828,7 @@ const CalendarBox = () => {
     filterClient,
     currentDate,
     calendarView,
+    currentUser, // Add currentUser as dependency
   ]);
 
   const navigateToView = (date: Date, view: typeof calendarView) => {
@@ -1461,7 +1410,9 @@ const CalendarBox = () => {
     }
 
     // 2. Find the dragged post to get its current status
-    const draggedPost = scheduledPosts.find((p) => p.id === active.id);
+    const draggedPost = scheduledPosts.find(
+      (p) => p.id.toString() === active.id,
+    );
     if (!draggedPost) {
       console.error("Could not find dragged post with id:", active.id);
       return;
@@ -1524,7 +1475,9 @@ const CalendarBox = () => {
     // 7. OPTIMISTIC UPDATE: Update the UI immediately for a smooth experience
     setScheduledPosts((prevPosts) =>
       prevPosts.map((post) =>
-        post.id === active.id ? { ...post, status: newStatus } : post,
+        post.id.toString() === active.id
+          ? { ...post, status: newStatus }
+          : post,
       ),
     );
 
@@ -1594,10 +1547,7 @@ const CalendarBox = () => {
       );
 
       // Call API with feedback
-      await postService.rejectPost(
-        parseInt(pendingRejection.postId),
-        feedbackText,
-      );
+      await postService.rejectPost(pendingRejection.postId, feedbackText);
 
       toast.success("Post rejected with feedback!");
 
@@ -1620,19 +1570,20 @@ const CalendarBox = () => {
   };
 
   const handlePostStatusUpdate = async (
-    postId: string,
+    postId: number,
     newStatus: ScheduledPost["status"],
   ) => {
     try {
       // Use appropriate API endpoints based on status change
       if (newStatus === "scheduled") {
-        await postService.approvePost(parseInt(postId));
+        // Use moderator validation to move to scheduled status
+        await postService.moderatorValidatePost(postId, false);
       } else if (newStatus === "rejected") {
-        await postService.rejectPost(parseInt(postId));
+        await postService.rejectPost(postId);
       } else if (newStatus === "published") {
-        await postService.publishPost(parseInt(postId));
+        await postService.publishPost(postId);
       } else if (newStatus === "pending") {
-        await postService.resubmitPost(parseInt(postId));
+        await postService.resubmitPost(postId);
       } else {
         console.log(`Status change to ${newStatus} not yet implemented`);
         toast.info(
@@ -1770,8 +1721,8 @@ const CalendarBox = () => {
             ))}
           </select>
 
-          {/* Filter by Client - Only show for moderators and admins */}
-          {canApproveReject && (
+          {/* Filter by Client - Show for moderators, admins, and CMs */}
+          {(canApproveReject || currentUser?.role === "community_manager") && (
             <select
               value={filterClient || ""}
               onChange={(e) => setFilterClient(e.target.value || null)}
@@ -1942,7 +1893,7 @@ const CalendarBox = () => {
                     );
                     if (confirmDelete) {
                       try {
-                        await postService.deletePost(parseInt(selectedPost.id));
+                        await postService.deletePost(selectedPost.id); // selectedPost.id is already number
 
                         setSelectedPost(null);
                         fetchScheduledPosts(); // Refresh the scheduled posts
@@ -1982,7 +1933,7 @@ const CalendarBox = () => {
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
                 placeholder="Provide feedback to help improve this post..."
-                className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-[100px] w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring min-h-[100px] w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               />
             </div>
           </div>

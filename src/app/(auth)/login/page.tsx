@@ -150,7 +150,7 @@ export default function Login() {
                 >
                   Log In
                   {loading && (
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent dark:border-primary dark:border-t-transparent" />
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
                   )}
                 </button>
               </div>

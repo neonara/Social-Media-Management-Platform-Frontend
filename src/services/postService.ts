@@ -1,60 +1,49 @@
 "use server";
 
 import { API_BASE_URL } from "@/config/api";
-import { SocialPage } from "@/types/social-page";
+import { DraftPost, ScheduledPost } from "@/types/post";
+import { GetUser } from "@/types/user";
 import { cookies } from "next/headers";
 
-export interface DraftPost {
+interface Creator extends Partial<GetUser> {
   id: number;
-  title: string;
-  description: string;
-  scheduled_for: string | null;
-  creator_id: number;
-  status: "draft";
-  platforms: string[];
-  media: {
-    id: number;
-    file: string;
-    name: string;
-    uploaded_at: string;
-    file_type: string;
-  }[];
-  hashtags: string[];
-  client_id?: number;
-  client?: {
-    id: number;
-    full_name: string;
-  };
-}
-interface Creator {
-  id: string;
   full_name: string;
   type: "client" | "team_member";
 }
 
-interface Client {
-  id: string;
-  full_name: string;
+export type CalendarView = "week" | "month" | "quarter" | "year";
+export type ActiveTab = "calendar" | "post_table";
+
+export type PendingRejection = {
+  postId: number;
+  postTitle: string;
+};
+
+// Simple workflow interfaces
+export interface ClientApprovalRequest {
+  postId: number;
+  action: "approve" | "reject";
+  feedback?: string;
 }
 
-interface ScheduledPost {
-  id: string;
-  title: string;
-  platform: "Facebook" | "Instagram" | "LinkedIn";
-  platformPage: SocialPage;
-  mediaFiles?: Array<{ id: string; preview: string }>;
-  media?: Array<{
-    id: number;
-    file: string;
-    name: string;
-    uploaded_at: string;
-    file_type: string;
-  }>;
-  description: string;
-  scheduled_for: string;
-  status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: Creator;
-  client?: Client | undefined;
+export interface ModeratorValidationRequest {
+  postId: number;
+  action: "validate" | "reject";
+  overrideClient?: boolean; // Skip client approval step
+  feedback?: string;
+}
+
+export interface ActionResponse {
+  success: boolean;
+  message: string;
+  post?: ScheduledPost;
+  error?: string;
+}
+
+export interface RejectedPostWithFeedback extends ScheduledPost {
+  rejection_feedback?: string;
+  rejected_at?: string;
+  rejected_by?: GetUser;
 }
 
 async function getAuthToken() {
@@ -68,7 +57,7 @@ async function getAuthToken() {
 
 // In your postService.ts
 export async function getAssignedClients(): Promise<
-  Array<{ id: string; name: string; email: string }>
+  Array<{ id: number; name: string; email: string }>
 > {
   try {
     const token = await getAuthToken();
@@ -92,39 +81,22 @@ export async function getAssignedClients(): Promise<
   }
 }
 
-export async function approvePost(postId: number): Promise<void> {
-  try {
-    const token = await getAuthToken();
-    const csrfToken = await getCsrfToken();
-
-    const response = await fetch(
-      `${API_BASE_URL}/content/posts/${postId}/approve/`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "X-CSRFToken": csrfToken,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to approve post");
-    }
-  } catch (error) {
-    console.error("Error approving post:", error);
-    throw error;
-  }
-}
-
 export async function rejectPost(
   postId: number,
   feedback?: string,
-): Promise<void> {
+): Promise<ActionResponse> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
+
+    const requestBody: Record<string, string> = {
+      rejected_at: new Date().toISOString(),
+    };
+
+    // Only include feedback if provided
+    if (feedback && feedback.trim().length > 0) {
+      requestBody.feedback = feedback.trim();
+    }
 
     const response = await fetch(
       `${API_BASE_URL}/content/posts/${postId}/reject/`,
@@ -135,17 +107,331 @@ export async function rejectPost(
           "X-CSRFToken": csrfToken,
           "Content-Type": "application/json",
         },
-        body: feedback ? JSON.stringify({ feedback }) : undefined,
+        body: JSON.stringify(requestBody),
       },
     );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to reject post");
+      return {
+        success: false,
+        message: errorData.message || "Failed to reject post",
+        error: errorData.message || "Failed to reject post",
+      };
     }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: "Post rejected with feedback",
+      post,
+    };
   } catch (error) {
     console.error("Error rejecting post:", error);
-    throw error;
+    return {
+      success: false,
+      message: "Network error occurred while rejecting post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Moderator validation workflow - handles both validation and rejection
+export async function validatePost(
+  validationRequest: ModeratorValidationRequest,
+): Promise<ActionResponse> {
+  const {
+    postId,
+    action,
+    overrideClient = false,
+    feedback,
+  } = validationRequest;
+
+  try {
+    if (action === "validate") {
+      return await moderatorValidatePost(postId, overrideClient);
+    } else if (action === "reject") {
+      // Feedback is optional for rejection
+      return await rejectPost(postId, feedback);
+    } else {
+      return {
+        success: false,
+        message: "Invalid validation action. Must be 'validate' or 'reject'",
+        error: "Invalid validation action",
+      };
+    }
+  } catch (error) {
+    console.error("Error in post validation workflow:", error);
+    return {
+      success: false,
+      message: "Network error occurred during post validation",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// New function for moderator validation that changes status to scheduled
+export async function moderatorValidatePost(
+  postId: number,
+  overrideClient: boolean = false,
+): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/validate/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          moderator_validated_at: new Date().toISOString(),
+          override_client: overrideClient,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message: errorData.message || "Failed to validate post",
+        error: errorData.message || "Failed to validate post",
+      };
+    }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: overrideClient
+        ? "Post validated and scheduled (client approval overridden)"
+        : "Post validated and scheduled",
+      post,
+    };
+  } catch (error) {
+    console.error("Error in moderator validation:", error);
+    return {
+      success: false,
+      message: "Network error occurred while validating post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Client approval functions
+export async function approvePost(postId: number): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/approve/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_approved_at: new Date().toISOString(),
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message: errorData.message || "Failed to approve post",
+        error: errorData.message || "Failed to approve post",
+      };
+    }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: "Post approved by client successfully",
+      post,
+    };
+  } catch (error) {
+    console.error("Error in client approval:", error);
+    return {
+      success: false,
+      message: "Network error occurred while approving post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+export async function clientRejectPost(
+  postId: number,
+  feedback?: string,
+): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const requestBody: Record<string, unknown> = {
+      client_rejected_at: new Date().toISOString(),
+    };
+
+    // Only include feedback if provided
+    if (feedback && feedback.trim().length > 0) {
+      requestBody.feedback = feedback.trim();
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/reject/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message: errorData.message || "Failed to reject post",
+        error: errorData.message || "Failed to reject post",
+      };
+    }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: feedback
+        ? "Post rejected by client with feedback"
+        : "Post rejected by client",
+      post,
+    };
+  } catch (error) {
+    console.error("Error in client rejection:", error);
+    return {
+      success: false,
+      message: "Network error occurred while rejecting post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Client approval workflow - handles both approval and rejection
+export async function handleClientApproval(
+  approvalRequest: ClientApprovalRequest,
+): Promise<ActionResponse> {
+  const { postId, action, feedback } = approvalRequest;
+
+  try {
+    if (action === "approve") {
+      return await approvePost(postId);
+    } else if (action === "reject") {
+      // Feedback is optional for client rejection
+      return await clientRejectPost(postId, feedback);
+    } else {
+      return {
+        success: false,
+        message: "Invalid client action. Must be 'approve' or 'reject'",
+        error: "Invalid client action",
+      };
+    }
+  } catch (error) {
+    console.error("Error in client approval workflow:", error);
+    return {
+      success: false,
+      message: "Network error occurred during client approval workflow",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Fetch rejected posts with their feedback
+export async function getRejectedPostsWithFeedback(): Promise<
+  RejectedPostWithFeedback[]
+> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(`${API_BASE_URL}/content/posts/rejected/`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-CSRFToken": csrfToken,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch rejected posts:", response.status);
+      return [];
+    }
+
+    const data: RejectedPostWithFeedback[] = await response.json();
+    return data.map((post) => ({
+      ...post,
+      scheduled_for: post.scheduled_for
+        ? new Date(post.scheduled_for).toISOString()
+        : "",
+      rejected_at: post.rejected_at
+        ? new Date(post.rejected_at).toISOString()
+        : undefined,
+    }));
+  } catch (error: unknown) {
+    console.error("Error fetching rejected posts with feedback:", error);
+    return [];
+  }
+}
+
+// Get specific post with feedback (useful for rejected posts)
+export async function getPostWithFeedback(
+  postId: number,
+): Promise<RejectedPostWithFeedback | null> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/feedback/`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      console.error(
+        "Failed to fetch post with feedback:",
+        response.status,
+        await response.text(),
+      );
+      return null;
+    }
+
+    const data = await response.json();
+    return {
+      ...data,
+      scheduled_for: data.scheduled_for
+        ? new Date(data.scheduled_for).toISOString()
+        : "",
+      rejected_at: data.rejected_at
+        ? new Date(data.rejected_at).toISOString()
+        : undefined,
+    };
+  } catch (error: unknown) {
+    console.error("Error fetching post with feedback:", error);
+    return null;
   }
 }
 
@@ -587,10 +873,19 @@ export async function resubmitPost(postId: number): Promise<void> {
 export async function cancelApproval(
   postId: number,
   feedback?: string,
-): Promise<void> {
+): Promise<ActionResponse> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
+
+    const requestBody: Record<string, string> = {};
+
+    // Include feedback if provided, otherwise use default
+    if (feedback && feedback.trim().length > 0) {
+      requestBody.feedback = feedback.trim();
+    } else {
+      requestBody.feedback = "Approval cancelled";
+    }
 
     const response = await fetch(
       `${API_BASE_URL}/content/posts/${postId}/cancel-approval/`,
@@ -601,16 +896,33 @@ export async function cancelApproval(
           "X-CSRFToken": csrfToken,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ feedback }),
+        body: JSON.stringify(requestBody),
       },
     );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to cancel approval");
+      return {
+        success: false,
+        message:
+          errorData.error || errorData.message || "Failed to cancel approval",
+        error:
+          errorData.error || errorData.message || "Failed to cancel approval",
+      };
     }
+
+    const data = await response.json();
+    return {
+      success: true,
+      message: data.message || "Post approval cancelled successfully",
+      post: data.post,
+    };
   } catch (error) {
     console.error("Error cancelling approval:", error);
-    throw error;
+    return {
+      success: false,
+      message: "Network error occurred while cancelling approval",
+      error: error instanceof Error ? error.message : "Network error",
+    };
   }
 }

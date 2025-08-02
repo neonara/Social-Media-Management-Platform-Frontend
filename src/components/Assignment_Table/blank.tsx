@@ -670,7 +670,7 @@ export default function UsersTable() {
             </th>
             {activeTab !== "Client" && activeTab !== "Administrator" && (
               <th
-                className="cursor-pointer border px-4 py-2 font-bold text-black"
+                className="cursor-pointer border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white"
                 onClick={() => sortUsers("assignedClient")}
               >
                 <div className="flex items-center gap-1">
