@@ -557,6 +557,15 @@ const CalendarBox = () => {
   const [assignedCMs, setAssignedCMs] = useState<GetUser[]>([]);
   const [loadingCMs, setLoadingCMs] = useState(false);
   const [currentUser, setCurrentUser] = useState<GetUser | null>(null);
+  const [allClients, setAllClients] = useState<
+    Array<{
+      id: number;
+      full_name: string;
+      email: string;
+      phone_number?: string;
+      user_image?: string;
+    }>
+  >([]);
   // Feedback modal state
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -678,6 +687,25 @@ const CalendarBox = () => {
       setCurrentUser(null);
     }
   }, []);
+
+  const fetchClients = useCallback(async () => {
+    // Only fetch clients for admin and super admin users
+    if (
+      !currentUser ||
+      (currentUser.role !== "administrator" &&
+        currentUser.role !== "super_administrator")
+    ) {
+      return;
+    }
+
+    try {
+      const result = await postService.getAllClientsForAdmin();
+      setAllClients(result.clients);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+      setAllClients([]);
+    }
+  }, [currentUser]);
 
   const fetchScheduledPosts = useCallback(
     async (
@@ -815,6 +843,13 @@ const CalendarBox = () => {
     fetchAssignedCMs();
     fetchCurrentUser();
   }, [fetchAssignedCMs, fetchCurrentUser]);
+
+  useEffect(() => {
+    // Fetch clients after currentUser is loaded
+    if (currentUser) {
+      fetchClients();
+    }
+  }, [fetchClients, currentUser]);
 
   useEffect(() => {
     // Only fetch posts after currentUser is loaded
@@ -1722,26 +1757,33 @@ const CalendarBox = () => {
           </select>
 
           {/* Filter by Client - Show for moderators, admins, and CMs */}
-          {(canApproveReject || currentUser?.role === "community_manager") && (
-            <select
-              value={filterClient || ""}
-              onChange={(e) => setFilterClient(e.target.value || null)}
-              className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
-            >
-              <option value="">All Clients</option>
-              {Array.from(
-                new Set(
-                  scheduledPosts
-                    .map((post) => post.client?.full_name)
-                    .filter(Boolean),
-                ),
-              ).map((clientName) => (
-                <option key={clientName} value={clientName}>
-                  {clientName}
-                </option>
-              ))}
-            </select>
-          )}
+
+          <select
+            value={filterClient || ""}
+            onChange={(e) => setFilterClient(e.target.value || null)}
+            className="rounded-lg border border-stroke p-2 text-sm dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+          >
+            <option value="">All Clients</option>
+            {/* Use dedicated client list for admins/super admins, fallback to extracting from posts for others */}
+            {currentUser?.role === "administrator" ||
+            currentUser?.role === "super_administrator"
+              ? allClients.map((client) => (
+                  <option key={client.id} value={client.full_name}>
+                    {client.full_name}
+                  </option>
+                ))
+              : Array.from(
+                  new Set(
+                    scheduledPosts
+                      .map((post) => post.client?.full_name)
+                      .filter(Boolean),
+                  ),
+                ).map((clientName) => (
+                  <option key={clientName} value={clientName}>
+                    {clientName}
+                  </option>
+                ))}
+          </select>
         </div>
       </div>
 

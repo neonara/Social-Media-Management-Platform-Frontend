@@ -4,8 +4,6 @@ import { useState } from "react";
 
 import { GlobeIcon } from "@/assets/icons";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import DatePickerOne from "@/components/FormElements/DatePicker/DatePickerOne";
-import DatePickerTwo from "@/components/FormElements/DatePicker/DatePickerTwo";
 import InputGroup from "@/components/FormElements/InputGroup";
 import { TextAreaGroup } from "@/components/FormElements/InputGroup/text-area";
 import MultiSelect from "@/components/FormElements/MultiSelect";
@@ -54,11 +52,6 @@ export default function FormElementsPage() {
             <Switch backgroundSize="sm" />
             <Switch withIcon />
             <Switch background="dark" />
-          </ShowcaseSection>
-
-          <ShowcaseSection title="Time and date" className="space-y-5.5 !p-6.5">
-            <DatePickerOne />
-            <DatePickerTwo />
           </ShowcaseSection>
 
           <ShowcaseSection title="File upload" className="space-y-5.5 !p-6.5">

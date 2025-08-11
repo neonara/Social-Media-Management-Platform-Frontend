@@ -81,6 +81,58 @@ export async function getAssignedClients(): Promise<
   }
 }
 
+// Fetch all clients for admin/super admin (for calendar filtering)
+export async function getAllClientsForAdmin(): Promise<{
+  clients: Array<{
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number?: string;
+    user_image?: string;
+  }>;
+  moderators: Array<{
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number?: string;
+    user_image?: string;
+  }>;
+  community_managers: Array<{
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number?: string;
+    user_image?: string;
+  }>;
+}> {
+  try {
+    // Import the existing function dynamically to avoid server/client issues
+    const { fetchAllUsersServer } = await import("@/services/userService");
+
+    const result = await fetchAllUsersServer();
+
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+
+    // Filter users by role on the client side
+    const clients = result.filter((user) => user.role === "client");
+    const moderators = result.filter((user) => user.role === "moderator");
+    const community_managers = result.filter(
+      (user) => user.role === "community_manager",
+    );
+
+    return {
+      clients,
+      moderators,
+      community_managers,
+    };
+  } catch (error) {
+    console.error("Error fetching all clients and staff:", error);
+    throw error;
+  }
+}
+
 export async function rejectPost(
   postId: number,
   feedback?: string,

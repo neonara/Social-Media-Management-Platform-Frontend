@@ -50,7 +50,12 @@ export const NAV_DATA: { label: string; items: NavItem[] }[] = [
         url: "/drafts",
         icon: Icons.Alphabet,
         items: [],
-        roles: ["moderator", "community_manager"], // Only admins and managers can see this
+        roles: [
+          "moderator",
+          "community_manager",
+          "admin",
+          "super_administrator",
+        ], // Only admins and managers can see this
       },
       {
         title: "Calendar",

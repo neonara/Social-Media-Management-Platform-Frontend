@@ -391,10 +391,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
       return;
     }
 
-    if (!formData.selectedPlatforms.length) {
-      setError("Please select at least one platform");
-      return;
-    }
+    // if (!formData.selectedPlatforms.length) {
+    //   setError("Please select at least one platform");
+    //   return;
+    // }
 
     if (
       formData.selectedPlatforms.includes("instagram") &&
@@ -485,7 +485,6 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
       themedToast.success(
         `Post ${mode === "create" ? "created" : "updated"} successfully!`,
       );
-      router.push("/posts");
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${mode} post`);
       themedToast.error(`Failed to ${mode} post`);
@@ -822,8 +821,13 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                       const selectedTime = new Date(dateTime).getTime();
                       const currentTime = new Date().getTime();
 
-                      if (selectedTime < currentTime) {
-                        setError("The selected time cannot be in the past.");
+                      // Add a 1-minute buffer to account for processing time
+                      const minimumTime = currentTime + 1 * 60 * 1000;
+
+                      if (selectedTime < minimumTime) {
+                        setError(
+                          "The selected time must be at least 1 minute in the future.",
+                        );
                       } else {
                         setFormData((prev) => ({
                           ...prev,
@@ -840,6 +844,9 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                     }
                   }}
                   className={`${error ? "border-red-500" : ""}`}
+                  minValue={new Date(Date.now() + 60000)
+                    .toISOString()
+                    .slice(0, 16)}
                   isRequired
                 />
                 {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
@@ -1047,7 +1054,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                 onClick={() => {
                   setUploadSuccess(false);
                   if (!isDrafting) {
-                    router.push("/posts");
+                    router.push("/drafts");
                   }
                 }}
                 className="hover:bg-primary-dark rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white"

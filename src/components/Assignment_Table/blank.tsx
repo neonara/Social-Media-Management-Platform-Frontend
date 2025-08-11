@@ -774,7 +774,7 @@ export default function UsersTable() {
                         e.currentTarget.src = "/images/user/user-03.png";
                       }}
                     />
-                    <span>{user.full_name}</span>
+                    <span>{user.full_name || user.email.split("@")[0]}</span>
                   </div>
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
@@ -1199,7 +1199,7 @@ export default function UsersTable() {
                   setSelectedCMToAssignToClient(Number(e.target.value))
                 }
               >
-                <option value="">-- Select --</option>
+                <option value="">-- Select CM --</option>
                 {users
                   .filter(
                     (user) =>
@@ -1217,7 +1217,7 @@ export default function UsersTable() {
                   )
                   .map((user) => (
                     <option key={user.id} value={user.id}>
-                      {user.full_name}
+                      {user.email || user.full_name}
                     </option>
                   ))}
               </select>
