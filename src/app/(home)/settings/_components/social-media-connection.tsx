@@ -53,7 +53,7 @@ const FacebookPlatform = ({
   const getSocialColor = () => "bg-blue-600 hover:bg-blue-700";
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-4">
+    <div className="flex items-center justify-between rounded-lg border p-4 dark:border-blue-900">
       <div className="flex items-center space-x-3">
         <div className={`rounded-lg p-2 text-white ${getSocialColor()}`}>
           <Facebook className="h-5 w-5" />
@@ -72,7 +72,9 @@ const FacebookPlatform = ({
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">{page.page_name}</span>
+                  <span className="text-sm text-gray-600">
+                    {page.page_name}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   {page.followers_count && (
@@ -136,7 +138,7 @@ const InstagramPlatform = ({
     "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600";
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-4">
+    <div className="flex items-center justify-between rounded-lg border p-4 dark:border-fuchsia-950">
       <div className="flex items-center space-x-3">
         <div className={`rounded-lg p-2 text-white ${getSocialColor()}`}>
           <Instagram className="h-5 w-5" />
@@ -155,7 +157,9 @@ const InstagramPlatform = ({
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">{page.page_name}</span>
+                  <span className="text-sm text-gray-600">
+                    {page.page_name}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   {page.followers_count && (
@@ -218,7 +222,7 @@ const LinkedInPlatform = ({
   const getSocialColor = () => "bg-blue-700 hover:bg-blue-800";
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-4">
+    <div className="flex items-center justify-between rounded-lg border p-4 dark:border-blue-900">
       <div className="flex items-center space-x-3">
         <div className={`rounded-lg p-2 text-white ${getSocialColor()}`}>
           <Linkedin className="h-5 w-5" />
@@ -227,7 +231,10 @@ const LinkedInPlatform = ({
           <div className="flex items-center space-x-2">
             <h3 className="font-medium capitalize">LinkedIn</h3>
             {page && (
-              <Badge variant="destructive" className="text-xs">
+              <Badge
+                variant="destructive"
+                className="text-xs dark:bg-green-800 dark:text-gray-200"
+              >
                 Connected
               </Badge>
             )}
@@ -237,7 +244,9 @@ const LinkedInPlatform = ({
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">{page.page_name}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-200">
+                    {page.page_name}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
                   {page.followers_count && (
@@ -245,7 +254,7 @@ const LinkedInPlatform = ({
                       {page.followers_count.toLocaleString()} followers
                     </span>
                   )}
-                  <span>
+                  <span className="dark:text-gray-400">
                     Last sync: {formatLastUpdateTime(page.updated_at)}
                   </span>
                 </div>
@@ -259,7 +268,12 @@ const LinkedInPlatform = ({
       <div className="flex items-center space-x-2">
         {page ? (
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => onDisconnect()}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDisconnect()}
+              className="dark:border-gray-700"
+            >
               Disconnect
             </Button>
           </div>
@@ -612,7 +626,7 @@ export function SocialMediaConnections({
         <Separator className="my-6" />
 
         {/* Security Notice */}
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="dark:gb-blue-900 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500">
@@ -620,10 +634,10 @@ export function SocialMediaConnections({
               </div>
             </div>
             <div>
-              <h4 className="font-medium text-blue-900">
+              <h4 className="font-medium text-blue-900 dark:text-blue-200">
                 Secure Authentication
               </h4>
-              <p className="mt-1 text-sm text-blue-700">
+              <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
                 Your social media accounts are connected using secure OAuth 2.0
                 authentication. We never store your passwords and you can
                 disconnect at any time.

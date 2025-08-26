@@ -1,7 +1,7 @@
 "use client";
 import { EmailIcon } from "@/assets/icons";
 import { useEffect, useState } from "react";
-import InputGroup from "@/components/FormElements/InputGroup";
+import InputGroup from "@/components/ui/FormElements/InputGroup";
 import { Alert } from "@/components/ui-elements/alert/index";
 import { createCM } from "@/services/moderatorsService";
 import { useRouter } from "next/navigation";

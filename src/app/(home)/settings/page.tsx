@@ -49,7 +49,7 @@ export default function SettingsPage() {
         if (result && "error" in result) {
           throw new Error(result.error);
         }
-        await refreshUserProfile();
+        await refreshUserProfile(true); // Force refresh after deleting image
         // showNotification(
         //   "Profile image deleted successfully!",
         //   "success",
@@ -84,7 +84,7 @@ export default function SettingsPage() {
         throw new Error(result.error);
       }
 
-      await refreshUserProfile();
+      await refreshUserProfile(true); // Force refresh after profile update
 
       if (imageFile) {
         showNotification(

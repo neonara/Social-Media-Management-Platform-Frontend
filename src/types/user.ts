@@ -14,6 +14,10 @@ export interface User {
   assigned_moderator?: string | null;
   assigned_communitymanagers?: string | null;
   role?: UserRole; // Single role property for transformed API data
+  assigned_communitymanagerstoclient?: string | null; // For clients' CMs (currently a string)
+  assigned_client?: string | null;
+  managed_clients?: string[] | null; // New field for CMs
+  clientAssignedCommunityManagers?: GetUser[];
 }
 
 export interface GetUser {
@@ -27,12 +31,14 @@ export interface GetUser {
   user_image?: string;
   assigned_moderator?: GetUser | null;
   assigned_communitymanagers?: GetUser | null;
-  assigned_clients?: {
-    id: number;
-    full_name: string;
-    email: string;
-    user_image?: string;
-  }[] | null;
+  assigned_clients?:
+    | {
+        id: number;
+        full_name: string;
+        email: string;
+        user_image?: string;
+      }[]
+    | null;
 }
 
 export interface Client {
@@ -90,4 +96,18 @@ export type PendingAssignment = {
   remove?: boolean;
   cmIdToRemove?: number;
   cmNameToRemove?: string;
+};
+
+export type AssignmentUser = {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string; // Single role property from API data
+  user_image?: string;
+  assigned_moderator?: string | null;
+  assigned_communitymanagers?: string | null; // For moderators' CMs
+  assigned_communitymanagerstoclient?: string | null; // For clients' CMs (currently a string)
+  assigned_client?: string | null;
+  managed_clients?: string[] | null; // New field for CMs
+  clientAssignedCommunityManagers?: GetUser[]; // New field to hold assigned CMs for clients
 };

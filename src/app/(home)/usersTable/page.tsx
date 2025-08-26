@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  FaTrash,
-  FaPlus,
-  FaSort,
-  FaSortUp,
-  FaSortDown,
-  FaSearch,
-} from "react-icons/fa";
+  Trash2,
+  Plus,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { fetchAllUsersServer, deleteUserServer } from "@/services/userService";
@@ -46,12 +46,29 @@ const UsersPage = () => {
 
   useEffect(() => {
     loadUsers();
+
+    // Listen for user data changes from other users
+    const handleUserDataChange = () => {
+      console.log("User data changed by another user, refreshing...");
+      loadUsers(true); // Bypass cache to get fresh data
+    };
+
+    window.addEventListener("userDataChanged", handleUserDataChange);
+
+    return () => {
+      window.removeEventListener("userDataChanged", handleUserDataChange);
+    };
   }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = async (bypassCache: boolean = false) => {
     setIsLoading(true);
     setFetchError(null);
-    const result = await fetchAllUsersServer();
+    console.log(
+      bypassCache
+        ? "Loading users (bypassing cache due to changes)"
+        : "Loading users (using Redis cache)",
+    );
+    const result = await fetchAllUsersServer(bypassCache);
     setIsLoading(false);
     if (result && typeof result === "object" && "error" in result) {
       setFetchError(result.error);
@@ -156,7 +173,13 @@ const UsersPage = () => {
         }
       }
       setPendingDeletions([]);
-      loadUsers(); // Reload users after successful deletion
+      loadUsers(true); // Reload users after deletion (bypass cache since data was modified)
+
+      // Notify other users that user data has changed
+      const event = new CustomEvent("userDataChanged", {
+        detail: { source: "user_deletion" },
+      });
+      window.dispatchEvent(event);
     } catch (err: unknown) {
       console.error("Error deleting users:", err);
     }
@@ -231,10 +254,10 @@ const UsersPage = () => {
           className="rounded-full bg-[#7a6cc5] px-4 py-2 text-white transition duration-300 ease-in-out hover:bg-[#6854b3]"
           onClick={() => router.push("/create-user")}
         >
-          <FaPlus className="mr-2 inline-block" /> Add User
+          <Plus className="mr-2 inline-block" /> Add User
         </button>
         <div className="ml-4 flex items-center rounded-md border border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700">
-          <FaSearch className="ml-2 text-gray-500 dark:text-gray-400" />
+          <Search className="ml-2 text-gray-500 dark:text-gray-400" />
           <input
             type="text"
             placeholder={`Search by Name in ${activeTab}`}
@@ -295,12 +318,12 @@ const UsersPage = () => {
             >
               Name
               {sortColumn === "full_name" && sortDirection === "asc" && (
-                <FaSortUp />
+                <ArrowUp size={12} />
               )}
               {sortColumn === "full_name" && sortDirection === "desc" && (
-                <FaSortDown />
+                <ArrowDown size={12} />
               )}
-              {sortColumn !== "full_name" && <FaSort />}
+              {sortColumn !== "full_name" && <ArrowUpDown size={12} />}
             </th>
             <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
               Email
@@ -313,11 +336,13 @@ const UsersPage = () => {
               onClick={() => sortUsers("role")}
             >
               Role
-              {sortColumn === "role" && sortDirection === "asc" && <FaSortUp />}
-              {sortColumn === "role" && sortDirection === "desc" && (
-                <FaSortDown />
+              {sortColumn === "role" && sortDirection === "asc" && (
+                <ArrowUp size={12} />
               )}
-              {sortColumn !== "role" && <FaSort />}
+              {sortColumn === "role" && sortDirection === "desc" && (
+                <ArrowDown size={12} />
+              )}
+              {sortColumn !== "role" && <ArrowUpDown size={12} />}
             </th>
             <th className="border border-gray-300 px-4 py-2 font-bold text-black dark:border-gray-600 dark:text-white">
               Actions
@@ -396,7 +421,7 @@ const UsersPage = () => {
                     onClick={() => queueDeleteUser(user.id)}
                     style={{ userSelect: "none" }}
                   >
-                    <FaTrash size={14} />
+                    <Trash2 size={14} />
                     Delete
                   </span>
                 </td>

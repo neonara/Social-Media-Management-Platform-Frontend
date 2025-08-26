@@ -1,7 +1,7 @@
 "use client";
 
 import { Logo } from "@/components/logo";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";

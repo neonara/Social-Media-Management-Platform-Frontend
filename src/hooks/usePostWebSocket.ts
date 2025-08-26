@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getWebSocketUrl } from "@/utils/websocket";
 import { clientValidateToken } from "@/utils/clientAuthWrapper";
 import { getToken } from "@/utils/token";
@@ -12,13 +12,14 @@ export interface PostWebSocketMessage {
     | "post_status_changed"
     | "error";
   action?: "created" | "updated" | "deleted" | "status_changed";
-  data?: Record<string, unknown>; // Changed from post_data to data
+  data?: Record<string, unknown>;
   post_id?: string;
   old_status?: string;
   new_status?: string;
   user_id?: string;
   message?: string;
 }
+
 export interface PostWebSocketHook {
   isConnected: boolean;
   connect: () => void;
@@ -31,14 +32,26 @@ export const usePostWebSocket = (
 ): PostWebSocketHook => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
-  const isConnected = useRef(false);
+  const isDisconnecting = useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const maxReconnectAttempts = 5;
 
   const connect = useCallback(async () => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      return; // Already connected
+    // Prevent multiple connection attempts or if we're in the middle of disconnecting
+    if (
+      isConnecting ||
+      isDisconnecting.current ||
+      ws.current?.readyState === WebSocket.OPEN
+    ) {
+      console.log("WebSocket already connecting or connected");
+      return;
     }
 
     try {
+      setIsConnecting(true);
+
       // Validate token with backend before connecting
       const tokenValidation = await clientValidateToken();
 
@@ -47,6 +60,7 @@ export const usePostWebSocket = (
           "Invalid or expired token. Cannot connect to WebSocket:",
           tokenValidation.error,
         );
+        setIsConnecting(false);
         return;
       }
 
@@ -57,7 +71,13 @@ export const usePostWebSocket = (
         console.error(
           "No access token available for WebSocket connection after validation",
         );
+        setIsConnecting(false);
         return;
+      }
+
+      // Close existing connection if any
+      if (ws.current) {
+        ws.current.close();
       }
 
       const wsUrl = getWebSocketUrl(`/ws/posts/?token=${token}`);
@@ -66,8 +86,10 @@ export const usePostWebSocket = (
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
-        console.log("WebSocket connected");
-        isConnected.current = true;
+        console.log("WebSocket connected successfully");
+        setIsConnected(true);
+        setIsConnecting(false);
+        setReconnectAttempts(0); // Reset attempts on successful connection
 
         // Clear any reconnection timeout
         if (reconnectTimeout.current) {
@@ -88,38 +110,70 @@ export const usePostWebSocket = (
 
       ws.current.onclose = (event) => {
         console.log("WebSocket disconnected:", event.code, event.reason);
-        isConnected.current = false;
+        setIsConnected(false);
+        setIsConnecting(false);
+        ws.current = null;
 
-        // Attempt to reconnect after 3 seconds unless it was a manual disconnect
-        if (event.code !== 1000) {
+        // Only reconnect if it wasn't a manual disconnect and we haven't exceeded max attempts
+        if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+          const nextAttempt = reconnectAttempts + 1;
+          setReconnectAttempts(nextAttempt);
+
+          // Exponential backoff: 3s, 6s, 12s, 24s, 48s (max 30s)
+          const delay = Math.min(3000 * Math.pow(2, reconnectAttempts), 30000);
+          console.log(
+            `Attempting to reconnect in ${delay / 1000} seconds... (Attempt ${nextAttempt}/${maxReconnectAttempts})`,
+          );
+
           reconnectTimeout.current = setTimeout(() => {
-            console.log("Attempting to reconnect WebSocket...");
             connect();
-          }, 3000);
+          }, delay);
+        } else if (reconnectAttempts >= maxReconnectAttempts) {
+          console.warn(
+            "Max reconnection attempts reached. Stopping reconnection.",
+          );
         }
       };
 
       ws.current.onerror = (error) => {
         console.error("WebSocket error:", error);
-        isConnected.current = false;
+        setIsConnecting(false);
       };
     } catch (error) {
       console.error("Error connecting to WebSocket:", error);
-      isConnected.current = false;
+      setIsConnected(false);
+      setIsConnecting(false);
     }
-  }, [onMessage]);
+  }, [reconnectAttempts, maxReconnectAttempts, onMessage, isConnecting]);
 
   const disconnect = useCallback(() => {
+    // Prevent multiple simultaneous disconnections
+    if (isDisconnecting.current) {
+      return;
+    }
+
+    isDisconnecting.current = true;
+    console.log("Manually disconnecting WebSocket");
+
+    // Clear any pending reconnection
     if (reconnectTimeout.current) {
       clearTimeout(reconnectTimeout.current);
       reconnectTimeout.current = undefined;
     }
 
-    if (ws.current) {
+    // Close the connection if it exists and is not already closed
+    if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
       ws.current.close(1000, "Manual disconnect");
       ws.current = null;
     }
-    isConnected.current = false;
+
+    // Reset state
+    setIsConnecting(false);
+    setIsConnected(false);
+    setReconnectAttempts(0);
+
+    // Reset the disconnecting flag
+    isDisconnecting.current = false;
   }, []);
 
   const sendMessage = useCallback((message: Record<string, unknown>) => {
@@ -130,16 +184,10 @@ export const usePostWebSocket = (
     }
   }, []);
 
-  useEffect(() => {
-    connect();
-
-    return () => {
-      disconnect();
-    };
-  }, [connect, disconnect]);
+  // Note: Removed automatic useEffect connection - let the component control when to connect
 
   return {
-    isConnected: isConnected.current,
+    isConnected,
     connect,
     disconnect,
     sendMessage,

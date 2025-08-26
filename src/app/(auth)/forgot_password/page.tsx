@@ -4,7 +4,7 @@ import { useState } from "react";
 import { forgotPassword } from "@/services/authService";
 import Link from "next/link";
 import { EmailIcon } from "@/assets/icons"; // You can still use the icon if you want to render it separately
-import InputGroup from "@/components/FormElements/InputGroup";
+import InputGroup from "@/components/ui/FormElements/InputGroup";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");

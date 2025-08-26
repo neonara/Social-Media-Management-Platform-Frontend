@@ -6,7 +6,7 @@ import {
   DropdownTrigger,
 } from "@/components/ui/dropdown";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { BellIcon } from "./icons";

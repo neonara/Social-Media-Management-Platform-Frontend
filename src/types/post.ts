@@ -1,5 +1,5 @@
 import { SocialPage } from "./social-page";
-import { GetUser } from "./user";
+import { GetUser, UserRole } from "./user";
 
 export interface ScheduledPost {
   id: number;
@@ -23,6 +23,17 @@ export interface ScheduledPost {
     | "pending"
     | "rejected"
     | "draft";
+  // Tracking fields
+  created_at?: string;
+  updated_at?: string;
+  last_edited_by?:
+    | string
+    | {
+        id: number;
+        full_name?: string;
+        email: string;
+        role?: UserRole;
+      };
   // Workflow fields
   is_client_approved?: boolean;
   is_moderator_rejected?: boolean;
@@ -33,14 +44,16 @@ export interface ScheduledPost {
   feedback?: string;
   feedback_by?: GetUser;
   feedback_at?: string;
-  creator?: Partial<GetUser> & {
+  creator?: {
     id: number;
     full_name: string;
-    type?: "client" | "team_member";
+    email: string;
+    role: UserRole;
   };
-  client?: Partial<GetUser> & {
+  client?: {
     id: number;
     full_name: string;
+    email: string;
   };
 }
 
@@ -64,5 +77,22 @@ export interface DraftPost {
   client?: {
     id: number;
     full_name: string;
+    email: string;
   };
 }
+
+export type PendingChange = {
+  userId: number; // The user whose assignment is being changed
+  type: "moderator" | "cm" | "client" | "cm_to_client" | "remove_client_cm"; // Added 'remove_client_cm'
+  assignedId?: number | null;
+  assignedName?: string | null;
+  remove?: boolean;
+  cmIdToRemove?: number | null; // For removing CM from moderator
+  cmNameToRemove?: string | null; // For removing CM from moderator
+  clientForCMAssignmentId?: number | null; // For CM to Client assignment
+  cmToAssignToClientId?: number | null; // For CM to Client assignment
+  cmToAssignToClientName?: string | null; // For CM to Client assignment
+  cmToRemoveFromClientId?: number | null; // ID of the CM to remove from the client
+  clientToRemoveCMFromId?: number | null; // ID of the client to remove the CM from
+  cmNameToRemoveFromClient?: string | null; // Name of the CM to remove from the client (for display)
+};

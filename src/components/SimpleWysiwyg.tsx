@@ -4,7 +4,7 @@ import React from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import { FiBold, FiItalic, FiList, FiLink } from "react-icons/fi";
+import { Bold, Italic, List, Link2 } from "lucide-react";
 
 interface SimpleWysiwygProps {
   value: string;
@@ -30,7 +30,7 @@ const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
         }`}
         title="Bold"
       >
-        <FiBold />
+        <Bold size={16} />
       </button>
 
       {/* Italic */}
@@ -44,7 +44,7 @@ const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
         }`}
         title="Italic"
       >
-        <FiItalic />
+        <Italic size={16} />
       </button>
 
       {/* Bullet List */}
@@ -58,7 +58,7 @@ const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
         }`}
         title="Bullet List"
       >
-        <FiList />
+        <List size={16} />
       </button>
 
       {/* Link */}
@@ -77,7 +77,7 @@ const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
         }`}
         title="Add Link"
       >
-        <FiLink />
+        <Link2 size={16} />
       </button>
     </div>
   );

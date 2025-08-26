@@ -11,7 +11,8 @@ import {
 } from "@/services/postService";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { SimpleWysiwyg } from "@/components/SimpleWysiwyg";
-import { HeroUIDateTimePicker } from "@/components/ui/heroui-datetime-picker";
+import { DateSelector } from "./DateSelector";
+import { TimeSelector } from "./TimeSelector";
 import { DndContext, useDraggable, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -19,16 +20,20 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
-import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { useThemedToast } from "@/hooks/useThemedToast";
 import Image from "next/image";
-import { getClientPages } from "@/services/socialMedia";
+import { fetchClientPages } from "@/services/clientPagesService";
 import { SocialPage, SocialPlatform } from "@/types/social-page";
 import {
   FacebookPostPreview,
   InstagramPostPreview,
   LinkedinPostPreview,
-} from "../preview-post";
+} from "../postPreview";
+import { getPlatformIconWithSize } from "../platformIcons";
+import { X, Save, Send } from "lucide-react";
+import { useUser } from "@/context/UserContext";
+import { ScheduledPost, DraftPost } from "@/types/post";
+import { Button } from "@/components/ui-elements/button";
 
 interface MediaFile {
   id?: number | string;
@@ -52,10 +57,77 @@ interface PostFormProps {
 const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
   const router = useRouter();
   const themedToast = useThemedToast();
+  const { role } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const hashtagInputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+
+  // Function to determine the appropriate status when updating a post
+  const determineUpdateStatus = (
+    currentPost: ScheduledPost | DraftPost,
+    userRole: string | undefined,
+  ): string => {
+    // If creating a new post, default to scheduled
+    if (mode === "create") {
+      return "scheduled";
+    }
+
+    const currentStatus = currentPost.status;
+
+    // Workflow logic based on current status and user role
+    switch (currentStatus) {
+      case "rejected":
+        // When a rejected post is edited
+        if (
+          userRole === "moderator" ||
+          userRole === "administrator" ||
+          userRole === "super_administrator"
+        ) {
+          // Moderator editing a rejected post should go back to pending for client approval
+          return "pending";
+        } else if (userRole === "community_manager") {
+          // CM editing a rejected post should also go back to pending
+          return "pending";
+        } else if (userRole === "client") {
+          // Client editing their rejected post should go back to pending
+          return "pending";
+        }
+        return "pending"; // Default for rejected posts being edited
+
+      case "pending":
+        // When a pending post is edited, it stays pending
+        return "pending";
+
+      case "draft":
+        // When a draft is published/scheduled, it goes to scheduled
+        return "scheduled";
+
+      case "scheduled":
+        // When a scheduled post is edited, it should go back to pending for re-approval
+        if (
+          userRole === "moderator" ||
+          userRole === "administrator" ||
+          userRole === "super_administrator"
+        ) {
+          return "pending"; // Moderator editing should require client approval again
+        } else if (userRole === "community_manager") {
+          return "pending"; // CM editing should require client approval again
+        }
+        return "scheduled"; // Client editing their own scheduled post keeps it scheduled
+
+      case "published":
+        // Published posts shouldn't be editable, but if they are, keep them published
+        return "published";
+
+      default:
+        return "scheduled"; // Default fallback
+    }
+  };
+
+  const [originalPost, setOriginalPost] = useState<
+    ScheduledPost | DraftPost | null
+  >(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -65,6 +137,38 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
     hashtags: [] as string[],
     mediaFiles: [] as MediaFile[],
   });
+
+  // Separate state for date and time components
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedTime, setSelectedTime] = useState<string>("");
+
+  // Helper function to combine date and time into ISO string
+  const combineDateTime = (date: string, time: string): string => {
+    if (!date || !time) return "";
+    try {
+      const [hours, minutes] = time.split(":").map(Number);
+      const dateObj = new Date(date);
+      dateObj.setHours(hours, minutes, 0, 0);
+      return dateObj.toISOString();
+    } catch (error) {
+      console.error("Error combining date and time:", error);
+      return "";
+    }
+  };
+
+  // Helper function to parse ISO string into separate date and time
+  const parseDateTime = (isoString: string) => {
+    if (!isoString) return { date: "", time: "" };
+    try {
+      const date = new Date(isoString);
+      const dateString = date.toISOString().split("T")[0]; // YYYY-MM-DD
+      const timeString = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`; // HH:MM
+      return { date: dateString, time: timeString };
+    } catch (error) {
+      console.error("Error parsing date time:", error);
+      return { date: "", time: "" };
+    }
+  };
 
   const [loading, setLoading] = useState(mode === "edit");
   const [error, setError] = useState<string | null>(null);
@@ -83,14 +187,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
   const [postClientInfo, setPostClientInfo] = useState<{
     id: number;
     full_name: string;
+    email: string;
   } | null>(null);
 
   // Platform icons
-  const platformIcons = {
-    facebook: <FaFacebook className="size-5 text-blue-600" />,
-    instagram: <FaInstagram className="size-5 text-pink-500" />,
-    linkedin: <FaLinkedin className="size-5 text-blue-700" />,
-  };
 
   // Fetch clients for create mode
   useEffect(() => {
@@ -125,6 +225,9 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
             setError("Post not found");
             return;
           }
+
+          // Store the original post data for workflow decisions
+          setOriginalPost(post);
 
           let formattedHashtags: string[] = [];
           if (post.hashtags && typeof post.hashtags === "string") {
@@ -167,6 +270,13 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
               })) || [],
           });
 
+          // Set separate date and time states
+          if (formattedScheduledTime) {
+            const { date, time } = parseDateTime(formattedScheduledTime);
+            setSelectedDate(date);
+            setSelectedTime(time);
+          }
+
           // Set client info for edit mode
           if (post.client_id) {
             setSelectedClientId(post.client_id.toString());
@@ -174,6 +284,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
               setPostClientInfo({
                 id: Number(post.client.id),
                 full_name: String(post.client.full_name || ""),
+                email: String(post.client.email || ""),
               });
             }
           } else if (post.client) {
@@ -182,6 +293,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
             setPostClientInfo({
               id: Number(post.client.id),
               full_name: String(post.client.full_name || ""),
+              email: String(post.client.email || ""),
             });
           }
         } catch (err) {
@@ -195,21 +307,14 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
     fetchPostData();
   }, [mode, postId]);
 
-  const fetchClientPages = useCallback(
+  // Use the centralized fetchClientPages service
+  const fetchClientPagesData = useCallback(
     async (clientId: string) => {
-      console.log("fetchClientPages called with clientId:", clientId);
+      console.log("fetchClientPagesData called with clientId:", clientId);
       setLoadingPages(true);
       try {
-        const pages = await getClientPages(clientId);
-        if (Array.isArray(pages)) {
-          setClientPages(pages);
-        } else if (pages && "error" in pages) {
-          console.error("Error fetching pages:", pages.error);
-          themedToast.error("Failed to load client social media pages");
-          setClientPages([]);
-        } else {
-          setClientPages([]);
-        }
+        const pages = await fetchClientPages(clientId);
+        setClientPages(pages);
       } catch (error) {
         console.error("Failed to fetch client pages:", error);
         themedToast.error("Failed to load client social media pages");
@@ -219,17 +324,17 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [], // themedToast is stable from the hook
+    [], // Stable function, themedToast should be stable but causing issues
   );
 
   useEffect(() => {
     console.log("useEffect for selectedClientId triggered:", selectedClientId);
     if (selectedClientId) {
-      fetchClientPages(selectedClientId);
+      fetchClientPagesData(selectedClientId);
     } else {
       setClientPages([]);
     }
-  }, [selectedClientId, fetchClientPages]);
+  }, [selectedClientId, fetchClientPagesData]);
 
   // Filter selected platforms when client pages are loaded
   useEffect(() => {
@@ -306,12 +411,23 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
     [mode],
   );
 
-  const handleRemoveMedia = useCallback((indexToRemove: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      mediaFiles: prev.mediaFiles.filter((_, index) => index !== indexToRemove),
-    }));
-  }, []);
+  const handleRemoveMedia = useCallback(
+    (indexToRemove: number) => {
+      console.log("handleRemoveMedia called with index:", indexToRemove);
+      console.log("Current mediaFiles:", formData.mediaFiles);
+      setFormData((prev) => {
+        const newMediaFiles = prev.mediaFiles.filter(
+          (_, index) => index !== indexToRemove,
+        );
+        console.log("New mediaFiles after removal:", newMediaFiles);
+        return {
+          ...prev,
+          mediaFiles: newMediaFiles,
+        };
+      });
+    },
+    [formData.mediaFiles],
+  );
 
   const handleDragEnd = useCallback(
     (event: any) => {
@@ -420,7 +536,12 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
         "platforms",
         JSON.stringify(formData.selectedPlatforms),
       );
-      formDataToSend.append("status", "scheduled");
+
+      // Determine the appropriate status based on the workflow logic
+      const newStatus = originalPost
+        ? determineUpdateStatus(originalPost, role)
+        : "scheduled";
+      formDataToSend.append("status", newStatus);
 
       // Add client ID if selected
       if (selectedClientId) {
@@ -705,7 +826,8 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                     Creating post for:
                   </span>
                   <span className="text-sm font-semibold text-primary">
-                    {postClientInfo.full_name}
+                    {postClientInfo.full_name ||
+                      postClientInfo.email.split("@")[0]}
                   </span>
                 </div>
               </div>
@@ -814,41 +936,75 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                 <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                   Scheduled At
                 </h2>
-                <HeroUIDateTimePicker
-                  value={formData.scheduledTime}
-                  onChange={(dateTime: string) => {
-                    if (dateTime) {
-                      const selectedTime = new Date(dateTime).getTime();
-                      const currentTime = new Date().getTime();
 
-                      // Add a 1-minute buffer to account for processing time
-                      const minimumTime = currentTime + 1 * 60 * 1000;
+                <div className="grid grid-cols-2 gap-4">
+                  <DateSelector
+                    value={selectedDate}
+                    onChange={(date: string) => {
+                      setSelectedDate(date);
+                      const combinedDateTime = combineDateTime(
+                        date,
+                        selectedTime,
+                      );
+                      if (combinedDateTime) {
+                        const selectedTime = new Date(
+                          combinedDateTime,
+                        ).getTime();
+                        const currentTime = new Date().getTime();
+                        const minimumTime = currentTime + 1 * 60 * 1000;
 
-                      if (selectedTime < minimumTime) {
-                        setError(
-                          "The selected time must be at least 1 minute in the future.",
-                        );
-                      } else {
-                        setFormData((prev) => ({
-                          ...prev,
-                          scheduledTime: dateTime,
-                        }));
-                        setError(null);
+                        if (selectedTime < minimumTime) {
+                          setError(
+                            "The selected time must be at least 1 minute in the future.",
+                          );
+                        } else {
+                          setFormData((prev) => ({
+                            ...prev,
+                            scheduledTime: combinedDateTime,
+                          }));
+                          setError(null);
+                        }
                       }
-                    } else {
-                      setFormData((prev) => ({
-                        ...prev,
-                        scheduledTime: dateTime,
-                      }));
-                      setError(null);
-                    }
-                  }}
-                  className={`${error ? "border-red-500" : ""}`}
-                  minValue={new Date(Date.now() + 60000)
-                    .toISOString()
-                    .slice(0, 16)}
-                  isRequired
-                />
+                    }}
+                    label="Date"
+                    isRequired
+                    className={error ? "border-red-500" : ""}
+                  />
+
+                  <TimeSelector
+                    value={selectedTime}
+                    onChange={(time: string) => {
+                      setSelectedTime(time);
+                      const combinedDateTime = combineDateTime(
+                        selectedDate,
+                        time,
+                      );
+                      if (combinedDateTime) {
+                        const selectedTime = new Date(
+                          combinedDateTime,
+                        ).getTime();
+                        const currentTime = new Date().getTime();
+                        const minimumTime = currentTime + 1 * 60 * 1000;
+
+                        if (selectedTime < minimumTime) {
+                          setError(
+                            "The selected time must be at least 1 minute in the future.",
+                          );
+                        } else {
+                          setFormData((prev) => ({
+                            ...prev,
+                            scheduledTime: combinedDateTime,
+                          }));
+                          setError(null);
+                        }
+                      }
+                    }}
+                    label="Time"
+                    isRequired
+                    className={error ? "border-red-500" : ""}
+                  />
+                </div>
+
                 {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
               </div>
 
@@ -871,11 +1027,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                         }`}
                       >
                         <span className="flex items-center justify-items-start gap-2 font-semibold capitalize">
-                          {
-                            platformIcons[
-                              page.platform as keyof typeof platformIcons
-                            ]
-                          }
+                          {getPlatformIconWithSize(page.platform, "h-6 w-6")}
                           {page.platform}
                         </span>
 
@@ -912,7 +1064,9 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                             : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                         }`}
                       >
-                        {platformIcons[platform as keyof typeof platformIcons]}
+                        <span className="h-6 w-6">
+                          {getPlatformIconWithSize(platform, "h-6 w-6")}
+                        </span>
                         <span className="ml-2 capitalize">{platform}</span>
                       </button>
                     ))}
@@ -1003,30 +1157,33 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
 
             {/* Buttons */}
             <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                className="rounded-md border border-gray-300 bg-gray-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+              <Button
+                variant="outlineDark"
+                label={
+                  uploadProgress !== null && isDrafting
+                    ? "Saving..."
+                    : "Save as Draft"
+                }
+                icon={<Save size={16} />}
                 onClick={handleSaveAsDraft}
-                disabled={uploadProgress !== null}
-              >
-                {uploadProgress !== null && isDrafting
-                  ? "Saving..."
-                  : "Save as Draft"}
-              </button>
+                {...(uploadProgress !== null && { disabled: true })}
+              />
 
-              <button
-                type="submit"
-                className="hover:bg-primary-dark rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
-                disabled={uploadProgress !== null}
-              >
-                {uploadProgress !== null && !isDrafting
-                  ? mode === "create"
-                    ? "Creating..."
-                    : "Updating..."
-                  : mode === "create"
-                    ? "Create Post"
-                    : "Update Post"}
-              </button>
+              <Button
+                variant="primary"
+                label={
+                  uploadProgress !== null && !isDrafting
+                    ? mode === "create"
+                      ? "Creating..."
+                      : "Updating..."
+                    : mode === "create"
+                      ? "Create Post"
+                      : "Update Post"
+                }
+                icon={<Send size={16} />}
+                onClick={handleSubmit as any}
+                {...(uploadProgress !== null && { disabled: true })}
+              />
             </div>
           </form>
         </div>
@@ -1088,36 +1245,54 @@ const DraggableItem = ({
       : undefined,
   };
 
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Remove button clicked for index:", index);
+    handleRemoveMedia(index);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       className="relative h-40 w-40 overflow-hidden rounded-lg bg-white shadow-lg dark:bg-gray-800"
     >
-      {media.preview.startsWith("data:video") ||
-      /\.(mp4|mov)$/i.test(media.preview) ? (
-        <video controls preload="auto" className="h-full w-full object-cover">
-          <source src={media.preview} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      ) : (
-        <Image
-          src={media.preview}
-          alt={`Preview ${index}`}
-          className="h-full w-full object-cover"
-          width={500}
-          height={500}
-        />
-      )}
+      {/* Drag handle area - everything except the remove button */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute inset-0 cursor-move"
+        style={{ zIndex: 1 }}
+      >
+        {media.preview.startsWith("data:video") ||
+        /\.(mp4|mov)$/i.test(media.preview) ? (
+          <video controls preload="auto" className="h-full w-full object-cover">
+            <source src={media.preview} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <Image
+            src={media.preview}
+            alt={`Preview ${index}`}
+            className="h-full w-full object-cover"
+            width={500}
+            height={500}
+          />
+        )}
+      </div>
+
+      {/* Remove button - separate from drag handlers */}
       <button
         type="button"
-        onClick={() => handleRemoveMedia(index)}
-        className="absolute right-2 top-2 rounded-full p-1 px-2 font-bold text-white shadow hover:bg-red-600 focus:outline-none"
+        onClick={handleRemoveClick}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        className="absolute right-2 top-2 z-20 rounded-full bg-red-500 p-1 font-bold text-white shadow hover:bg-red-600 focus:outline-none"
         title="Remove"
+        style={{ pointerEvents: "auto" }}
       >
-        ✕
+        <X size={20} />
       </button>
     </div>
   );

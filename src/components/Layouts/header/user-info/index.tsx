@@ -6,7 +6,7 @@ import {
   DropdownContent,
   DropdownTrigger,
 } from "@/components/ui/dropdown";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
@@ -77,7 +77,9 @@ export function UserInfo() {
             }}
           />
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
-            <span>{userProfile?.full_name || userProfile?.email}</span>
+            <span>
+              {userProfile?.full_name || userProfile?.email.split("@")[0]}
+            </span>
 
             <ChevronUpIcon
               aria-hidden
@@ -117,7 +119,7 @@ export function UserInfo() {
 
           <figcaption className="space-y-1 text-base font-medium">
             <div className="mb-2 leading-none text-dark dark:text-white">
-              {userProfile?.full_name || userProfile?.email}
+              {userProfile?.full_name || userProfile?.email.split("@")[0]}
             </div>
 
             <div className="leading-none text-gray-6">{userProfile?.email}</div>

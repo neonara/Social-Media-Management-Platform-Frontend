@@ -4,13 +4,13 @@ import { useState } from "react";
 
 import { GlobeIcon } from "@/assets/icons";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import InputGroup from "@/components/FormElements/InputGroup";
-import { TextAreaGroup } from "@/components/FormElements/InputGroup/text-area";
-import MultiSelect from "@/components/FormElements/MultiSelect";
-import { Checkbox } from "@/components/FormElements/checkbox";
-import { RadioInput } from "@/components/FormElements/radio";
-import { Select } from "@/components/FormElements/select";
-import { Switch } from "@/components/FormElements/switch";
+import InputGroup from "@/components/ui/FormElements/InputGroup";
+import { TextAreaGroup } from "@/components/ui/FormElements/InputGroup/text-area";
+import MultiSelect from "@/components/ui/FormElements/MultiSelect";
+import { Checkbox } from "@/components/ui/FormElements/checkbox";
+import { RadioInput } from "@/components/ui/FormElements/radio";
+import { Select } from "@/components/ui/FormElements/select";
+import { Switch } from "@/components/ui/FormElements/switch";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 
 export default function FormElementsPage() {

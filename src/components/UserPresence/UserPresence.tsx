@@ -13,13 +13,14 @@ import {
   Content as TooltipContent,
   Provider as TooltipProvider,
 } from "@radix-ui/react-tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import { Users } from "lucide-react";
 import { getToken } from "@/utils/token";
 import { getUserPresenceWebSocketUrl } from "@/utils/websocket";
 import { getImageUrl } from "@/utils/image-url";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
+import { Badge } from "@/components/ui/badge";
 
 interface User {
   id: string;
@@ -194,8 +195,7 @@ export default function UserPresence({
   }, [userProfile]);
 
   return (
-    <div className="flex flex-col items-end p-2">
-      <h2 className="mb-3 text-xl font-medium">Online Users</h2>
+    <div className="flex items-center justify-center gap-2 p-2">
       <div className={cn("flex items-center justify-end", className)}>
         {/* Trigger to show all users */}
 
@@ -250,7 +250,13 @@ export default function UserPresence({
                         )}
                         style={{ zIndex: visibleUsers.length + 1 }}
                       >
-                        +{remainingUsers.length}
+                        +
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-100 text-green-700"
+                        >
+                          {remainingUsers.length}
+                        </Badge>
                       </div>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
@@ -358,6 +364,7 @@ export default function UserPresence({
           )}
         </DropdownMenuRoot>
       </div>
+      <h2 className="text-lg font-medium">Online Users</h2>
     </div>
   );
 }

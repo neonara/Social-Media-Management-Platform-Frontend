@@ -2,8 +2,8 @@
 "use client";
 import { EmailIcon, UserIcon } from "@/assets/icons";
 import { useEffect, useState } from "react";
-import InputGroup from "@/components/FormElements/InputGroup";
-import { Select } from "@/components/FormElements/select";
+import InputGroup from "@/components/ui/FormElements/InputGroup";
+import { Select } from "@/components/ui/FormElements/select";
 import { Alert } from "@/components/ui-elements/alert/index";
 import { handleCreateUser } from "@/actions/createUser";
 // import { roles } from "@/types/user";

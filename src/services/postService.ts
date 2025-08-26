@@ -2,14 +2,8 @@
 
 import { API_BASE_URL } from "@/config/api";
 import { DraftPost, ScheduledPost } from "@/types/post";
-import { GetUser } from "@/types/user";
+import { GetUser, User } from "@/types/user";
 import { cookies } from "next/headers";
-
-interface Creator extends Partial<GetUser> {
-  id: number;
-  full_name: string;
-  type: "client" | "team_member";
-}
 
 export type CalendarView = "week" | "month" | "quarter" | "year";
 export type ActiveTab = "calendar" | "post_table";
@@ -593,47 +587,106 @@ export async function getScheduledPosts() {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
 
-    const response = await fetch(`${API_BASE_URL}/content/posts/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "X-CSRFToken": csrfToken,
-      },
-      cache: "no-store",
-    });
+    // Fetch posts and users in parallel for better performance
+    const [postsResponse] = await Promise.all([
+      fetch(`${API_BASE_URL}/content/posts/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+        cache: "no-store",
+      }),
+    ]);
 
-    if (!response.ok) throw new Error("Failed to fetch posts");
+    if (!postsResponse.ok) throw new Error("Failed to fetch posts");
 
-    const posts: ScheduledPost[] = await response.json();
+    const posts: ScheduledPost[] = await postsResponse.json();
+
+    // Create user lookup map for role information
+    const userLookup = new Map<string, User>();
+
     const now = new Date();
 
-    return posts.map((post) => ({
-      ...post,
-      platform: mapPlatform(post.platform),
-      status:
-        new Date(post.scheduled_for) < now
-          ? "published"
-          : post.status || "scheduled",
-      creator: post.creator
-        ? {
-            id: (post.creator as Creator).id || "unknown",
-            full_name: (post.creator as Creator).full_name || "Unknown",
-            type: (post.creator as Creator).type || "team_member",
-          }
-        : {
-            id: "unknown",
-            full_name: "Unknown",
-            type: "team_member",
-          },
-      client: post.client
-        ? {
-            id: post.client.id || "unknown",
-            full_name: post.client.full_name || "Unknown",
-          }
-        : {
-            id: "unknown",
-            full_name: "Unknown",
-          },
-    }));
+    return posts.map((post) => {
+      // Get creator role from user lookup
+      const creatorEmail = post.creator?.email;
+      const creatorUser = creatorEmail ? userLookup.get(creatorEmail) : null;
+
+      // Determine creator role
+      let creatorRole = "unknown";
+      if (creatorUser) {
+        if (creatorUser.is_superadministrator)
+          creatorRole = "super_administrator";
+        else if (creatorUser.is_administrator) creatorRole = "administrator";
+        else if (creatorUser.is_moderator) creatorRole = "moderator";
+        else if (creatorUser.is_community_manager)
+          creatorRole = "community_manager";
+        else if (creatorUser.is_client) creatorRole = "client";
+      }
+
+      // Derive display names: prefer full_name, else email username, else email
+      const creatorDisplayName =
+        (post.creator?.full_name && post.creator.full_name.trim()) ||
+        (post.creator?.email
+          ? post.creator.email.split("@")[0] || post.creator.email
+          : undefined);
+      const clientDisplayName =
+        (post.client?.full_name && post.client.full_name.trim()) ||
+        (post.client?.email
+          ? post.client.email.split("@")[0] || post.client.email
+          : undefined);
+
+      // Try to extract platform from platforms array or fallback to platform field
+      const platformsArray = (post as unknown as Record<string, unknown>)
+        .platforms;
+      let platformValue: string | undefined = post.platform;
+
+      if (
+        platformsArray &&
+        Array.isArray(platformsArray) &&
+        platformsArray.length > 0
+      ) {
+        // platforms is an array of strings like ["linkedin", "facebook"]
+        const firstPlatform = platformsArray[0];
+        if (typeof firstPlatform === "string") {
+          platformValue = firstPlatform;
+        }
+      }
+
+      return {
+        ...post,
+        platform: mapPlatform(platformValue),
+        status:
+          new Date(post.scheduled_for) < now
+            ? "published"
+            : post.status || "scheduled",
+        creator: post.creator
+          ? {
+              id: post.creator.id || "unknown",
+              full_name: creatorDisplayName || "Unknown",
+              email: post.creator.email || "unknown",
+              role: creatorRole, // Use the determined role
+            }
+          : {
+              id: "unknown",
+              full_name: "Unknown",
+              email: "unknown",
+              role: "unknown",
+            },
+
+        client: post.client
+          ? {
+              id: post.client.id || "unknown",
+              full_name: clientDisplayName || "Unknown",
+              email: post.client.email || "unknown",
+            }
+          : {
+              id: "unknown",
+              full_name: "Unknown",
+              email: "unknown",
+            },
+      };
+    });
   } catch (error) {
     console.error("Error fetching posts:", error);
     return [];
@@ -644,6 +697,8 @@ export async function getScheduledPosts() {
 function mapPlatform(
   platform: string | undefined,
 ): "Facebook" | "Instagram" | "LinkedIn" {
+  console.log("mapPlatform received:", platform);
+
   if (!platform) {
     console.warn("Platform is undefined, defaulting to 'Facebook'");
     return "Facebook"; // Default to Facebook if platform is undefined
@@ -655,7 +710,10 @@ function mapPlatform(
     linkedin: "LinkedIn",
   };
 
-  return platformMap[platform.toLowerCase()] || "Facebook"; // Default to Facebook if unknown
+  const result = platformMap[platform.toLowerCase()] || "Facebook";
+  console.log("mapPlatform mapped", platform, "to", result);
+
+  return result; // Default to Facebook if unknown
 }
 
 export async function getDraftPosts(): Promise<DraftPost[]> {

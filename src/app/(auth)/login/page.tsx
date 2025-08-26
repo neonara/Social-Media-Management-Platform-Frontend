@@ -6,8 +6,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; // For navigation
 import darkLogo from "@/assets/logos/logo_white.png";
 import logo from "@/assets/logos/logo_black.png";
-import { Checkbox } from "@/components/FormElements/checkbox";
-import InputGroup from "@/components/FormElements/InputGroup";
+import { Checkbox } from "@/components/ui/FormElements/checkbox";
+import InputGroup from "@/components/ui/FormElements/InputGroup";
 import { EmailIcon, PasswordIcon } from "@/assets/icons";
 import { loginUser } from "@/services/authService";
 import { checkAuthStatus } from "@/utils/token";
