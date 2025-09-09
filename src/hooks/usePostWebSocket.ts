@@ -34,24 +34,18 @@ export const usePostWebSocket = (
   const reconnectTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
   const isDisconnecting = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  const maxReconnectAttempts = 5;
 
   const connect = useCallback(async () => {
-    // Prevent multiple connection attempts or if we're in the middle of disconnecting
+    // Prevent multiple connection attempts
     if (
-      isConnecting ||
-      isDisconnecting.current ||
-      ws.current?.readyState === WebSocket.OPEN
+      ws.current?.readyState === WebSocket.OPEN ||
+      ws.current?.readyState === WebSocket.CONNECTING
     ) {
       console.log("WebSocket already connecting or connected");
       return;
     }
 
     try {
-      setIsConnecting(true);
-
       // Validate token with backend before connecting
       const tokenValidation = await clientValidateToken();
 
@@ -60,7 +54,6 @@ export const usePostWebSocket = (
           "Invalid or expired token. Cannot connect to WebSocket:",
           tokenValidation.error,
         );
-        setIsConnecting(false);
         return;
       }
 
@@ -71,7 +64,6 @@ export const usePostWebSocket = (
         console.error(
           "No access token available for WebSocket connection after validation",
         );
-        setIsConnecting(false);
         return;
       }
 
@@ -88,8 +80,6 @@ export const usePostWebSocket = (
       ws.current.onopen = () => {
         console.log("WebSocket connected successfully");
         setIsConnected(true);
-        setIsConnecting(false);
-        setReconnectAttempts(0); // Reset attempts on successful connection
 
         // Clear any reconnection timeout
         if (reconnectTimeout.current) {
@@ -111,40 +101,26 @@ export const usePostWebSocket = (
       ws.current.onclose = (event) => {
         console.log("WebSocket disconnected:", event.code, event.reason);
         setIsConnected(false);
-        setIsConnecting(false);
         ws.current = null;
 
-        // Only reconnect if it wasn't a manual disconnect and we haven't exceeded max attempts
-        if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
-          const nextAttempt = reconnectAttempts + 1;
-          setReconnectAttempts(nextAttempt);
-
-          // Exponential backoff: 3s, 6s, 12s, 24s, 48s (max 30s)
-          const delay = Math.min(3000 * Math.pow(2, reconnectAttempts), 30000);
-          console.log(
-            `Attempting to reconnect in ${delay / 1000} seconds... (Attempt ${nextAttempt}/${maxReconnectAttempts})`,
-          );
+        // Only reconnect if it wasn't a manual disconnect
+        if (event.code !== 1000) {
+          console.log("Attempting to reconnect in 3 seconds...");
 
           reconnectTimeout.current = setTimeout(() => {
             connect();
-          }, delay);
-        } else if (reconnectAttempts >= maxReconnectAttempts) {
-          console.warn(
-            "Max reconnection attempts reached. Stopping reconnection.",
-          );
+          }, 3000);
         }
       };
 
       ws.current.onerror = (error) => {
         console.error("WebSocket error:", error);
-        setIsConnecting(false);
       };
     } catch (error) {
       console.error("Error connecting to WebSocket:", error);
       setIsConnected(false);
-      setIsConnecting(false);
     }
-  }, [reconnectAttempts, maxReconnectAttempts, onMessage, isConnecting]);
+  }, [onMessage]);
 
   const disconnect = useCallback(() => {
     // Prevent multiple simultaneous disconnections
@@ -168,9 +144,7 @@ export const usePostWebSocket = (
     }
 
     // Reset state
-    setIsConnecting(false);
     setIsConnected(false);
-    setReconnectAttempts(0);
 
     // Reset the disconnecting flag
     isDisconnecting.current = false;

@@ -42,7 +42,7 @@ type Props = {
   onDragEnd: (event: DragEndEvent) => void;
   canApproveReject?: boolean;
   onApprove?: (postId: number) => Promise<void>;
-  onReject?: (postId: number) => Promise<void>;
+  onReject?: (postId: number, feedback?: string) => Promise<void>;
 };
 
 const PostTable: React.FC<Props> = ({

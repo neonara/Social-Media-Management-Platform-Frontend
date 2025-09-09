@@ -4,11 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; // For navigation
+import { Eye, EyeOff } from "lucide-react";
 import darkLogo from "@/assets/logos/logo_white.png";
 import logo from "@/assets/logos/logo_black.png";
 import { Checkbox } from "@/components/ui/FormElements/checkbox";
 import InputGroup from "@/components/ui/FormElements/InputGroup";
-import { EmailIcon, PasswordIcon } from "@/assets/icons";
+import { EmailIcon } from "@/assets/icons";
 import { loginUser } from "@/services/authService";
 import { checkAuthStatus } from "@/utils/token";
 
@@ -21,6 +22,7 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(""); // Error state
+  const [showPassword, setShowPassword] = useState(false); // Password visibility state
   const router = useRouter();
 
   // Check if the user is already authenticated when the component mounts
@@ -105,16 +107,28 @@ export default function Login() {
                 icon={<EmailIcon />}
               />
 
-              <InputGroup
-                type="password"
-                label="Password"
-                className="mb-5 [&_input]:py-[15px]"
-                placeholder="Enter your password"
-                name="password"
-                handleChange={handleChange}
-                value={data.password}
-                icon={<PasswordIcon />}
-              />
+              <div className="mb-5">
+                <label className="mb-2.5 block font-medium text-dark dark:text-white">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    name="password"
+                    value={data.password}
+                    onChange={handleChange}
+                    className="w-full rounded-[7px] border-[1.5px] border-stroke bg-transparent py-[15px] pl-5 pr-12 text-dark outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-gray-2 dark:border-dark-3 dark:bg-dark-2 dark:text-white dark:focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
 
               {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 

@@ -12,7 +12,8 @@ export async function fetchNotifications() {
     const token = cookieStore.get("access_token")?.value;
 
     if (!token) {
-      return { error: "Authentication required" };
+      // Return empty array instead of error object for consistency
+      return [];
     }
 
     const response = await fetch(`${API_BASE_URL}/notifications/`, {
@@ -25,14 +26,23 @@ export async function fetchNotifications() {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        // Return empty array for auth errors to prevent UI crashes
+        console.warn(
+          "Authentication failed for notifications, returning empty array",
+        );
+        return [];
+      }
       throw new Error(`Error: ${response.statusText}`);
     }
 
     const data = await response.json();
-    return data;
+    // Ensure we always return an array
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
   }
 }
 
@@ -58,6 +68,9 @@ export async function markAllNotificationsAsRead() {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return { error: "Authentication failed" };
+      }
       throw new Error(`Error: ${response.statusText}`);
     }
 
@@ -65,7 +78,7 @@ export async function markAllNotificationsAsRead() {
     return data;
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
-    throw error;
+    return { error: "Failed to mark notifications as read" };
   }
 }
 
@@ -95,6 +108,9 @@ export async function markNotificationAsRead(notificationId: number) {
     );
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return { error: "Authentication failed" };
+      }
       throw new Error(`Error: ${response.statusText}`);
     }
 
@@ -105,7 +121,7 @@ export async function markNotificationAsRead(notificationId: number) {
       `Error marking notification ${notificationId} as read:`,
       error,
     );
-    throw error;
+    return { error: "Failed to mark notification as read" };
   }
 }
 
@@ -135,13 +151,16 @@ export async function deleteNotification(notificationId: number) {
     );
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return { error: "Authentication failed" };
+      }
       throw new Error(`Error: ${response.statusText}`);
     }
 
     return { success: true };
   } catch (error) {
     console.error(`Error deleting notification ${notificationId}:`, error);
-    throw error;
+    return { error: "Failed to delete notification" };
   }
 }
 
@@ -155,7 +174,8 @@ export async function revalidateNotificationsCache() {
     const token = cookieStore.get("access_token")?.value;
 
     if (!token) {
-      return { error: "Authentication required" };
+      // Return empty array instead of error object for consistency
+      return [];
     }
 
     const response = await fetch(`${API_BASE_URL}/notifications/`, {
@@ -169,13 +189,22 @@ export async function revalidateNotificationsCache() {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        // Return empty array for auth errors to prevent UI crashes
+        console.warn(
+          "Authentication failed for notifications revalidation, returning empty array",
+        );
+        return [];
+      }
       throw new Error(`Error: ${response.statusText}`);
     }
 
     const data = await response.json();
-    return data;
+    // Ensure we always return an array
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error revalidating notifications cache:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
   }
 }

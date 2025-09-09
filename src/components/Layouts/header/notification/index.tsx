@@ -47,12 +47,21 @@ export function Notification() {
       const freshData = await revalidateNotificationsCache();
 
       if (isMountedRef.current) {
-        setNotifications(freshData);
-        const hasUnread = freshData.some((n: NotificationType) => !n.is_read);
+        // Ensure freshData is always an array
+        const notificationsArray = Array.isArray(freshData) ? freshData : [];
+        setNotifications(notificationsArray);
+        const hasUnread = notificationsArray.some(
+          (n: NotificationType) => !n.is_read,
+        );
         setIsDotVisible(hasUnread);
       }
     } catch (error) {
       console.error("Error refreshing notifications:", error);
+      if (isMountedRef.current) {
+        // Set empty array on error to prevent UI crashes
+        setNotifications([]);
+        setIsDotVisible(false);
+      }
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -70,12 +79,21 @@ export function Notification() {
         const data = await fetchNotifications();
 
         if (isMountedRef.current) {
-          setNotifications(data);
-          const hasUnread = data.some((n: NotificationType) => !n.is_read);
+          // Ensure data is always an array
+          const notificationsArray = Array.isArray(data) ? data : [];
+          setNotifications(notificationsArray);
+          const hasUnread = notificationsArray.some(
+            (n: NotificationType) => !n.is_read,
+          );
           setIsDotVisible(hasUnread);
         }
       } catch (error) {
         console.error("Error fetching notifications:", error);
+        if (isMountedRef.current) {
+          // Set empty array on error to prevent UI crashes
+          setNotifications([]);
+          setIsDotVisible(false);
+        }
       } finally {
         if (isMountedRef.current) {
           setIsLoading(false);
@@ -96,7 +114,9 @@ export function Notification() {
       try {
         const token = await getToken();
         if (!token) {
-          console.warn("No access token found in cookies");
+          console.warn(
+            "No access token found in cookies - skipping WebSocket connection",
+          );
           return;
         }
 

@@ -34,6 +34,13 @@ import { X, Save, Send } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { ScheduledPost, DraftPost } from "@/types/post";
 import { Button } from "@/components/ui-elements/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MediaFile {
   id?: number | string;
@@ -199,10 +206,14 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
         setIsLoadingClients(true);
         try {
           const response = await getAssignedClients();
-          setClients(response);
+          // Ensure response is always an array
+          const clientsArray = Array.isArray(response) ? response : [];
+          setClients(clientsArray);
         } catch (error) {
           console.error("Failed to fetch clients:", error);
           themedToast.error("Failed to load client list");
+          // Set empty array on error to prevent crashes
+          setClients([]);
         } finally {
           setIsLoadingClients(false);
         }
@@ -596,9 +607,8 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
         }
       } else {
         response = await updatePost(parseInt(postId!), formDataToSend);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to ${mode} post`);
+        if (!response.success) {
+          throw new Error(response.error || `Failed to ${mode} post`);
         }
       }
 
@@ -675,9 +685,8 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
         }
       } else {
         response = await updatePost(parseInt(postId!), formDataToSend);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to save draft");
+        if (!response.success) {
+          throw new Error(response.error || "Failed to save draft");
         }
       }
 
@@ -795,22 +804,32 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Client Selection (Optional)
               </h2>
-              <select
-                className="block w-full rounded-md border-gray-300 p-2 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                value={selectedClientId || ""}
-                onChange={(e) => setSelectedClientId(e.target.value || null)}
+
+              <Select
+                value={selectedClientId || "no-client"}
+                disabled={isLoadingClients}
+                onValueChange={(value) =>
+                  setSelectedClientId(value === "no-client" ? null : value)
+                }
               >
-                <option value="">-- Select a Client --</option>
-                {isLoadingClients ? (
-                  <option disabled>Loading clients...</option>
-                ) : (
-                  clients.map((client) => (
-                    <option key={client.id} value={client.id.toString()}>
+                <SelectTrigger className="w-48">
+                  <SelectValue
+                    placeholder={
+                      isLoadingClients ? "Loading..." : "Select a Client"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-client">
+                    {isLoadingClients ? "Loading..." : "Select a Client"}
+                  </SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id.toString()}>
                       {client.name}
-                    </option>
-                  ))
-                )}
-              </select>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -852,7 +871,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                     ref={titleRef}
                     type="text"
                     id="title"
-                    className="mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm outline-none focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     required
                   />
                 ) : (
@@ -899,7 +918,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                   type="text"
                   placeholder="Type a hashtag (no spaces) and press Enter"
                   onKeyDown={handleAddHashtag}
-                  className="block w-full rounded-md border-gray-300 p-2 shadow-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  className="block w-full rounded-md border border-gray-300 p-2 shadow-sm outline-none focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 />
                 <button
                   type="button"
@@ -1157,17 +1176,19 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
 
             {/* Buttons */}
             <div className="flex justify-end space-x-3">
-              <Button
-                variant="outlineDark"
-                label={
-                  uploadProgress !== null && isDrafting
-                    ? "Saving..."
-                    : "Save as Draft"
-                }
-                icon={<Save size={16} />}
-                onClick={handleSaveAsDraft}
-                {...(uploadProgress !== null && { disabled: true })}
-              />
+              {mode === "create" && (
+                <Button
+                  variant="outlineDark"
+                  label={
+                    uploadProgress !== null && isDrafting
+                      ? "Saving..."
+                      : "Save as Draft"
+                  }
+                  icon={<Save size={16} />}
+                  onClick={handleSaveAsDraft}
+                  {...(uploadProgress !== null && { disabled: true })}
+                />
+              )}
 
               <Button
                 variant="primary"

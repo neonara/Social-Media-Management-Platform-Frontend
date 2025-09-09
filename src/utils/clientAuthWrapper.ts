@@ -5,20 +5,55 @@ import {
   validateUserRoles,
   secureLogout,
 } from "@/utils/secureAuth";
+import { tokenValidationCache } from "@/utils/tokenValidationCache";
+import { getToken } from "@/utils/token";
 
 /**
- * Client-side wrapper for token validation
+ * Client-side wrapper for token validation with caching
  * This calls the server action safely from client components
  */
 export async function clientValidateToken() {
   try {
-    return await validateTokenWithServer();
+    const token = await getToken();
+    if (!token) {
+      return {
+        isValid: false,
+        error: "No token found",
+      };
+    }
+
+    // Check cache first
+    const cachedResult = tokenValidationCache.getCachedValidation(token);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    // If not cached, validate with server
+    console.log("Validating token with server (cache miss)");
+    const result = await validateTokenWithServer();
+
+    // Cache the result
+    tokenValidationCache.setCachedValidation(token, result);
+
+    return result;
   } catch (error) {
     console.error("Client token validation error:", error);
-    return {
+    const errorResult = {
       isValid: false,
       error: "Token validation failed",
     };
+
+    // Cache error result briefly to prevent rapid retries
+    try {
+      const token = await getToken();
+      if (token) {
+        tokenValidationCache.setCachedValidation(token, errorResult);
+      }
+    } catch {
+      // Ignore cache errors
+    }
+
+    return errorResult;
   }
 }
 
@@ -39,10 +74,13 @@ export async function clientValidateRoles(requiredRoles: string[]) {
 }
 
 /**
- * Client-side wrapper for logout
+ * Client-side wrapper for logout with cache clearing
  */
 export async function clientSecureLogout() {
   try {
+    // Clear token validation cache
+    tokenValidationCache.clearCache();
+
     await secureLogout();
   } catch (error) {
     console.error("Client logout error:", error);
@@ -55,6 +93,13 @@ export async function clientSecureLogout() {
 export async function isAuthenticated(): Promise<boolean> {
   const result = await clientValidateToken();
   return result.isValid;
+}
+
+/**
+ * Clear token validation cache (useful when token changes)
+ */
+export function clearTokenValidationCache(): void {
+  tokenValidationCache.clearCache();
 }
 
 export async function isAdmin(): Promise<boolean> {

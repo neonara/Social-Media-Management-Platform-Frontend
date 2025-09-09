@@ -203,7 +203,7 @@ export default function ClientAssignmentsTable() {
                           e.currentTarget.src = "/images/user/user-03.png";
                         }}
                       />
-                      <span>{cm.full_name}</span>
+                      <span>{cm.full_name || cm.email.split("@")[0]}</span>
                     </div>
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">

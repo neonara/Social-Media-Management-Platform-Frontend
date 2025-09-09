@@ -89,6 +89,13 @@ export function getUserPresenceWebSocketUrl(token: string): string {
 }
 
 /**
+ * Get the WebSocket URL for user data updates
+ */
+export function getUserDataWebSocketUrl(token: string): string {
+  return getWebSocketUrl(`/ws/user_data/?token=${token}`);
+}
+
+/**
  * WebSocket connection with retry logic
  */
 export class ReconnectingWebSocket {

@@ -1,5 +1,98 @@
 import { ScheduledPost } from "@/types/post";
 
+// Helper functions for three-state boolean logic
+export function getApprovalStatus(
+  is_client_approved: boolean | null | undefined,
+): "pending" | "approved" | "rejected" {
+  if (is_client_approved === null || is_client_approved === undefined)
+    return "pending";
+  if (is_client_approved === true) return "approved";
+  return "rejected";
+}
+
+export function getValidationStatus(
+  is_moderator_validated: boolean | null | undefined,
+): "pending" | "validated" | "rejected" {
+  if (is_moderator_validated === null || is_moderator_validated === undefined)
+    return "pending";
+  if (is_moderator_validated === true) return "validated";
+  return "rejected";
+}
+
+export function getApprovalStatusText(
+  is_client_approved: boolean | null | undefined,
+): string {
+  switch (getApprovalStatus(is_client_approved)) {
+    case "pending":
+      return "Pending Review";
+    case "approved":
+      return "Approved";
+    case "rejected":
+      return "Rejected";
+  }
+}
+
+export function getValidationStatusText(
+  is_moderator_validated: boolean | null | undefined,
+): string {
+  switch (getValidationStatus(is_moderator_validated)) {
+    case "pending":
+      return "Pending Validation";
+    case "validated":
+      return "Validated";
+    case "rejected":
+      return "Rejected";
+  }
+}
+
+// Utility functions for filtering posts by approval/validation states
+export function filterPostsByApprovalStatus(
+  posts: ScheduledPost[],
+  status: "pending" | "approved" | "rejected",
+): ScheduledPost[] {
+  return posts.filter(
+    (post) => getApprovalStatus(post.is_client_approved) === status,
+  );
+}
+
+export function filterPostsByValidationStatus(
+  posts: ScheduledPost[],
+  status: "pending" | "validated" | "rejected",
+): ScheduledPost[] {
+  return posts.filter(
+    (post) => getValidationStatus(post.is_moderator_validated) === status,
+  );
+}
+
+// Get posts that are fully approved and validated
+export function getFullyApprovedPosts(posts: ScheduledPost[]): ScheduledPost[] {
+  return posts.filter(
+    (post) =>
+      getApprovalStatus(post.is_client_approved) === "approved" &&
+      getValidationStatus(post.is_moderator_validated) === "validated",
+  );
+}
+
+// Get posts awaiting any decision (client approval OR moderator validation)
+export function getPostsAwaitingDecision(
+  posts: ScheduledPost[],
+): ScheduledPost[] {
+  return posts.filter(
+    (post) =>
+      getApprovalStatus(post.is_client_approved) === "pending" ||
+      getValidationStatus(post.is_moderator_validated) === "pending",
+  );
+}
+
+// Get posts that have been rejected by either client or moderator
+export function getRejectedPosts(posts: ScheduledPost[]): ScheduledPost[] {
+  return posts.filter(
+    (post) =>
+      getApprovalStatus(post.is_client_approved) === "rejected" ||
+      getValidationStatus(post.is_moderator_validated) === "rejected",
+  );
+}
+
 export interface WorkflowStatus {
   canClientApprove: boolean;
   canClientReject: boolean;
@@ -16,8 +109,10 @@ export function getWorkflowStatus(
   userRole: string,
 ): WorkflowStatus {
   const status = post.status || "draft";
-  const isClientApproved = post.is_client_approved || false;
-  const isModeratorRejected = post.is_moderator_rejected || false;
+  const clientApprovalStatus = getApprovalStatus(post.is_client_approved);
+  const moderatorValidationStatus = getValidationStatus(
+    post.is_moderator_validated,
+  );
 
   const result: WorkflowStatus = {
     canClientApprove: false,
@@ -42,19 +137,22 @@ export function getWorkflowStatus(
 
     case "pending":
       if (userRole === "client") {
-        result.canClientApprove = !isClientApproved;
-        result.canClientReject = !isClientApproved;
-        result.nextAction = isClientApproved
-          ? "Waiting for moderator validation"
-          : "Awaiting client approval";
+        const isPending = clientApprovalStatus === "pending";
+        result.canClientApprove = isPending;
+        result.canClientReject = isPending;
+        result.nextAction =
+          clientApprovalStatus === "approved"
+            ? "Waiting for moderator validation"
+            : "Awaiting client approval";
       }
 
       if (userRole === "admin" || userRole === "moderator") {
         result.canModeratorValidate = true;
         result.canModeratorReject = true;
-        result.nextAction = isClientApproved
-          ? "Ready for moderator validation"
-          : "Can validate (with or without client approval)";
+        result.nextAction =
+          clientApprovalStatus === "approved"
+            ? "Ready for moderator validation"
+            : "Can validate (with or without client approval)";
       }
       break;
 
@@ -65,9 +163,10 @@ export function getWorkflowStatus(
         userRole === "content_manager"
       ) {
         result.canResubmit = true;
-        result.nextAction = isModeratorRejected
-          ? "Can resubmit after addressing moderator feedback"
-          : "Can resubmit for review";
+        result.nextAction =
+          moderatorValidationStatus === "rejected"
+            ? "Can resubmit after addressing moderator feedback"
+            : "Can resubmit for review";
       }
       break;
 

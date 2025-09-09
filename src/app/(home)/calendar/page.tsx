@@ -43,6 +43,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DragEndEvent } from "@dnd-kit/core";
 
 import * as postService from "@/services/postService";
@@ -73,6 +81,12 @@ const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 function getCachedData<T>(key: string): T | null {
+  // TEMPORARY: Override caching for posts until cache issues are resolved
+  // Always return null to force fresh data retrieval
+  if (key.includes("post") || key.includes("scheduled")) {
+    return null;
+  }
+
   const cached = cache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.data as T;
@@ -81,6 +95,12 @@ function getCachedData<T>(key: string): T | null {
 }
 
 function setCachedData(key: string, data: unknown) {
+  // TEMPORARY: Skip caching for posts until cache issues are resolved
+  if (key.includes("post") || key.includes("scheduled")) {
+    console.log(`Skipping cache for key: ${key} (posts caching disabled)`);
+    return;
+  }
+
   cache.set(key, { data, timestamp: Date.now() });
 }
 
@@ -127,7 +147,7 @@ export default function CalendarPage() {
     "week" | "month" | "quarter" | "year"
   >("week");
   const [activeTab, setActiveTab] = useState<"calendar" | "post_table">(
-    "calendar",
+    "post_table",
   );
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchYear, setSearchYear] = useState<string>("");
@@ -143,10 +163,20 @@ export default function CalendarPage() {
   const [assignedClients, setAssignedClients] = useState<
     { id: number; label: string; email?: string }[]
   >([]);
+  const [cmAssignedClients, setCmAssignedClients] = useState<
+    Array<{ id: number; name: string; email: string }>
+  >([]);
   const [showMultiPostModal, setShowMultiPostModal] = useState(false);
   const [selectedDayPosts, setSelectedDayPosts] = useState<ScheduledPost[]>([]);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [openSelect, setOpenSelect] = useState<string | null>(null);
+
+  // Confirmation modal states
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [pendingValidationPostId, setPendingValidationPostId] = useState<
+    number | null
+  >(null);
+
   const router = useRouter();
 
   // Utility function to sanitize post data for client components
@@ -284,31 +314,22 @@ export default function CalendarPage() {
         `Attempting to ${userRole === "client" ? "approve" : "validate"} post ${postId}`,
       );
 
-      let response;
       if (userRole === "client") {
-        response = await postService.approvePost(postId);
-      } else {
-        response = await postService.moderatorValidatePost(postId);
-      }
+        // For clients, approve directly
+        const response = await postService.approvePost(postId);
 
-      if (response.success) {
-        console.log(
-          `Post ${postId} ${userRole === "client" ? "approved" : "validated"} successfully:`,
-          response,
-        );
-        toast.success(
-          `Post ${userRole === "client" ? "approved" : "validated"} successfully!`,
-        );
-        handleRefresh(); // Trigger immediate refresh
+        if (response.success) {
+          console.log(`Post ${postId} approved successfully:`, response);
+          toast.success("Post approved successfully!");
+          handleRefresh(); // Trigger immediate refresh
+        } else {
+          console.error(`Failed to approve post ${postId}:`, response);
+          toast.error(response.message || "Failed to approve post.");
+        }
       } else {
-        console.error(
-          `Failed to ${userRole === "client" ? "approve" : "validate"} post ${postId}:`,
-          response,
-        );
-        toast.error(
-          response.message ||
-            `Failed to ${userRole === "client" ? "approve" : "validate"} post.`,
-        );
+        // For moderators/admins/super_admins, show confirmation modal
+        setPendingValidationPostId(postId);
+        setShowOverrideModal(true);
       }
     } catch (error) {
       console.error(
@@ -321,10 +342,37 @@ export default function CalendarPage() {
     }
   };
 
-  const handleReject = async (postId: number) => {
+  // Function to handle the actual validation with override option
+  const handleValidatePost = async (
+    postId: number,
+    overrideClient: boolean = false,
+  ) => {
+    try {
+      console.log(`Validating post ${postId} with override: ${overrideClient}`);
+
+      const response = await postService.moderatorValidatePost(
+        postId,
+        overrideClient,
+      );
+
+      if (response.success) {
+        console.log(`Post ${postId} validated successfully:`, response);
+        toast.success("Post validated successfully!");
+        handleRefresh(); // Trigger immediate refresh
+      } else {
+        console.error(`Failed to validate post ${postId}:`, response);
+        toast.error(response.message || "Failed to validate post.");
+      }
+    } catch (error) {
+      console.error("Error validating post:", error);
+      toast.error("Failed to validate post.");
+    }
+  };
+
+  const handleReject = async (postId: number, feedback?: string) => {
     try {
       console.log(`Attempting to reject post ${postId}`);
-      const response = await postService.rejectPost(postId);
+      const response = await postService.rejectPost(postId, feedback);
 
       if (response.success) {
         console.log(`Post ${postId} rejected successfully:`, response);
@@ -344,12 +392,24 @@ export default function CalendarPage() {
     (message: PostWebSocketMessage) => {
       console.log("WebSocket message received:", message);
       switch (message.type) {
+        case "post_created":
+          // Invalidate posts cache since new data was created
+          invalidateCache("scheduled_posts_");
+
+          if (message.data) {
+            // Sanitize the data to ensure proper serialization
+            const newPost = sanitizePostData(message.data);
+            setScheduledPosts((prev) => [...prev, newPost]);
+            setAllPosts((prev) => [...prev, newPost]);
+            toast.success("New post created!");
+          }
+          break;
         case "post_updated":
           // Invalidate posts cache since data changed
           invalidateCache("scheduled_posts_");
 
           if (message.action === "created" && message.data) {
-            // Sanitize the data to ensure proper serialization
+            // Handle legacy messages that still use post_updated with action=created
             const newPost = sanitizePostData(message.data);
             setScheduledPosts((prev) => [...prev, newPost]);
             setAllPosts((prev) => [...prev, newPost]);
@@ -411,6 +471,41 @@ export default function CalendarPage() {
             }
           }
           break;
+        case "post_deleted":
+          // Handle post deletion
+          invalidateCache("scheduled_posts_");
+
+          if (message.post_id) {
+            setScheduledPosts((prev) =>
+              prev.filter((p) => p.id.toString() !== message.post_id),
+            );
+            setAllPosts((prev) =>
+              prev.filter((p) => p.id.toString() !== message.post_id),
+            );
+            toast.info("Post deleted!");
+          }
+          break;
+        case "post_status_changed":
+          // Handle post status changes
+          invalidateCache("scheduled_posts_");
+
+          if (message.data && message.post_id) {
+            const updatedPost = sanitizePostData(message.data);
+            setScheduledPosts((prev) =>
+              prev.map((p) =>
+                p.id.toString() === message.post_id ? updatedPost : p,
+              ),
+            );
+            setAllPosts((prev) =>
+              prev.map((p) =>
+                p.id.toString() === message.post_id ? updatedPost : p,
+              ),
+            );
+            if (message.user_id !== "self") {
+              toast.success(`Post status changed to ${message.new_status}!`);
+            }
+          }
+          break;
         case "connection_established":
           console.log("WebSocket connection established");
           break;
@@ -454,6 +549,31 @@ export default function CalendarPage() {
       setLoadingCMs(false);
     }
   }, []);
+
+  const fetchCMAssignedClients = useCallback(async () => {
+    if (userRole !== "community_manager") return;
+
+    const cacheKey = "cm_assigned_clients";
+    const cached =
+      getCachedData<Array<{ id: number; name: string; email: string }>>(
+        cacheKey,
+      );
+    if (cached) {
+      console.log("Using cached CM assigned clients");
+      setCmAssignedClients(cached);
+      return;
+    }
+
+    try {
+      console.log("Fetching CM assigned clients from API");
+      const result = await postService.getAssignedClients();
+      setCmAssignedClients(result);
+      setCachedData(cacheKey, result);
+    } catch (error) {
+      console.error("Error fetching CM assigned clients:", error);
+      setCmAssignedClients([]);
+    }
+  }, [userRole]);
 
   const fetchScheduledPosts = useCallback(
     async (
@@ -507,6 +627,17 @@ export default function CalendarPage() {
             (post.creator?.email === currentUser?.email ||
               post.creator?.email === undefined);
 
+          // Community managers should see posts created by moderators for their assigned clients
+          const isCmViewingModeratorPostForAssignedClient =
+            userRole === "community_manager" &&
+            post.creator?.role === "moderator" &&
+            post.client &&
+            currentUser &&
+            // Check if the current CM has this client assigned to them using the CM's assigned clients
+            cmAssignedClients.some(
+              (assignedClient) => assignedClient.id === post.client?.id,
+            );
+
           const isModerator = userRole === "moderator";
           const isModeratorAllowed =
             isModerator &&
@@ -521,7 +652,12 @@ export default function CalendarPage() {
               post.client.full_name === currentUser.full_name ||
               post.client.id === currentUser.id);
 
-          return isCm || isModeratorAllowed || isClient;
+          return (
+            isCm ||
+            isCmViewingModeratorPostForAssignedClient ||
+            isModeratorAllowed ||
+            isClient
+          );
         });
 
         setAllPosts(authorizedPosts);
@@ -553,12 +689,13 @@ export default function CalendarPage() {
         setLoadingPosts(false);
       }
     },
-    [assignedCMs, currentUser, sanitizePostData, userRole],
+    [assignedCMs, cmAssignedClients, currentUser, sanitizePostData, userRole],
   );
 
   useEffect(() => {
     fetchAssignedCMs();
-  }, [fetchAssignedCMs]);
+    fetchCMAssignedClients();
+  }, [fetchAssignedCMs, fetchCMAssignedClients]);
 
   useEffect(() => {
     const loadAssignedClients = async () => {
@@ -1768,6 +1905,41 @@ export default function CalendarPage() {
           setSelectedDay(null);
         }}
       />
+
+      {/* Override Client Approval Confirmation Modal */}
+      <Dialog open={showOverrideModal} onOpenChange={setShowOverrideModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Override Client Approval</DialogTitle>
+            <DialogDescription>
+              Do you want to validate and schedule this post without client
+              approval?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowOverrideModal(false);
+                setPendingValidationPostId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingValidationPostId) {
+                  handleValidatePost(pendingValidationPostId, true); // Override client approval
+                }
+                setShowOverrideModal(false);
+                setPendingValidationPostId(null);
+              }}
+            >
+              Yes, Override
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

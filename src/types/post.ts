@@ -34,9 +34,9 @@ export interface ScheduledPost {
         email: string;
         role?: UserRole;
       };
-  // Workflow fields
-  is_client_approved?: boolean;
-  is_moderator_rejected?: boolean;
+  // Workflow fields - Three-state logic (null = pending, true = approved/validated, false = rejected)
+  is_client_approved?: boolean | null;
+  is_moderator_validated?: boolean | null;
   client_approved_at?: string;
   client_rejected_at?: string;
   moderator_validated_at?: string;
@@ -63,6 +63,11 @@ export interface DraftPost {
   description: string;
   scheduled_for: string | null;
   creator_id: number;
+  creator?: {
+    id: number;
+    email: string;
+    full_name: string;
+  };
   status: "draft";
   platforms: string[];
   media: {

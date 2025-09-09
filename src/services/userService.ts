@@ -188,7 +188,7 @@ export async function getCurrentUser(bypassCache: boolean = false) {
       data = await response.json();
     } catch (error) {
       console.error("Error parsing response JSON:", error);
-      throw new Error("Failed to parse response JSON");
+      return { error: "Failed to parse response JSON" };
     }
 
     if (!response.ok) {
@@ -197,13 +197,19 @@ export async function getCurrentUser(bypassCache: boolean = false) {
         statusText: response.statusText,
         errorData: data,
       });
-      throw new Error(`Error: ${response.statusText}`);
+
+      if (response.status === 401 || response.status === 403) {
+        return { error: "Token expired" };
+      }
+
+      return { error: `Error: ${response.statusText}` };
     }
 
     return data;
   } catch (error) {
     console.error("Error getting user profile:", error);
-    throw error;
+    // Return error object instead of throwing to prevent UI crashes
+    return { error: "Network error while fetching user profile" };
   }
 }
 

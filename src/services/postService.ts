@@ -55,6 +55,12 @@ export async function getAssignedClients(): Promise<
 > {
   try {
     const token = await getAuthToken();
+
+    if (!token) {
+      console.warn("No auth token available for getAssignedClients");
+      return [];
+    }
+
     const csrfToken = await getCsrfToken();
 
     const response = await fetch(`${API_BASE_URL}/clients/assigned/`, {
@@ -65,13 +71,21 @@ export async function getAssignedClients(): Promise<
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        console.warn(
+          "Authentication failed for getAssignedClients, returning empty array",
+        );
+        return [];
+      }
       throw new Error("Failed to fetch assigned clients");
     }
 
-    return await response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error fetching assigned clients:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
   }
 }
 
@@ -839,7 +853,7 @@ export async function getPostById(postId: number): Promise<DraftPost | null> {
 export async function updatePost(
   postId: number,
   formData: FormData,
-): Promise<Response> {
+): Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
@@ -856,13 +870,23 @@ export async function updatePost(
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to update post");
+      return {
+        success: false,
+        error: errorData.message || "Failed to update post",
+      };
     }
 
-    return response;
+    const data = await response.json();
+    return {
+      success: true,
+      data,
+    };
   } catch (error) {
     console.error("Error updating post:", error);
-    throw error;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update post",
+    };
   }
 }
 

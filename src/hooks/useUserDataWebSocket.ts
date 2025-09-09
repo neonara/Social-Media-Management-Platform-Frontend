@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { getWebSocketUrl } from "@/utils/websocket";
+import { getUserDataWebSocketUrl } from "@/utils/websocket";
 import { clientValidateToken } from "@/utils/clientAuthWrapper";
 import { getToken } from "@/utils/token";
 
@@ -61,7 +61,7 @@ export const useUserDataWebSocket = (
         return;
       }
 
-      const wsUrl = getWebSocketUrl("/ws/user_data/");
+      const wsUrl = getUserDataWebSocketUrl(token);
       console.log("Attempting to connect to user data WebSocket:", wsUrl);
 
       ws.current = new WebSocket(wsUrl);
@@ -70,12 +70,12 @@ export const useUserDataWebSocket = (
         console.log("User data WebSocket connected");
         isConnected.current = true;
 
-        // Send authentication message
-        if (ws.current && token) {
+        // Send connection confirmation message
+        if (ws.current) {
           ws.current.send(
             JSON.stringify({
-              type: "authenticate",
-              token: token,
+              type: "connection_ready",
+              message: "User data WebSocket ready",
             }),
           );
         }
@@ -99,11 +99,18 @@ export const useUserDataWebSocket = (
         );
         isConnected.current = false;
 
-        // Reconnect after 3 seconds unless it was a clean close
-        if (event.code !== 1000) {
-          reconnectTimeout.current = setTimeout(() => {
-            console.log("Reconnecting to user data WebSocket...");
-            connect();
+        // Only reconnect if it wasn't a clean close and we have a valid token
+        // 1000 = Normal Closure, 1001 = Going Away, 1008 = Policy Violation (auth failed)
+        if (event.code !== 1000 && event.code !== 1001 && event.code !== 1008) {
+          reconnectTimeout.current = setTimeout(async () => {
+            // Validate token before attempting reconnection
+            const tokenValidation = await clientValidateToken();
+            if (tokenValidation.isValid) {
+              console.log("Reconnecting to user data WebSocket...");
+              connect();
+            } else {
+              console.log("Token invalid, not reconnecting to WebSocket");
+            }
           }, 3000);
         }
       };

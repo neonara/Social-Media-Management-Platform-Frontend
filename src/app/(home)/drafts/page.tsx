@@ -7,11 +7,12 @@ import {
   InstagramPostPreview,
   LinkedinPostPreview,
 } from "@/components/postPreview";
-import { usePostWebSocket } from "@/hooks/usePostWebSocket";
+// import { usePostWebSocket } from "@/hooks/usePostWebSocket"; // Disabled to prevent infinite update loops
 import { getDraftPosts, deletePost, updatePost } from "@/services/postService";
 import { fetchClientPages } from "@/services/clientPagesService";
 import { DraftPost } from "@/types/post";
 import { SocialPage } from "@/types/social-page";
+import { useUser } from "@/context/UserContext";
 import DOMPurify from "dompurify";
 import { Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -37,78 +38,17 @@ export default function DraftsPage() {
   const [loadingPages, setLoadingPages] = useState<Record<number, boolean>>({});
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
 
-  // WebSocket for real-time draft updates
-  const {
-    connect: connectPostWS,
-    disconnect: disconnectPostWS,
-    sendMessage: sendPostMessage,
-  } = usePostWebSocket((message) => {
-    console.log("Draft posts WebSocket message received:", message);
-
-    if (message.type === "post_deleted" && message.post_id) {
-      // Remove deleted post from drafts
-      setDrafts((prevDrafts) =>
-        prevDrafts.filter((draft) => draft.id !== parseInt(message.post_id!)),
-      );
-      toast("A draft post was deleted by another user", { icon: "ℹ️" });
-    } else if (message.type === "post_updated" && message.post_id) {
-      // Refresh drafts to get the updated post
-      // Use a callback to avoid dependency issues
-      setLoading(true);
-      setError(null);
-      getDraftPosts()
-        .then((fetchedDrafts) => {
-          setDrafts(fetchedDrafts);
-        })
-        .catch((err) => {
-          setError(
-            err instanceof Error ? err.message : "Failed to fetch drafts.",
-          );
-          console.error("Error fetching drafts:", err);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-      toast("A draft post was updated by another user", { icon: "ℹ️" });
-    } else if (message.type === "post_created") {
-      // Refresh drafts to include new draft
-      // Use a callback to avoid dependency issues
-      setLoading(true);
-      setError(null);
-      getDraftPosts()
-        .then((fetchedDrafts) => {
-          setDrafts(fetchedDrafts);
-        })
-        .catch((err) => {
-          setError(
-            err instanceof Error ? err.message : "Failed to fetch drafts.",
-          );
-          console.error("Error fetching drafts:", err);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-      toast("A new draft post was created", { icon: "ℹ️" });
-    } else if (
-      message.type === "post_status_changed" &&
-      message.old_status === "draft"
-    ) {
-      // Post was moved from draft to another status
-      if (message.post_id) {
-        setDrafts((prevDrafts) =>
-          prevDrafts.filter((draft) => draft.id !== parseInt(message.post_id!)),
-        );
-        toast(
-          `A draft post was ${message.new_status === "scheduled" ? "scheduled" : "published"} by another user`,
-          { icon: "ℹ️" },
-        );
-      }
-    }
-  });
+  // Add user context
+  const { role: userRole } = useUser();
 
   useEffect(() => {
-    // Initial data fetch
-    const loadInitialData = async () => {
+    // Don't fetch data until user role is determined
+    if (!userRole || userRole === "unknown") {
+      return;
+    }
+
+    // Simple data fetch - let backend handle all filtering
+    const loadDrafts = async () => {
       setLoading(true);
       setError(null);
       try {
@@ -124,16 +64,8 @@ export default function DraftsPage() {
       }
     };
 
-    loadInitialData();
-
-    // Connect to WebSocket for real-time updates
-    connectPostWS();
-
-    return () => {
-      disconnectPostWS();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array - only run on mount/unmount
+    loadDrafts();
+  }, [userRole]);
 
   const handleSelectPost = (postId: number) => {
     setSelectedPosts((prev) =>
@@ -155,14 +87,7 @@ export default function DraftsPage() {
       setSelectedPosts([]);
       setShowModal(false);
 
-      // Notify other users via WebSocket
-      selectedPosts.forEach((postId) => {
-        sendPostMessage({
-          type: "post_deleted",
-          post_id: postId.toString(),
-          action: "deleted",
-        });
-      });
+      // WebSocket notifications disabled to prevent loop issues
     } catch (err) {
       console.error("Error deleting drafts:", err);
       alert("Failed to delete the selected drafts. Please try again.");
@@ -192,20 +117,13 @@ export default function DraftsPage() {
 
       const response = await updatePost(draftId, formData);
 
-      if (response.ok) {
+      if (response.success) {
         toast.success("Post submitted successfully!");
 
         // Update the local state to remove the submitted post
         setDrafts((prev) => prev.filter((post) => post.id !== draftId));
 
-        // Notify other users via WebSocket that post status changed
-        sendPostMessage({
-          type: "post_status_changed",
-          post_id: draftId.toString(),
-          old_status: "draft",
-          new_status: "pending",
-          action: "status_changed",
-        });
+        // WebSocket notification disabled to prevent loop issues
       } else {
         toast.error("Failed to submit post. Please try again.");
       }
@@ -356,7 +274,7 @@ export default function DraftsPage() {
   }
 
   if (error) {
-    return <div className="text-center text-red-500">{error}</div>;
+    return <div className="m-auto text-center text-red-500">{error}</div>;
   }
 
   return (

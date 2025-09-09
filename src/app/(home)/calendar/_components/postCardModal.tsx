@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../../components/ui/dialog";
+import { getApprovalStatus, getValidationStatus } from "@/utils/postWorkflow";
 
 interface PostCardModalProps {
   selectedPost: ScheduledPost;
@@ -38,7 +39,7 @@ interface PostCardModalProps {
   renderPreview: () => React.ReactNode;
   currentUser: UserType | null;
   onApprove?: (postId: number) => Promise<void>;
-  onReject?: (postId: number) => Promise<void>;
+  onReject?: (postId: number, feedback?: string) => Promise<void>;
 }
 
 export default function PostCardModal({
@@ -57,6 +58,9 @@ export default function PostCardModal({
   // Check if current user is a CM (community manager)
   const isCM = currentUser?.is_community_manager === true;
   const isClient = currentUser?.is_client === true;
+  const isModerator =
+    currentUser?.is_moderator === true ||
+    currentUser?.is_administrator === true;
 
   async function handleDelete() {
     const confirmDelete = window.confirm(
@@ -82,7 +86,7 @@ export default function PostCardModal({
 
   async function handleSendReject() {
     if (onReject) {
-      await onReject(selectedPost.id);
+      await onReject(selectedPost.id, feedback);
       setSelectedPost(null); // Close modal
       setIsRejecting(false);
     }
@@ -264,26 +268,170 @@ export default function PostCardModal({
                       </div>
                     </div>
                   )}
-                {selectedPost.is_client_approved && (
-                  <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30 md:gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white md:h-10 md:w-10">
-                      <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-xs font-medium text-green-600 dark:text-green-400">
-                        Client Approved
+                {/* Client Approval Status */}
+                {(() => {
+                  const clientApprovalStatus = getApprovalStatus(
+                    selectedPost.is_client_approved,
+                  );
+
+                  if (clientApprovalStatus === "approved") {
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30 md:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white md:h-10 md:w-10">
+                          <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-green-600 dark:text-green-400">
+                            Client Approved
+                          </div>
+                          <div className="font-semibold text-green-900 dark:text-green-100">
+                            {selectedPost.client_approved_at
+                              ? format(
+                                  new Date(selectedPost.client_approved_at),
+                                  "PPp",
+                                )
+                              : "Recently approved"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="font-semibold text-green-900 dark:text-green-100">
-                        {format(
-                          new Date(
-                            selectedPost?.client_approved_at || new Date(),
-                          ),
-                          "PPp",
-                        )}
+                    );
+                  }
+
+                  if (
+                    clientApprovalStatus === "rejected" &&
+                    selectedPost.status !== "published"
+                  ) {
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30 md:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white md:h-10 md:w-10">
+                          <XCircle className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-red-600 dark:text-red-400">
+                            Client Rejected
+                          </div>
+                          <div className="font-semibold text-red-900 dark:text-red-100">
+                            {selectedPost.client_rejected_at
+                              ? format(
+                                  new Date(selectedPost.client_rejected_at),
+                                  "PPp",
+                                )
+                              : "Recently rejected"}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    );
+                  }
+
+                  if (
+                    clientApprovalStatus === "pending" &&
+                    selectedPost.status === "pending"
+                  ) {
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30 md:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white md:h-10 md:w-10">
+                          <Clock className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                            {isClient
+                              ? "Approval Needed"
+                              : "Awaiting Client Approval"}
+                          </div>
+                          <div className="font-semibold text-amber-900 dark:text-amber-100">
+                            {isClient
+                              ? "Waiting your approval"
+                              : isModerator
+                                ? "Client approval can be overridden"
+                                : "No client decision yet"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
+
+                {/* Moderator Validation Status */}
+                {(() => {
+                  const moderatorValidationStatus = getValidationStatus(
+                    selectedPost.is_moderator_validated,
+                  );
+
+                  if (moderatorValidationStatus === "validated") {
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30 md:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white md:h-10 md:w-10">
+                          <UserCheck className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                            Moderator Validated
+                          </div>
+                          <div className="font-semibold text-blue-900 dark:text-blue-100">
+                            {selectedPost.moderator_validated_at
+                              ? format(
+                                  new Date(selectedPost.moderator_validated_at),
+                                  "PPp",
+                                )
+                              : "Recently validated"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (moderatorValidationStatus === "rejected") {
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30 md:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white md:h-10 md:w-10">
+                          <XCircle className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-red-600 dark:text-red-400">
+                            Moderator Rejected
+                          </div>
+                          <div className="font-semibold text-red-900 dark:text-red-100">
+                            {selectedPost.moderator_rejected_at
+                              ? format(
+                                  new Date(selectedPost.moderator_rejected_at),
+                                  "PPp",
+                                )
+                              : "Recently rejected"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (
+                    moderatorValidationStatus === "pending" &&
+                    selectedPost.status === "pending"
+                  ) {
+                    return (
+                      <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-950/30 md:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-500 text-white md:h-10 md:w-10">
+                          <Clock className="h-4 w-4 md:h-5 md:w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                            {isModerator
+                              ? "Validation Needed"
+                              : "Awaiting Moderator Validation"}
+                          </div>
+                          <div className="font-semibold text-gray-900 dark:text-gray-100">
+                            {isModerator
+                              ? "Waiting your validation"
+                              : "No moderator decision yet"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
                 {/* Feedback - Only show if post is rejected and feedback exists */}
                 {selectedPost.status === "rejected" &&
                   selectedPost.feedback && (
