@@ -96,3 +96,48 @@ h1, h2, h3, h4, h5, h6 {
 .dark .phone-input-wrapper .react-tel-input .country-list .country.highlight {
   background-color: #374151 !important;
 }
+
+/* Toast Styles for Light and Dark Theme */
+:root {
+  /* Light theme toast colors */
+  --toast-bg: #ffffff;
+  --toast-text: #1f2937;
+  --toast-border: #e5e7eb;
+  
+  /* Success toast colors */
+  --toast-success-bg: #f0fdf4;
+  --toast-success-text: #166534;
+  --toast-success-border: #bbf7d0;
+  
+  /* Error toast colors */
+  --toast-error-bg: #fef2f2;
+  --toast-error-text: #991b1b;
+  --toast-error-border: #fecaca;
+  
+  /* Loading toast colors */
+  --toast-loading-bg: #f8fafc;
+  --toast-loading-text: #475569;
+  --toast-loading-border: #cbd5e1;
+}
+
+.dark {
+  /* Dark theme toast colors */
+  --toast-bg: #1f2937;
+  --toast-text: #f9fafb;
+  --toast-border: #374151;
+  
+  /* Success toast colors */
+  --toast-success-bg: #064e3b;
+  --toast-success-text: #a7f3d0;
+  --toast-success-border: #065f46;
+  
+  /* Error toast colors */
+  --toast-error-bg: #7f1d1d;
+  --toast-error-text: #fca5a5;
+  --toast-error-border: #991b1b;
+  
+  /* Loading toast colors */
+  --toast-loading-bg: #334155;
+  --toast-loading-text: #cbd5e1;
+  --toast-loading-border: #475569;
+}

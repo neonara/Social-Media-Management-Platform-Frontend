@@ -1,56 +1,66 @@
 "use server";
 
 import { API_BASE_URL } from "@/config/api";
-import { SocialPage } from "@/types/social-page";
+import { DraftPost, ScheduledPost } from "@/types/post";
+import { GetUser, User } from "@/types/user";
 import { cookies } from "next/headers";
 
-export interface DraftPost {
-  id: number;
-  title: string;
-  description: string;
-  scheduled_for: string | null;
-  creator_id: number;
-  status: "draft";
-  platforms: string[];
-  media: {
-    id: number;
-    file: string;
-    name: string;
-    uploaded_at: string;
-    file_type: string;
-  }[];
-  hashtags: string[];
-}
-interface Creator {
-  id: string;
-  full_name: string;
-  type: "client" | "team_member";
+export type CalendarView = "week" | "month" | "quarter" | "year";
+export type ActiveTab = "calendar" | "post_table";
+
+export type PendingRejection = {
+  postId: number;
+  postTitle: string;
+};
+
+// Simple workflow interfaces
+export interface ClientApprovalRequest {
+  postId: number;
+  action: "approve" | "reject";
+  feedback?: string;
 }
 
-interface Client {
-  id: string;
-  full_name: string;
+export interface ModeratorValidationRequest {
+  postId: number;
+  action: "validate" | "reject";
+  overrideClient?: boolean; // Skip client approval step
+  feedback?: string;
 }
 
-interface ScheduledPost {
-  id: string;
-  title: string;
-  platform: "Facebook" | "Instagram" | "LinkedIn";
-  platformPage: SocialPage;
-  mediaFiles?: Array<{ id: string; preview: string }>;
-  description: string;
-  scheduled_for: string;
-  status?: "published" | "scheduled" | "failed" | "pending" | "rejected";
-  creator?: Creator;
-  client?: Client | undefined;
+export interface ActionResponse {
+  success: boolean;
+  message: string;
+  post?: ScheduledPost;
+  error?: string;
+}
+
+export interface RejectedPostWithFeedback extends ScheduledPost {
+  rejection_feedback?: string;
+  rejected_at?: string;
+  rejected_by?: GetUser;
+}
+
+async function getAuthToken() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
+  if (!token) {
+    throw new Error("Authentication required");
+  }
+  return token;
 }
 
 // In your postService.ts
 export async function getAssignedClients(): Promise<
-  Array<{ id: string; name: string; email: string }>
+  Array<{ id: number; name: string; email: string }>
 > {
   try {
     const token = await getAuthToken();
+
+    if (!token) {
+      console.warn("No auth token available for getAssignedClients");
+      return [];
+    }
+
     const csrfToken = await getCsrfToken();
 
     const response = await fetch(`${API_BASE_URL}/clients/assigned/`, {
@@ -61,17 +71,219 @@ export async function getAssignedClients(): Promise<
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        console.warn(
+          "Authentication failed for getAssignedClients, returning empty array",
+        );
+        return [];
+      }
       throw new Error("Failed to fetch assigned clients");
     }
 
-    return await response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error fetching assigned clients:", error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
+}
+
+// Fetch all clients for admin/super admin (for calendar filtering)
+export async function getAllClientsForAdmin(): Promise<{
+  clients: Array<{
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number?: string;
+    user_image?: string;
+  }>;
+  moderators: Array<{
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number?: string;
+    user_image?: string;
+  }>;
+  community_managers: Array<{
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number?: string;
+    user_image?: string;
+  }>;
+}> {
+  try {
+    // Import the existing function dynamically to avoid server/client issues
+    const { fetchAllUsersServer } = await import("@/services/userService");
+
+    const result = await fetchAllUsersServer();
+
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+
+    // Filter users by role on the client side
+    const clients = result.filter((user) => user.role === "client");
+    const moderators = result.filter((user) => user.role === "moderator");
+    const community_managers = result.filter(
+      (user) => user.role === "community_manager",
+    );
+
+    return {
+      clients,
+      moderators,
+      community_managers,
+    };
+  } catch (error) {
+    console.error("Error fetching all clients and staff:", error);
     throw error;
   }
 }
 
-export async function approvePost(postId: number): Promise<void> {
+export async function rejectPost(
+  postId: number,
+  feedback?: string,
+): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const requestBody: Record<string, string> = {
+      rejected_at: new Date().toISOString(),
+    };
+
+    // Only include feedback if provided
+    if (feedback && feedback.trim().length > 0) {
+      requestBody.feedback = feedback.trim();
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/reject/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message: errorData.message || "Failed to reject post",
+        error: errorData.message || "Failed to reject post",
+      };
+    }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: "Post rejected with feedback",
+      post,
+    };
+  } catch (error) {
+    console.error("Error rejecting post:", error);
+    return {
+      success: false,
+      message: "Network error occurred while rejecting post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Moderator validation workflow - handles both validation and rejection
+export async function validatePost(
+  validationRequest: ModeratorValidationRequest,
+): Promise<ActionResponse> {
+  const {
+    postId,
+    action,
+    overrideClient = false,
+    feedback,
+  } = validationRequest;
+
+  try {
+    if (action === "validate") {
+      return await moderatorValidatePost(postId, overrideClient);
+    } else if (action === "reject") {
+      // Feedback is optional for rejection
+      return await rejectPost(postId, feedback);
+    } else {
+      return {
+        success: false,
+        message: "Invalid validation action. Must be 'validate' or 'reject'",
+        error: "Invalid validation action",
+      };
+    }
+  } catch (error) {
+    console.error("Error in post validation workflow:", error);
+    return {
+      success: false,
+      message: "Network error occurred during post validation",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// New function for moderator validation that changes status to scheduled
+export async function moderatorValidatePost(
+  postId: number,
+  overrideClient: boolean = false,
+): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/validate/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          moderator_validated_at: new Date().toISOString(),
+          override_client: overrideClient,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message: errorData.message || "Failed to validate post",
+        error: errorData.message || "Failed to validate post",
+      };
+    }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: overrideClient
+        ? "Post validated and scheduled (client approval overridden)"
+        : "Post validated and scheduled",
+      post,
+    };
+  } catch (error) {
+    console.error("Error in moderator validation:", error);
+    return {
+      success: false,
+      message: "Network error occurred while validating post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Client approval functions
+export async function approvePost(postId: number): Promise<ActionResponse> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
@@ -79,47 +291,207 @@ export async function approvePost(postId: number): Promise<void> {
     const response = await fetch(
       `${API_BASE_URL}/content/posts/${postId}/approve/`,
       {
-        method: "POST",
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          client_approved_at: new Date().toISOString(),
+        }),
       },
     );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to approve post");
+      return {
+        success: false,
+        message: errorData.message || "Failed to approve post",
+        error: errorData.message || "Failed to approve post",
+      };
     }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: "Post approved by client successfully",
+      post,
+    };
   } catch (error) {
-    console.error("Error approving post:", error);
-    throw error;
+    console.error("Error in client approval:", error);
+    return {
+      success: false,
+      message: "Network error occurred while approving post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
   }
 }
 
-export async function rejectPost(postId: number): Promise<void> {
+export async function clientRejectPost(
+  postId: number,
+  feedback?: string,
+): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const requestBody: Record<string, unknown> = {
+      client_rejected_at: new Date().toISOString(),
+    };
+
+    // Only include feedback if provided
+    if (feedback && feedback.trim().length > 0) {
+      requestBody.feedback = feedback.trim();
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/reject/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message: errorData.message || "Failed to reject post",
+        error: errorData.message || "Failed to reject post",
+      };
+    }
+
+    const post = await response.json();
+    return {
+      success: true,
+      message: feedback
+        ? "Post rejected by client with feedback"
+        : "Post rejected by client",
+      post,
+    };
+  } catch (error) {
+    console.error("Error in client rejection:", error);
+    return {
+      success: false,
+      message: "Network error occurred while rejecting post",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Client approval workflow - handles both approval and rejection
+export async function handleClientApproval(
+  approvalRequest: ClientApprovalRequest,
+): Promise<ActionResponse> {
+  const { postId, action, feedback } = approvalRequest;
+
+  try {
+    if (action === "approve") {
+      return await approvePost(postId);
+    } else if (action === "reject") {
+      // Feedback is optional for client rejection
+      return await clientRejectPost(postId, feedback);
+    } else {
+      return {
+        success: false,
+        message: "Invalid client action. Must be 'approve' or 'reject'",
+        error: "Invalid client action",
+      };
+    }
+  } catch (error) {
+    console.error("Error in client approval workflow:", error);
+    return {
+      success: false,
+      message: "Network error occurred during client approval workflow",
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Fetch rejected posts with their feedback
+export async function getRejectedPostsWithFeedback(): Promise<
+  RejectedPostWithFeedback[]
+> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(`${API_BASE_URL}/content/posts/rejected/`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-CSRFToken": csrfToken,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch rejected posts:", response.status);
+      return [];
+    }
+
+    const data: RejectedPostWithFeedback[] = await response.json();
+    return data.map((post) => ({
+      ...post,
+      scheduled_for: post.scheduled_for
+        ? new Date(post.scheduled_for).toISOString()
+        : "",
+      rejected_at: post.rejected_at
+        ? new Date(post.rejected_at).toISOString()
+        : undefined,
+    }));
+  } catch (error: unknown) {
+    console.error("Error fetching rejected posts with feedback:", error);
+    return [];
+  }
+}
+
+// Get specific post with feedback (useful for rejected posts)
+export async function getPostWithFeedback(
+  postId: number,
+): Promise<RejectedPostWithFeedback | null> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
 
     const response = await fetch(
-      `${API_BASE_URL}/content/posts/${postId}/reject/`,
+      `${API_BASE_URL}/content/posts/${postId}/feedback/`,
       {
-        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "X-CSRFToken": csrfToken,
         },
+        cache: "no-store",
       },
     );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to reject post");
+      console.error(
+        "Failed to fetch post with feedback:",
+        response.status,
+        await response.text(),
+      );
+      return null;
     }
-  } catch (error) {
-    console.error("Error rejecting post:", error);
-    throw error;
+
+    const data = await response.json();
+    return {
+      ...data,
+      scheduled_for: data.scheduled_for
+        ? new Date(data.scheduled_for).toISOString()
+        : "",
+      rejected_at: data.rejected_at
+        ? new Date(data.rejected_at).toISOString()
+        : undefined,
+    };
+  } catch (error: unknown) {
+    console.error("Error fetching post with feedback:", error);
+    return null;
   }
 }
 
@@ -164,15 +536,6 @@ export async function updatePostToDraft(
       error: error instanceof Error ? error.message : "Network error",
     };
   }
-}
-
-async function getAuthToken() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
-  if (!token) {
-    throw new Error("Authentication required");
-  }
-  return token;
 }
 
 async function getCsrfToken() {
@@ -238,47 +601,106 @@ export async function getScheduledPosts() {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
 
-    const response = await fetch(`${API_BASE_URL}/content/posts/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "X-CSRFToken": csrfToken,
-      },
-      cache: "no-store",
-    });
+    // Fetch posts and users in parallel for better performance
+    const [postsResponse] = await Promise.all([
+      fetch(`${API_BASE_URL}/content/posts/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+        cache: "no-store",
+      }),
+    ]);
 
-    if (!response.ok) throw new Error("Failed to fetch posts");
+    if (!postsResponse.ok) throw new Error("Failed to fetch posts");
 
-    const posts: ScheduledPost[] = await response.json();
+    const posts: ScheduledPost[] = await postsResponse.json();
+
+    // Create user lookup map for role information
+    const userLookup = new Map<string, User>();
+
     const now = new Date();
 
-    return posts.map((post) => ({
-      ...post,
-      platform: mapPlatform(post.platform),
-      status:
-        new Date(post.scheduled_for) < now
-          ? "published"
-          : post.status || "scheduled",
-      creator: post.creator
-        ? {
-            id: (post.creator as Creator).id || "unknown",
-            full_name: (post.creator as Creator).full_name || "Unknown",
-            type: (post.creator as Creator).type || "team_member",
-          }
-        : {
-            id: "unknown",
-            full_name: "Unknown",
-            type: "team_member",
-          },
-      client: post.client
-        ? {
-            id: post.client.id || "unknown",
-            full_name: post.client.full_name || "Unknown",
-          }
-        : {
-            id: "unknown",
-            full_name: "Unknown",
-          },
-    }));
+    return posts.map((post) => {
+      // Get creator role from user lookup
+      const creatorEmail = post.creator?.email;
+      const creatorUser = creatorEmail ? userLookup.get(creatorEmail) : null;
+
+      // Determine creator role
+      let creatorRole = "unknown";
+      if (creatorUser) {
+        if (creatorUser.is_superadministrator)
+          creatorRole = "super_administrator";
+        else if (creatorUser.is_administrator) creatorRole = "administrator";
+        else if (creatorUser.is_moderator) creatorRole = "moderator";
+        else if (creatorUser.is_community_manager)
+          creatorRole = "community_manager";
+        else if (creatorUser.is_client) creatorRole = "client";
+      }
+
+      // Derive display names: prefer full_name, else email username, else email
+      const creatorDisplayName =
+        (post.creator?.full_name && post.creator.full_name.trim()) ||
+        (post.creator?.email
+          ? post.creator.email.split("@")[0] || post.creator.email
+          : undefined);
+      const clientDisplayName =
+        (post.client?.full_name && post.client.full_name.trim()) ||
+        (post.client?.email
+          ? post.client.email.split("@")[0] || post.client.email
+          : undefined);
+
+      // Try to extract platform from platforms array or fallback to platform field
+      const platformsArray = (post as unknown as Record<string, unknown>)
+        .platforms;
+      let platformValue: string | undefined = post.platform;
+
+      if (
+        platformsArray &&
+        Array.isArray(platformsArray) &&
+        platformsArray.length > 0
+      ) {
+        // platforms is an array of strings like ["linkedin", "facebook"]
+        const firstPlatform = platformsArray[0];
+        if (typeof firstPlatform === "string") {
+          platformValue = firstPlatform;
+        }
+      }
+
+      return {
+        ...post,
+        platform: mapPlatform(platformValue),
+        status:
+          new Date(post.scheduled_for) < now
+            ? "published"
+            : post.status || "scheduled",
+        creator: post.creator
+          ? {
+              id: post.creator.id || "unknown",
+              full_name: creatorDisplayName || "Unknown",
+              email: post.creator.email || "unknown",
+              role: creatorRole, // Use the determined role
+            }
+          : {
+              id: "unknown",
+              full_name: "Unknown",
+              email: "unknown",
+              role: "unknown",
+            },
+
+        client: post.client
+          ? {
+              id: post.client.id || "unknown",
+              full_name: clientDisplayName || "Unknown",
+              email: post.client.email || "unknown",
+            }
+          : {
+              id: "unknown",
+              full_name: "Unknown",
+              email: "unknown",
+            },
+      };
+    });
   } catch (error) {
     console.error("Error fetching posts:", error);
     return [];
@@ -289,6 +711,8 @@ export async function getScheduledPosts() {
 function mapPlatform(
   platform: string | undefined,
 ): "Facebook" | "Instagram" | "LinkedIn" {
+  console.log("mapPlatform received:", platform);
+
   if (!platform) {
     console.warn("Platform is undefined, defaulting to 'Facebook'");
     return "Facebook"; // Default to Facebook if platform is undefined
@@ -300,7 +724,10 @@ function mapPlatform(
     linkedin: "LinkedIn",
   };
 
-  return platformMap[platform.toLowerCase()] || "Facebook"; // Default to Facebook if unknown
+  const result = platformMap[platform.toLowerCase()] || "Facebook";
+  console.log("mapPlatform mapped", platform, "to", result);
+
+  return result; // Default to Facebook if unknown
 }
 
 export async function getDraftPosts(): Promise<DraftPost[]> {
@@ -426,7 +853,7 @@ export async function getPostById(postId: number): Promise<DraftPost | null> {
 export async function updatePost(
   postId: number,
   formData: FormData,
-): Promise<Response> {
+): Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();
@@ -443,13 +870,23 @@ export async function updatePost(
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to update post");
+      return {
+        success: false,
+        error: errorData.message || "Failed to update post",
+      };
     }
 
-    return response;
+    const data = await response.json();
+    return {
+      success: true,
+      data,
+    };
   } catch (error) {
     console.error("Error updating post:", error);
-    throw error;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update post",
+    };
   }
 }
 
@@ -512,5 +949,114 @@ export async function deletePost(postId: number): Promise<void> {
   } catch (error) {
     console.error("Error deleting post:", error);
     throw error;
+  }
+}
+
+export async function publishPost(postId: number): Promise<void> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/publish/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to publish post");
+    }
+  } catch (error) {
+    console.error("Error publishing post:", error);
+    throw error;
+  }
+}
+
+export async function resubmitPost(postId: number): Promise<void> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/resubmit/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to resubmit post");
+    }
+  } catch (error) {
+    console.error("Error resubmitting post:", error);
+    throw error;
+  }
+}
+
+export async function cancelApproval(
+  postId: number,
+  feedback?: string,
+): Promise<ActionResponse> {
+  try {
+    const token = await getAuthToken();
+    const csrfToken = await getCsrfToken();
+
+    const requestBody: Record<string, string> = {};
+
+    // Include feedback if provided, otherwise use default
+    if (feedback && feedback.trim().length > 0) {
+      requestBody.feedback = feedback.trim();
+    } else {
+      requestBody.feedback = "Approval cancelled";
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/content/posts/${postId}/cancel-approval/`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        message:
+          errorData.error || errorData.message || "Failed to cancel approval",
+        error:
+          errorData.error || errorData.message || "Failed to cancel approval",
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      message: data.message || "Post approval cancelled successfully",
+      post: data.post,
+    };
+  } catch (error) {
+    console.error("Error cancelling approval:", error);
+    return {
+      success: false,
+      message: "Network error occurred while cancelling approval",
+      error: error instanceof Error ? error.message : "Network error",
+    };
   }
 }

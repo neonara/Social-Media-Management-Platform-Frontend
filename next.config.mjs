@@ -10,6 +10,33 @@ const nextConfig = {
   // Remove standalone output to enable API routes
   // output: 'standalone', // Disable for now to fix API routes
   
+  // Development performance optimizations
+  ...(process.env.NODE_ENV === 'development' && {
+    // Enable SWC loader optimizations
+    modularizeImports: {
+      '@heroui/react': {
+        transform: '@heroui/react/dist/{{member}}',
+        skipDefaultConversion: true,
+      },
+      'lucide-react': {
+        transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+        skipDefaultConversion: true,
+      },
+    },
+  }),
+  
+  // Turbopack configuration for performance
+  ...(process.env.NODE_ENV === 'development' && {
+    turbopack: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  }),
+  
   // Trust proxy headers for Server Actions
   experimental: {
     serverActions: {
@@ -20,6 +47,9 @@ const nextConfig = {
         'localhost:8081',  // Nginx proxy
         'localhost:3100',  // Direct frontend
         'localhost:3000',  // Internal frontend
+        '*.ngrok-free.app',  // Allow all ngrok free domains
+        '*.ngrok.app',       // Allow all ngrok domains
+        '*.ngrok.io',        // Allow legacy ngrok domains
       ],
     },
   },
@@ -70,7 +100,13 @@ const nextConfig = {
       },
       {
         protocol: "http",
-        hostname: process.env.NODE_ENV === 'development' ? "localhost" : "backend",
+        hostname: "localhost", // Allow localhost in all environments
+        port: "8000",
+        pathname: "/**"
+      },
+      {
+        protocol: "http",
+        hostname: "backend", // Keep backend for Docker
         port: "8000",
         pathname: "/**"
       }

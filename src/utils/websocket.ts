@@ -17,7 +17,7 @@ export function getWebSocketUrl(path: string = ""): string {
 
     return wsUrl;
   } else if (!process.env.NEXT_PUBLIC_WS_URL) {
-    const wsUrl = `ws://localhost:8080${path}`;
+    const wsUrl = `ws://localhost:8000${path}`;
 
     return wsUrl;
   }
@@ -86,6 +86,13 @@ export function getNotificationWebSocketUrl(token: string): string {
  */
 export function getUserPresenceWebSocketUrl(token: string): string {
   return getWebSocketUrl(`/ws/user_activity/?token=${token}`);
+}
+
+/**
+ * Get the WebSocket URL for user data updates
+ */
+export function getUserDataWebSocketUrl(token: string): string {
+  return getWebSocketUrl(`/ws/user_data/?token=${token}`);
 }
 
 /**

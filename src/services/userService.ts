@@ -5,7 +5,7 @@ import { GetUser, UpdateUser } from "@/types/user";
 import { cookies } from "next/headers";
 
 // Get all users (this can be customized for different roles, etc.)
-export async function getUsers() {
+export async function getUsers(bypassCache: boolean = false) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -14,13 +14,23 @@ export async function getUsers() {
       return { error: "Authentication required" };
     }
 
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    // Add cache control headers if we want to bypass cache
+    if (bypassCache) {
+      headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      headers["Pragma"] = "no-cache";
+    }
+
     const response = await fetch(`${API_BASE_URL}/users/`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
+      headers,
+      // Only set cache: 'no-store' when bypassing cache
+      cache: bypassCache ? "no-store" : "default",
+      next: bypassCache ? { revalidate: 0 } : undefined,
     });
 
     if (!response.ok) {
@@ -36,7 +46,7 @@ export async function getUsers() {
 }
 
 // Get a single user by ID
-export async function getUserById(id: number) {
+export async function getUserById(id: number, bypassCache: boolean = false) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -45,13 +55,23 @@ export async function getUserById(id: number) {
       return { error: "Authentication required" };
     }
 
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    // Add cache control headers if we want to bypass cache
+    if (bypassCache) {
+      headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      headers["Pragma"] = "no-cache";
+    }
+
     const response = await fetch(`${API_BASE_URL}/user/${id}`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
+      headers,
+      // Only set cache: 'no-store' when bypassing cache
+      cache: bypassCache ? "no-store" : "default",
+      next: bypassCache ? { revalidate: 0 } : undefined,
     });
 
     if (!response.ok) {
@@ -168,7 +188,7 @@ export async function getCurrentUser(bypassCache: boolean = false) {
       data = await response.json();
     } catch (error) {
       console.error("Error parsing response JSON:", error);
-      throw new Error("Failed to parse response JSON");
+      return { error: "Failed to parse response JSON" };
     }
 
     if (!response.ok) {
@@ -177,17 +197,23 @@ export async function getCurrentUser(bypassCache: boolean = false) {
         statusText: response.statusText,
         errorData: data,
       });
-      throw new Error(`Error: ${response.statusText}`);
+
+      if (response.status === 401 || response.status === 403) {
+        return { error: "Token expired" };
+      }
+
+      return { error: `Error: ${response.statusText}` };
     }
 
     return data;
   } catch (error) {
     console.error("Error getting user profile:", error);
-    throw error;
+    // Return error object instead of throwing to prevent UI crashes
+    return { error: "Network error while fetching user profile" };
   }
 }
 
-export async function fetchAllUsersServer() {
+export async function fetchAllUsersServer(bypassCache: boolean = false) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("access_token")?.value;
@@ -196,12 +222,22 @@ export async function fetchAllUsersServer() {
       return { error: "Authentication required" };
     }
 
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    // Add cache control headers if we want to bypass cache
+    if (bypassCache) {
+      headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      headers["Pragma"] = "no-cache";
+    }
+
     const response = await fetch(`${API_BASE_URL}/users/`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
+      headers,
+      // Only set cache: 'no-store' when bypassing cache
+      cache: bypassCache ? "no-store" : "default",
+      next: bypassCache ? { revalidate: 0 } : undefined,
     });
 
     if (!response.ok) {

@@ -1,5 +1,5 @@
-import { Checkbox } from "@/components/FormElements/checkbox";
-import InputGroup from "@/components/FormElements/InputGroup";
+import { Checkbox } from "@/components/ui/FormElements/checkbox";
+import InputGroup from "@/components/ui/FormElements/InputGroup";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import Link from "next/link";
 

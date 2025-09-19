@@ -11,6 +11,8 @@ type SidebarContextType = {
   setIsOpen: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  isDesktopCollapsed: boolean;
+  setIsDesktopCollapsed: (collapsed: boolean) => void;
 };
 
 const SidebarContext = createContext<SidebarContextType | null>(null);
@@ -31,6 +33,7 @@ export function SidebarProvider({
   defaultOpen?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -42,7 +45,11 @@ export function SidebarProvider({
   }, [isMobile]);
 
   function toggleSidebar() {
-    setIsOpen((prev) => !prev);
+    if (isMobile) {
+      setIsOpen((prev) => !prev);
+    } else {
+      setIsDesktopCollapsed((prev) => !prev);
+    }
   }
 
   return (
@@ -53,6 +60,8 @@ export function SidebarProvider({
         setIsOpen,
         isMobile,
         toggleSidebar,
+        isDesktopCollapsed,
+        setIsDesktopCollapsed,
       }}
     >
       {children}

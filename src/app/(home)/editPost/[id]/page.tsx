@@ -1,22 +1,24 @@
+"use client";
+
+import React, { Suspense } from "react";
+import { useParams } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import EditPostForm from "@/components/postEdit/EditPostForm";
+import PostForm from "@/components/PostForm";
 
-export const metadata = {
-  title: "Edit Post",
-};
+function EditPostContent() {
+  const params = useParams();
+  const postId = params.id as string;
 
-const EditPostPage = async ({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) => {
-  const resolvedParams = await params;
-  const postId = resolvedParams.id;
+  return <PostForm mode="edit" postId={postId} />;
+}
 
+const EditPostPage = () => {
   return (
     <>
       <Breadcrumb pageName="Edit Post" />
-      <EditPostForm postId={postId} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <EditPostContent />
+      </Suspense>
     </>
   );
 };
