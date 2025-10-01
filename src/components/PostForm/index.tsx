@@ -8,6 +8,7 @@ import {
   createPost,
   saveDraft,
   getAssignedClients,
+  getAllClientsForAdmin,
 } from "@/services/postService";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { SimpleWysiwyg } from "@/components/SimpleWysiwyg";
@@ -205,10 +206,39 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
       if (mode === "create" && !clientId) {
         setIsLoadingClients(true);
         try {
-          const response = await getAssignedClients();
-          // Ensure response is always an array
-          const clientsArray = Array.isArray(response) ? response : [];
-          setClients(clientsArray);
+          try {
+            let clientsArray: Client[] = [];
+
+            // Check if user is admin or super admin - they can see all clients
+            if (role === "administrator" || role === "super_administrator") {
+              console.log("Admin user detected - fetching all clients");
+              const adminResponse = await getAllClientsForAdmin();
+              console.log("Admin response:", adminResponse);
+              // Extract clients from the admin response structure
+              clientsArray = adminResponse.clients.map(client => ({
+                id: client.id,
+                name: client.full_name || client.email.split("@")[0],
+                email: client.email,
+              }));
+              console.log("Processed admin clients:", clientsArray);
+            } else {
+              console.log("Non-admin user - fetching assigned clients");
+              // For other roles, use assigned clients
+              const response = await getAssignedClients();
+              // Ensure response is always an array
+              clientsArray = Array.isArray(response) ? response : [];
+              console.log("Assigned clients:", clientsArray);
+            }
+
+            setClients(clientsArray);
+          } catch (error) {
+            console.error("Failed to fetch clients:", error);
+            themedToast.error("Failed to load client list");
+            // Set empty array on error to prevent crashes
+            setClients([]);
+          } finally {
+            setIsLoadingClients(false);
+          }
         } catch (error) {
           console.error("Failed to fetch clients:", error);
           themedToast.error("Failed to load client list");
@@ -222,7 +252,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
 
     fetchClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, clientId]); // themedToast is stable from the hook
+  }, [mode, clientId, role]); // Added role as dependency
 
   // Fetch post data for edit mode
   useEffect(() => {
@@ -773,8 +803,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
       title={
         mode === "create"
           ? selectedClientId
-            ? "Create Client Post"
-            : "Create Post"
+            ? `Create Post for Client`
+            : role === "administrator" || role === "super_administrator"
+              ? "Create Post (Admin)"
+              : "Create Post"
           : postClientInfo
             ? "Edit Client Post"
             : "Edit Post"
@@ -802,7 +834,9 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
           {mode === "create" && !clientId && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-                Client Selection (Optional)
+                {role === "administrator" || role === "super_administrator"
+                  ? "Client Selection"
+                  : "Client Selection (Optional)"}
               </h2>
 
               <Select
@@ -812,16 +846,23 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                   setSelectedClientId(value === "no-client" ? null : value)
                 }
               >
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full max-w-md">
                   <SelectValue
                     placeholder={
-                      isLoadingClients ? "Loading..." : "Select a Client"
+                      isLoadingClients ? "Loading..." :
+                        role === "administrator" || role === "super_administrator"
+                          ? "Select a Client"
+                          : "Select a Client (Optional)"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-client">
-                    {isLoadingClients ? "Loading..." : "Select a Client"}
+                    {isLoadingClients ? "Loading..." :
+                      role === "administrator" || role === "super_administrator"
+                        ? "Select a Client"
+                        : "Create Personal Post"
+                    }
                   </SelectItem>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id.toString()}>
@@ -1039,11 +1080,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                         key={page.id}
                         type="button"
                         onClick={() => togglePlatform(page.platform)}
-                        className={`flex flex-col items-center justify-center gap-1 rounded-md px-3 py-2 ${
-                          formData.selectedPlatforms.includes(page.platform)
-                            ? "border-primary bg-secondary text-white"
-                            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                        }`}
+                        className={`flex flex-col items-center justify-center gap-1 rounded-md px-3 py-2 ${formData.selectedPlatforms.includes(page.platform)
+                          ? "border-primary bg-secondary text-white"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
                       >
                         <span className="flex items-center justify-items-start gap-2 font-semibold capitalize">
                           {getPlatformIconWithSize(page.platform, "h-6 w-6")}
@@ -1052,11 +1092,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
 
                         {page.page_name && (
                           <span
-                            className={`text-blue-900 dark:text-white ${
-                              formData.selectedPlatforms.includes(page.platform)
-                                ? "border-primary text-white"
-                                : "text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                            }`}
+                            className={`text-blue-900 dark:text-white ${formData.selectedPlatforms.includes(page.platform)
+                              ? "border-primary text-white"
+                              : "text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                              }`}
                           >
                             {page.page_name}
                           </span>
@@ -1077,11 +1116,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                         key={platform}
                         type="button"
                         onClick={() => togglePlatform(platform)}
-                        className={`flex items-center justify-center rounded-md px-4 py-2 ${
-                          formData.selectedPlatforms.includes(platform)
-                            ? "border-primary bg-primary text-white"
-                            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                        }`}
+                        className={`flex items-center justify-center rounded-md px-4 py-2 ${formData.selectedPlatforms.includes(platform)
+                          ? "border-primary bg-primary text-white"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
                       >
                         <span className="h-6 w-6">
                           {getPlatformIconWithSize(platform, "h-6 w-6")}
@@ -1287,7 +1325,7 @@ const DraggableItem = ({
         style={{ zIndex: 1 }}
       >
         {media.preview.startsWith("data:video") ||
-        /\.(mp4|mov)$/i.test(media.preview) ? (
+          /\.(mp4|mov)$/i.test(media.preview) ? (
           <video controls preload="auto" className="h-full w-full object-cover">
             <source src={media.preview} type="video/mp4" />
             Your browser does not support the video tag.

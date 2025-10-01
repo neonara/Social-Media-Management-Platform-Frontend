@@ -59,13 +59,12 @@ const PostCard = React.memo(
         style={style}
         {...attributes}
         {...(isPublished || isPendingAndCantApprove ? {} : listeners)}
-        className={`mb-2 rounded-lg ${color} border border-gray-300 bg-white p-3 text-sm text-black transition-all hover:shadow-sm dark:border-gray-800 dark:bg-gray-dark dark:text-gray-1 ${
-          isPublished || isPendingAndCantApprove
-            ? "cursor-default opacity-75"
-            : isDragging
-              ? "cursor-grabbing opacity-80"
-              : "cursor-grab hover:shadow-md active:cursor-grabbing"
-        }`}
+        className={`mb-2 rounded-lg ${color} border border-gray-300 bg-white p-3 text-sm text-black transition-all hover:shadow-sm dark:border-gray-800 dark:bg-gray-dark dark:text-gray-1 ${isPublished || isPendingAndCantApprove
+          ? "cursor-default opacity-75"
+          : isDragging
+            ? "cursor-grabbing opacity-80"
+            : "cursor-grab hover:shadow-md active:cursor-grabbing"
+          }`}
         title={
           isPublished
             ? "Published posts cannot be moved"
@@ -92,7 +91,7 @@ const PostCard = React.memo(
               {/* Show indicator if post was recently updated (within last 24 hours) */}
               {post.updated_at &&
                 new Date(post.updated_at) >
-                  new Date(Date.now() - 24 * 60 * 60 * 1000) && (
+                new Date(Date.now() - 24 * 60 * 60 * 1000) && (
                   <div
                     title={`Last updated: ${format(new Date(post.updated_at), "PPp")}`}
                   >
