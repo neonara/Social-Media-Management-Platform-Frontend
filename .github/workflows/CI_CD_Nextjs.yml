@@ -113,8 +113,8 @@ jobs:
     needs: push
     runs-on: ubuntu-latest
 
-    # IMPORTANT: Run this step on both push to master branch AND pull requests to master.
-    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'pull_request')
+    # IMPORTANT: Run this step on push to master OR pull request targeting master.
+    if: (github.ref == 'refs/heads/master' && github.event_name == 'push') || (github.base_ref == 'master' && github.event_name == 'pull_request')
 
     steps:
       - name: Deploy to VPS
