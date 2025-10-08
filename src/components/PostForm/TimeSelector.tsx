@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import {
   Select,
   SelectContent,
@@ -8,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import React, { useCallback, useEffect, useState } from "react";
 
 interface TimeSelectorProps {
   value?: string; // Time in HH:MM format (24-hour)
@@ -26,56 +26,98 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   isDisabled = false,
   isRequired = false,
 }) => {
-  // Generate time options with 5-minute intervals starting from current time
-  const generateTimeOptions = () => {
-    const now = new Date();
-    const options: { value: string; label: string }[] = [];
+  // Parse the 24-hour time value into hour, minute, and period
+  const parseTime = useCallback((timeValue?: string) => {
+    if (!timeValue) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = Math.ceil(now.getMinutes() / 5) * 5; // Round to next 5-minute interval
 
-    // Start from current time rounded to next 5-minute interval
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const roundedMinutes = Math.ceil(currentMinutes / 5) * 5;
-
-    let startHours = currentHours;
-    let startMinutes = roundedMinutes;
-
-    // Handle minute overflow
-    if (startMinutes >= 60) {
-      startHours += 1;
-      startMinutes = 0;
+      return {
+        hour: currentHour === 0 ? 12 : currentHour > 12 ? currentHour - 12 : currentHour,
+        minute: currentMinute >= 60 ? 0 : currentMinute,
+        period: currentHour < 12 ? "AM" : "PM"
+      };
     }
 
-    // Generate 288 time slots (24 hours worth of 5-minute intervals)
-    for (let i = 0; i < 288; i++) {
-      // 288 = 24 * 60 / 5
-      const hours = (startHours + Math.floor((startMinutes + i * 5) / 60)) % 24;
-      const minutes = (startMinutes + i * 5) % 60;
+    const [hours, minutes] = timeValue.split(":").map(Number);
+    const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    const period = hours < 12 ? "AM" : "PM";
 
-      // Only show times with minutes ending in 0 or 5
-      if (minutes % 5 === 0) {
-        const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-        const ampm = hours < 12 ? "am" : "pm";
-        const timeString = `${hour12}:${minutes.toString().padStart(2, "0")}${ampm}`;
-        const valueString = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    return {
+      hour: hour12,
+      minute: minutes,
+      period: period
+    };
+  }, []);
 
-        options.push({
-          value: valueString,
-          label: timeString,
-        });
-      }
+  // Convert 12-hour format back to 24-hour format
+  const formatTo24Hour = useCallback((hour: number, minute: number, period: string): string => {
+    let hour24 = hour;
+
+    if (period === "AM" && hour === 12) {
+      hour24 = 0;
+    } else if (period === "PM" && hour !== 12) {
+      hour24 = hour + 12;
     }
 
-    return options;
-  };
+    return `${hour24.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+  }, []);
 
-  const timeOptions = generateTimeOptions();
+  const { hour: initialHour, minute: initialMinute, period: initialPeriod } = parseTime(value);
 
-  // Get current value or default to first available time
-  const currentValue = value || timeOptions[0]?.value || "00:00";
+  const [selectedHour, setSelectedHour] = useState(initialHour);
+  const [selectedMinute, setSelectedMinute] = useState(initialMinute);
+  const [selectedPeriod, setSelectedPeriod] = useState(initialPeriod);
 
-  const handleChange = (newTime: string) => {
-    onChange(newTime);
-  };
+  // Update internal state when value prop changes
+  useEffect(() => {
+    const { hour, minute, period } = parseTime(value);
+    setSelectedHour(hour);
+    setSelectedMinute(minute);
+    setSelectedPeriod(period);
+  }, [value, parseTime]);
+
+  // Handle changes and update parent component
+  const handleTimeChange = useCallback((hour: number, minute: number, period: string) => {
+    const time24Hour = formatTo24Hour(hour, minute, period);
+    onChange(time24Hour);
+  }, [onChange, formatTo24Hour]);
+
+  const handleHourChange = useCallback((newHour: string) => {
+    const hour = Number(newHour);
+    setSelectedHour(hour);
+    handleTimeChange(hour, selectedMinute, selectedPeriod);
+  }, [selectedMinute, selectedPeriod, handleTimeChange]);
+
+  const handleMinuteChange = useCallback((newMinute: string) => {
+    const minute = Number(newMinute);
+    setSelectedMinute(minute);
+    handleTimeChange(selectedHour, minute, selectedPeriod);
+  }, [selectedHour, selectedPeriod, handleTimeChange]);
+
+  const handlePeriodChange = useCallback((newPeriod: string) => {
+    setSelectedPeriod(newPeriod);
+    handleTimeChange(selectedHour, selectedMinute, newPeriod);
+  }, [selectedHour, selectedMinute, handleTimeChange]);
+
+  // Generate hour options (1-12)
+  const hourOptions = Array.from({ length: 12 }, (_, i) => ({
+    value: (i + 1).toString(),
+    label: (i + 1).toString()
+  }));
+
+  // Generate minute options (5-minute intervals)
+  const minuteOptions = Array.from({ length: 12 }, (_, i) => ({
+    value: (i * 5).toString(),
+    label: (i * 5).toString().padStart(2, "0")
+  }));
+
+  // Period options
+  const periodOptions = [
+    { value: "AM", label: "AM" },
+    { value: "PM", label: "PM" }
+  ];
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -84,22 +126,63 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
         {isRequired && <span className="ml-1 text-red-500">*</span>}
       </label>
 
-      <Select
-        value={currentValue}
-        onValueChange={handleChange}
-        disabled={isDisabled}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
-        </SelectTrigger>
-        <SelectContent className="max-h-60">
-          {timeOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex gap-2">
+        {/* Hour Selector */}
+        <Select
+          value={selectedHour.toString()}
+          onValueChange={handleHourChange}
+          disabled={isDisabled}
+        >
+          <SelectTrigger className="w-20">
+            <SelectValue placeholder="Hr" />
+          </SelectTrigger>
+          <SelectContent>
+            {hourOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <span className="flex items-center text-gray-500 dark:text-gray-400">:</span>
+
+        {/* Minute Selector */}
+        <Select
+          value={selectedMinute.toString()}
+          onValueChange={handleMinuteChange}
+          disabled={isDisabled}
+        >
+          <SelectTrigger className="w-20">
+            <SelectValue placeholder="Min" />
+          </SelectTrigger>
+          <SelectContent>
+            {minuteOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* AM/PM Selector */}
+        <Select
+          value={selectedPeriod}
+          onValueChange={handlePeriodChange}
+          disabled={isDisabled}
+        >
+          <SelectTrigger className="w-20">
+            <SelectValue placeholder="AM/PM" />
+          </SelectTrigger>
+          <SelectContent>
+            {periodOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 };

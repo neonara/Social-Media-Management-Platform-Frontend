@@ -1,13 +1,6 @@
 "use client";
 
 import React from "react";
-import { DatePicker } from "@heroui/date-picker";
-import {
-  today,
-  getLocalTimeZone,
-  parseDate,
-  DateValue,
-} from "@internationalized/date";
 
 interface DateSelectorProps {
   value?: string; // Date in YYYY-MM-DD format or ISO string
@@ -26,39 +19,37 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
   isDisabled = false,
   isRequired = false,
 }) => {
-  // Parse the value into DateValue format
-  const parseValue = (dateValue?: string): DateValue => {
-    if (!dateValue) return today(getLocalTimeZone());
+  // Parse the value into YYYY-MM-DD format for input
+  const parseValue = (dateValue?: string): string => {
+    if (!dateValue) return "";
 
     try {
       // Handle both ISO strings and date-only strings
       const date = new Date(dateValue);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const day = date.getDate();
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        return "";
+      }
 
-      return parseDate(
-        `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`,
-      );
+      // Return date in YYYY-MM-DD format for input
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const day = date.getDate().toString().padStart(2, "0");
+      return `${year}-${month}-${day}`;
     } catch (error) {
       console.error("Error parsing date:", error);
-      return today(getLocalTimeZone());
+      return "";
     }
   };
 
-  const currentValue = parseValue(value);
-
-  const handleChange = (newValue: DateValue | null) => {
-    if (newValue) {
-      try {
-        // Return date in YYYY-MM-DD format
-        const dateString = `${newValue.year}-${newValue.month.toString().padStart(2, "0")}-${newValue.day.toString().padStart(2, "0")}`;
-        onChange(dateString);
-      } catch (error) {
-        console.error("Error converting date:", error);
-      }
-    }
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = event.target.value;
+    onChange(dateValue);
   };
+
+  // Get today's date in YYYY-MM-DD format for min attribute
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}-${today.getDate().toString().padStart(2, "0")}`;
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -67,17 +58,14 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         {isRequired && <span className="ml-1 text-red-500">*</span>}
       </label>
 
-      <DatePicker
-        value={currentValue}
-        onChange={handleChange}
-        showMonthAndYearPickers
-        label={`Select ${label}`}
-        variant="faded"
-        isDisabled={isDisabled}
-        isRequired={isRequired}
-        className="w-full"
-        size="md"
-        radius="md"
+      <input
+        type="date"
+        value={parseValue(value)}
+        onChange={handleDateChange}
+        disabled={isDisabled}
+        required={isRequired}
+        min={todayString}
+        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-100"
       />
     </div>
   );
