@@ -53,7 +53,7 @@ export const NAV_DATA: { label: string; items: NavItem[] }[] = [
         roles: [
           "moderator",
           "community_manager",
-          "admin",
+          "administrator",
           "super_administrator",
         ], // Only admins and managers can see this
       },

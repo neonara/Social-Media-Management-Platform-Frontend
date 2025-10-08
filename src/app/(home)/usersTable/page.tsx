@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import {
-  Trash2,
-  Plus,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Search,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { fetchAllUsersServer, deleteUserServer } from "@/services/userService";
+import { useUser } from "@/context/UserContext";
+import { deleteUserServer, fetchAllUsersServer } from "@/services/userService";
 import { GetUser } from "@/types/user";
 import { getImageUrl } from "@/utils/image-url";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type PendingDeletion = {
   userId: number;
@@ -36,6 +37,7 @@ const UsersPage = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true); // Add loading state
   const [fetchError, setFetchError] = useState<string | null>(null); // Add error state
+  const { role: currentUserRole } = useUser(); // Get current user's role
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
     null,
   );
@@ -123,22 +125,30 @@ const UsersPage = () => {
     activeTab === "All"
       ? users
       : users.filter((user) => {
-          if (!user.role) return false;
-          const formattedRole =
-            user.role === "community_manager"
-              ? "Community Manager"
-              : user.role === "super_administrator"
-                ? "Super Administrator"
-                : user.role.charAt(0).toUpperCase() +
-                  user.role.slice(1).replace(/_/g, " ");
-          return formattedRole === activeTab;
-        });
+        if (!user.role) return false;
+        const formattedRole =
+          user.role === "community_manager"
+            ? "Community Manager"
+            : user.role === "super_administrator"
+              ? "Super Administrator"
+              : user.role.charAt(0).toUpperCase() +
+              user.role.slice(1).replace(/_/g, " ");
+        return formattedRole === activeTab;
+      });
 
   const filteredByName = filteredByRole.filter((user) =>
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const queueDeleteUser = (userId: number) => {
+    // Find the user to be deleted
+    const userToDelete = users.find(user => user.id === userId);
+
+    // Prevent administrators from queuing superadministrators for deletion
+    if ((userToDelete?.role as string) === "superadministrator" && currentUserRole === "administrator") {
+      return;
+    }
+
     const alreadyPending = pendingDeletions.some(
       (deletion) => deletion.userId === userId,
     );
@@ -193,24 +203,24 @@ const UsersPage = () => {
 
   const sortedFilteredUsers = sortColumn
     ? [...filteredByName].sort((a, b) => {
-        let valueA: string | undefined;
-        let valueB: string | undefined;
+      let valueA: string | undefined;
+      let valueB: string | undefined;
 
-        if (sortColumn === "full_name") {
-          valueA = a.full_name?.toLowerCase();
-          valueB = b.full_name?.toLowerCase();
-        } else if (sortColumn === "role") {
-          valueA = a.role?.toLowerCase();
-          valueB = b.role?.toLowerCase();
-        }
+      if (sortColumn === "full_name") {
+        valueA = a.full_name?.toLowerCase();
+        valueB = b.full_name?.toLowerCase();
+      } else if (sortColumn === "role") {
+        valueA = a.role?.toLowerCase();
+        valueB = b.role?.toLowerCase();
+      }
 
-        const safeValueA = valueA ?? "";
-        const safeValueB = valueB ?? "";
+      const safeValueA = valueA ?? "";
+      const safeValueB = valueB ?? "";
 
-        return sortDirection === "asc"
-          ? safeValueA.localeCompare(safeValueB)
-          : safeValueB.localeCompare(safeValueA);
-      })
+      return sortDirection === "asc"
+        ? safeValueA.localeCompare(safeValueB)
+        : safeValueB.localeCompare(safeValueA);
+    })
     : filteredByName;
 
   if (isLoading) {
@@ -238,11 +248,10 @@ const UsersPage = () => {
           {tabs.map((tab) => (
             <button
               key={tab}
-              className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${
-                activeTab === tab
-                  ? "bg-primary text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-              }`}
+              className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${activeTab === tab
+                ? "bg-primary text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                }`}
               onClick={() => setActiveTab(tab)}
             >
               {tab}
@@ -354,6 +363,13 @@ const UsersPage = () => {
             const isPendingDelete = pendingDeletions.some(
               (deletion) => deletion.userId === user.id,
             );
+
+            // Calculate if delete button should be shown
+            const shouldShowDeleteButton = !(
+              (user.role as string) === "superadministrator" &&
+              (currentUserRole as string) !== "superadministrator"
+            );
+
             return (
               <tr
                 key={user.id}
@@ -392,7 +408,8 @@ const UsersPage = () => {
                         );
                       }}
                     />
-                    <span>{user.full_name}</span>
+                    <span>{user.full_name || user.email.split("@")[0]}</span>
+
                   </div>
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
@@ -408,22 +425,23 @@ const UsersPage = () => {
                       : user.role === "super_administrator"
                         ? "Super Administrator"
                         : user.role.charAt(0).toUpperCase() +
-                          user.role.slice(1).replace(/_/g, " ")
+                        user.role.slice(1).replace(/_/g, " ")
                     : "No Role"}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200">
-                  <span
-                    className={`inline-flex h-6 w-20 cursor-pointer items-center justify-between rounded-md px-2 py-4 ${
-                      isPendingDelete
+                  {shouldShowDeleteButton && (
+                    <span
+                      className={`inline-flex h-6 w-20 cursor-pointer items-center justify-between rounded-md px-2 py-4 ${isPendingDelete
                         ? "bg-yellow-500 text-white hover:bg-yellow-600"
                         : "bg-red-500 text-white hover:bg-red-600"
-                    }`}
-                    onClick={() => queueDeleteUser(user.id)}
-                    style={{ userSelect: "none" }}
-                  >
-                    <Trash2 size={14} />
-                    Delete
-                  </span>
+                        }`}
+                      onClick={() => queueDeleteUser(user.id)}
+                      style={{ userSelect: "none" }}
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </span>
+                  )}
                 </td>
               </tr>
             );
