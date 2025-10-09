@@ -1,10 +1,10 @@
-import { formatDistanceToNow } from "date-fns";
-import DOMPurify from "dompurify";
 import {
   FacebookSVG,
   InstagramSVG,
   LinkedinSVG,
 } from "@/components/platformIcons";
+import { formatDistanceToNow } from "date-fns";
+import DOMPurify from "dompurify";
 import Image from "next/image";
 
 // Preview Components
@@ -39,8 +39,8 @@ export const FacebookPostPreview = ({
         <div className="mt-2 overflow-hidden rounded-md">
           {media.length === 1 ? (
             media[0].startsWith("data:video") ||
-            media[0].endsWith(".mp4") ||
-            media[0].endsWith(".mov") ? (
+              media[0].endsWith(".mp4") ||
+              media[0].endsWith(".mov") ? (
               <video controls className="max-h-[500px] w-full object-contain">
                 <source src={media[0]} type="video/mp4" />
                 Your browser does not support the video tag.
@@ -61,8 +61,8 @@ export const FacebookPostPreview = ({
               {media.slice(0, 4).map((item, index) => (
                 <div key={index} className="relative aspect-square">
                   {item.startsWith("data:video") ||
-                  item.endsWith(".mp4") ||
-                  item.endsWith(".mov") ? (
+                    item.endsWith(".mp4") ||
+                    item.endsWith(".mov") ? (
                     <video controls className="h-full w-full object-cover">
                       <source src={item} type="video/mp4" />
                     </video>
@@ -134,8 +134,8 @@ export const InstagramPostPreview = ({
           <div className="relative">
             {media.length === 1 ? (
               media[0].startsWith("data:video") ||
-              media[0].endsWith(".mp4") ||
-              media[0].endsWith(".mov") ? (
+                media[0].endsWith(".mp4") ||
+                media[0].endsWith(".mov") ? (
                 <video controls className="aspect-square w-full object-cover">
                   <source src={media[0]} type="video/mp4" />
                   Your browser does not support the video tag.
@@ -152,8 +152,8 @@ export const InstagramPostPreview = ({
             ) : (
               <div className="relative aspect-square overflow-hidden">
                 {media[0].startsWith("data:video") ||
-                media[0].endsWith(".mp4") ||
-                media[0].endsWith(".mov") ? (
+                  media[0].endsWith(".mp4") ||
+                  media[0].endsWith(".mov") ? (
                   <video controls className="h-full w-full object-cover">
                     <source src={media[0]} type="video/mp4" />
                   </video>
@@ -237,8 +237,8 @@ export const LinkedinPostPreview = ({
         <div className="mt-2 overflow-hidden rounded-md">
           {media.length === 1 ? (
             media[0].startsWith("data:video") ||
-            media[0].endsWith(".mp4") ||
-            media[0].endsWith(".mov") ? (
+              media[0].endsWith(".mp4") ||
+              media[0].endsWith(".mov") ? (
               <video controls className="max-h-[500px] w-full object-contain">
                 <source src={media[0]} type="video/mp4" />
                 Your browser does not support the video tag.
@@ -259,8 +259,8 @@ export const LinkedinPostPreview = ({
               {media.slice(0, 4).map((item, index) => (
                 <div key={index} className="relative aspect-square">
                   {item.startsWith("data:video") ||
-                  item.endsWith(".mp4") ||
-                  item.endsWith(".mov") ? (
+                    item.endsWith(".mp4") ||
+                    item.endsWith(".mov") ? (
                     <video controls className="h-full w-full object-cover">
                       <source src={item} type="video/mp4" />
                     </video>

@@ -9,22 +9,18 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   // Remove standalone output to enable API routes
   // output: 'standalone', // Disable for now to fix API routes
-  
+
   // Development performance optimizations
   ...(process.env.NODE_ENV === 'development' && {
     // Enable SWC loader optimizations
     modularizeImports: {
-      '@heroui/react': {
-        transform: '@heroui/react/dist/{{member}}',
-        skipDefaultConversion: true,
-      },
       'lucide-react': {
         transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
         skipDefaultConversion: true,
       },
     },
   }),
-  
+
   // Turbopack configuration for performance
   ...(process.env.NODE_ENV === 'development' && {
     turbopack: {
@@ -36,8 +32,8 @@ const nextConfig = {
       },
     },
   }),
-  
-  // Trust proxy headers for Server Actions
+
+  // Trust proxy headers for Server Actions (Next.js 15+ modern approach)
   experimental: {
     serverActions: {
       bodySizeLimit: '1000mb', // Increase this value as needed
@@ -52,8 +48,9 @@ const nextConfig = {
         '*.ngrok.io',        // Allow legacy ngrok domains
       ],
     },
+    trustProxy: true, // Modern approach for Next.js 15+ to handle proxy headers
   },
-  
+
   // Handle proxy headers properly
   async headers() {
     return [
@@ -68,14 +65,14 @@ const nextConfig = {
       },
     ];
   },
-  
+
   // Minimal logging configuration - only logs in development
   logging: process.env.NODE_ENV !== 'production' ? {
     fetches: {
       fullUrl: true,
     },
   } : undefined,
-  
+
   images: {
     remotePatterns: [
       {
