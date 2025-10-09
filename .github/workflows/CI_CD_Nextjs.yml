@@ -2,15 +2,41 @@
 name: CI/CD Pipeline Next.js + Docker
 
 on:
-  push:
-    branches:
-      - master
+  
   pull_request:
-    branches:
-      - master
+    types: [closed]
+    branches: [master]
 
 jobs:
+  test:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Node.js for Next.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18.x"
+
+      # Step 3: Install dependencies
+      - name: Install frontend dependencies (Next.js)
+        run: npm install
+
+      # Step 4: Run tests
+      - name: Run tests
+        run: npm test
+
+      # Step 5: Run linting
+      - name: Run linting
+        run: npm run lint
+
   build:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -37,6 +63,7 @@ jobs:
           NEXT_PUBLIC_API_URL: http://backend:8000/api
 
   push:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     needs: build
 
@@ -82,12 +109,9 @@ jobs:
             achrefmaarfi0/planit_frontend_docker:${{ github.sha }}
 
   deploy:
-    # This job depends on the push job finishing successfully
+    if: github.event.pull_request.merged == true
     needs: push
     runs-on: ubuntu-latest
-
-    # IMPORTANT: Run this step on push to master OR pull request targeting master.
-    if: (github.ref == 'refs/heads/master' && github.event_name == 'push') || (github.base_ref == 'master' && github.event_name == 'pull_request')
 
     steps:
       - name: Deploy to VPS
