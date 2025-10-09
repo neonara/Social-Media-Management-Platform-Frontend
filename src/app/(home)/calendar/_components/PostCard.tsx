@@ -129,7 +129,7 @@ const PostCard = React.memo(
                   badges.push(
                     <span
                       key="client-approved"
-                      className="flex items-center gap-1 rounded-lg bg-green-100 px-2 py-1 text-xs"
+                      className="flex items-center gap-1 rounded-lg bg-green-100 dark:bg-green-900/50 px-2 py-1 text-xs"
                     >
                       <CheckCircle className="h-3 w-3 text-green-500" />
                       Client Approved
@@ -139,7 +139,7 @@ const PostCard = React.memo(
                   badges.push(
                     <span
                       key="client-rejected"
-                      className="flex items-center gap-1 rounded-lg bg-red-100 px-2 py-1 text-xs"
+                      className="flex items-center gap-1 rounded-lg bg-red-100 dark:bg-red-900/50 px-2 py-1 text-xs"
                     >
                       <XCircle className="h-3 w-3 text-red-500" />
                       Client Rejected
@@ -149,7 +149,7 @@ const PostCard = React.memo(
                   badges.push(
                     <span
                       key="client-pending"
-                      className="flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-xs"
+                      className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-800/70 px-2 py-1 text-xs"
                     >
                       <Clock className="h-3 w-3 text-gray-500" />
                       Awaiting Client
@@ -162,7 +162,7 @@ const PostCard = React.memo(
                   badges.push(
                     <span
                       key="mod-validated"
-                      className="flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 text-xs"
+                      className="flex items-center gap-1 rounded-lg bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs"
                     >
                       <UserCheck className="h-3 w-3 text-blue-500" />
                       Validated
@@ -172,7 +172,7 @@ const PostCard = React.memo(
                   badges.push(
                     <span
                       key="mod-rejected"
-                      className="flex items-center gap-1 rounded-lg bg-red-100 px-2 py-1 text-xs"
+                      className="flex items-center gap-1 rounded-lg bg-red-100 dark:bg-red-900/50 px-2 py-1 text-xs"
                     >
                       <XCircle className="h-3 w-3 text-red-500" />
                       Mod Rejected
@@ -186,7 +186,7 @@ const PostCard = React.memo(
                   badges.push(
                     <span
                       key="mod-pending"
-                      className="flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-xs"
+                      className="flex items-center gap-1 rounded-lg bg-amber-100 dark:bg-amber-900/50 px-2 py-1 text-xs"
                     >
                       <Clock className="h-3 w-3 text-amber-500" />
                       Awaiting Validation

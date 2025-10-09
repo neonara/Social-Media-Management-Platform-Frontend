@@ -15,7 +15,7 @@ const PUBLIC_PATHS = new Set([
   "/login",
   "/first-reset-password",
   "/password-reset",
-  "/forgot_password",
+  "/forgot-password",
   "/reset-password-confirm/[uid]/[token]",
   "/content",
   "/create-user",

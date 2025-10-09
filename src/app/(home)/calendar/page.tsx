@@ -1,39 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfWeek,
-  endOfWeek,
-  addWeeks,
-  addDays,
-  eachDayOfInterval,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  startOfQuarter,
-  addMonths,
-  subMonths,
-  subQuarters,
-  addQuarters,
-  subYears,
-  addYears,
-} from "date-fns";
-import {
-  CalendarDays,
-  Search,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Kanban,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Calendar,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,38 +18,63 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { DragEndEvent } from "@dnd-kit/core";
-
-import * as postService from "@/services/postService";
-import * as moderatorsService from "@/services/moderatorsService";
-import { useRouter } from "next/navigation";
 import {
-  usePostWebSocket,
-  PostWebSocketMessage,
-} from "@/hooks/usePostWebSocket";
-import { toast } from "react-toastify";
-import { GetUser, User } from "@/types/user";
-import { useUser } from "@/context/UserContext";
-import { ScheduledPost } from "@/types/post";
-import Link from "next/link";
+  addDays,
+  addMonths,
+  addQuarters,
+  addWeeks,
+  addYears,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfQuarter,
+  startOfWeek,
+  startOfYear,
+  subMonths,
+  subQuarters,
+  subYears,
+} from "date-fns";
+import {
+  Calendar,
+  CalendarDays,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Kanban,
+  RefreshCw,
+  Search,
+  XCircle,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import MultiPostModal from "@/app/(home)/calendar/_components/MultiPostModal";
-import { platformIcons } from "@/components/platformIcons";
 import PostCardModal from "@/app/(home)/calendar/_components/postCardModal";
 import PostTable from "@/app/(home)/calendar/_components/PostTable";
+import { platformIcons } from "@/components/platformIcons";
 import {
   FacebookPostPreview,
   InstagramPostPreview,
   LinkedinPostPreview,
 } from "@/components/postPreview";
 import UserPresence from "@/components/UserPresence/UserPresence";
+import { useUser } from "@/context/UserContext";
+import {
+  PostWebSocketMessage,
+  usePostWebSocket,
+} from "@/hooks/usePostWebSocket";
+import * as moderatorsService from "@/services/moderatorsService";
+import * as postService from "@/services/postService";
+import { ScheduledPost } from "@/types/post";
+import { GetUser, User } from "@/types/user";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 // Simple cache for expensive API calls
 const cache = new Map<string, { data: unknown; timestamp: number }>();
@@ -188,55 +188,55 @@ export default function CalendarPage() {
         typeof postData.scheduled_for === "string"
           ? postData.scheduled_for
           : new Date(
-              postData.scheduled_for as string | number | Date,
-            ).toISOString(),
+            postData.scheduled_for as string | number | Date,
+          ).toISOString(),
       // Handle tracking fields
       created_at:
         postData.created_at && typeof postData.created_at !== "string"
           ? new Date(
-              postData.created_at as string | number | Date,
-            ).toISOString()
+            postData.created_at as string | number | Date,
+          ).toISOString()
           : postData.created_at,
       updated_at:
         postData.updated_at && typeof postData.updated_at !== "string"
           ? new Date(
-              postData.updated_at as string | number | Date,
-            ).toISOString()
+            postData.updated_at as string | number | Date,
+          ).toISOString()
           : postData.updated_at,
       // Workflow date fields
       client_approved_at:
         postData.client_approved_at &&
-        typeof postData.client_approved_at !== "string"
+          typeof postData.client_approved_at !== "string"
           ? new Date(
-              postData.client_approved_at as string | number | Date,
-            ).toISOString()
+            postData.client_approved_at as string | number | Date,
+          ).toISOString()
           : postData.client_approved_at,
       client_rejected_at:
         postData.client_rejected_at &&
-        typeof postData.client_rejected_at !== "string"
+          typeof postData.client_rejected_at !== "string"
           ? new Date(
-              postData.client_rejected_at as string | number | Date,
-            ).toISOString()
+            postData.client_rejected_at as string | number | Date,
+          ).toISOString()
           : postData.client_rejected_at,
       moderator_validated_at:
         postData.moderator_validated_at &&
-        typeof postData.moderator_validated_at !== "string"
+          typeof postData.moderator_validated_at !== "string"
           ? new Date(
-              postData.moderator_validated_at as string | number | Date,
-            ).toISOString()
+            postData.moderator_validated_at as string | number | Date,
+          ).toISOString()
           : postData.moderator_validated_at,
       moderator_rejected_at:
         postData.moderator_rejected_at &&
-        typeof postData.moderator_rejected_at !== "string"
+          typeof postData.moderator_rejected_at !== "string"
           ? new Date(
-              postData.moderator_rejected_at as string | number | Date,
-            ).toISOString()
+            postData.moderator_rejected_at as string | number | Date,
+          ).toISOString()
           : postData.moderator_rejected_at,
       feedback_at:
         postData.feedback_at && typeof postData.feedback_at !== "string"
           ? new Date(
-              postData.feedback_at as string | number | Date,
-            ).toISOString()
+            postData.feedback_at as string | number | Date,
+          ).toISOString()
           : postData.feedback_at,
       media:
         (postData.media as Array<Record<string, unknown>>)?.map(
@@ -246,8 +246,8 @@ export default function CalendarPage() {
               typeof mediaItem.uploaded_at === "string"
                 ? mediaItem.uploaded_at
                 : new Date(
-                    mediaItem.uploaded_at as string | number | Date,
-                  ).toISOString(),
+                  mediaItem.uploaded_at as string | number | Date,
+                ).toISOString(),
           }),
         ) || [],
     } as ScheduledPost;
@@ -665,7 +665,7 @@ export default function CalendarPage() {
         const filteredPosts = authorizedPosts.filter((post) => {
           const matchesCreator = creatorFilter
             ? post.creator?.full_name === creatorFilter ||
-              post.creator?.email?.split("@")[0] === creatorFilter
+            post.creator?.email?.split("@")[0] === creatorFilter
             : true;
           const matchesStatus =
             statusFilters && statusFilters.length > 0
@@ -673,7 +673,7 @@ export default function CalendarPage() {
               : true;
           const matchesClient = clientFilter
             ? post.client?.full_name === clientFilter ||
-              post.client?.email?.split("@")[0] === clientFilter
+            post.client?.email?.split("@")[0] === clientFilter
             : true;
           return matchesCreator && matchesStatus && matchesClient;
         });
@@ -941,15 +941,13 @@ export default function CalendarPage() {
                   onClick={() => {
                     setSelectedDate(day);
                   }}
-                  className={`h-24 cursor-pointer p-3 text-center transition-colors ${
-                    isSameDay(day, new Date())
-                      ? "dark:text-primary-dark bg-primary/10 text-primary"
-                      : "text-dark dark:text-white"
-                  } ${
-                    isSameDay(day, selectedDate)
+                  className={`h-24 cursor-pointer p-3 text-center transition-colors ${isSameDay(day, new Date())
+                    ? "dark:text-primary-dark bg-primary/10 text-primary"
+                    : "text-dark dark:text-white"
+                    } ${isSameDay(day, selectedDate)
                       ? "dark:border-primary-dark border-2 border-primary bg-primary/5"
                       : "hover:bg-gray-100 dark:hover:bg-dark-2"
-                  }`}
+                    }`}
                 >
                   <div className="text-sm font-medium">
                     {format(day, "EEE")}
@@ -1072,17 +1070,16 @@ export default function CalendarPage() {
                                     </span>
                                   </div>
                                   <div
-                                    className={`ml-2 flex items-center gap-2 rounded-full px-2 py-1 text-sm font-semibold ${
-                                      post.platform === "Facebook"
-                                        ? "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200"
-                                        : post.platform === "Instagram"
-                                          ? "bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200"
-                                          : "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                                    }`}
+                                    className={`ml-2 flex items-center gap-2 rounded-full px-2 py-1 text-sm font-semibold ${post.platform === "Facebook"
+                                      ? "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200"
+                                      : post.platform === "Instagram"
+                                        ? "bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200"
+                                        : "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                                      }`}
                                   >
                                     {platformIcons[post.platform] ||
                                       platformIcons[
-                                        post.platform?.toLowerCase()
+                                      post.platform?.toLowerCase()
                                       ] ||
                                       null}
                                   </div>
@@ -1131,19 +1128,16 @@ export default function CalendarPage() {
                       <td
                         key={dayIndex}
                         onClick={() => day && navigateToView(day, "week")}
-                        className={`relative h-32 cursor-pointer border border-stroke p-2 transition-colors dark:border-dark-3 md:p-3 ${
-                          !day
-                            ? "bg-gray-1 dark:bg-dark-2"
-                            : "hover:bg-gray-2 dark:hover:bg-dark-2"
-                        } ${
-                          day && isSameDay(day, new Date())
+                        className={`relative h-32 cursor-pointer border border-stroke p-2 transition-colors dark:border-dark-3 md:p-3 ${!day
+                          ? "bg-gray-1 dark:bg-dark-2"
+                          : "hover:bg-gray-2 dark:hover:bg-dark-2"
+                          } ${day && isSameDay(day, new Date())
                             ? "dark:bg-primary-dark/20 bg-primary/10"
                             : ""
-                        } ${
-                          day && isSameDay(day, selectedDate)
+                          } ${day && isSameDay(day, selectedDate)
                             ? "dark:border-primary-dark border-2 border-primary"
                             : ""
-                        }`}
+                          }`}
                       >
                         {day && (
                           <>
@@ -1280,15 +1274,14 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={i}
-                            className={`relative flex h-8 cursor-pointer items-center justify-center rounded text-sm ${
-                              isSameDay(day, new Date())
-                                ? "dark:bg-primary-dark bg-primary text-white"
-                                : isCurrentMonth && dayPosts.length > 0
-                                  ? getQuarterDayStyle(dayPosts)
-                                  : isCurrentMonth
-                                    ? "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-2"
-                                    : "text-gray-400 dark:text-gray-600"
-                            }`}
+                            className={`relative flex h-8 cursor-pointer items-center justify-center rounded text-sm ${isSameDay(day, new Date())
+                              ? "dark:bg-primary-dark bg-primary text-white"
+                              : isCurrentMonth && dayPosts.length > 0
+                                ? getQuarterDayStyle(dayPosts)
+                                : isCurrentMonth
+                                  ? "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-2"
+                                  : "text-gray-400 dark:text-gray-600"
+                              }`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isCurrentMonth && dayPosts.length > 0) {
@@ -1346,11 +1339,10 @@ export default function CalendarPage() {
                         onClick={() => navigateToView(monthDate, "month")}
                       >
                         <div
-                          className={`mb-2 text-center font-medium ${
-                            isSameMonth(new Date(), monthDate)
-                              ? "dark:text-primary-dark text-primary"
-                              : "text-dark dark:text-white"
-                          }`}
+                          className={`mb-2 text-center font-medium ${isSameMonth(new Date(), monthDate)
+                            ? "dark:text-primary-dark text-primary"
+                            : "text-dark dark:text-white"
+                            }`}
                         >
                           {format(monthDate, "MMMM")}
                         </div>
@@ -1423,15 +1415,14 @@ export default function CalendarPage() {
                               return (
                                 <div
                                   key={i}
-                                  className={`relative flex h-6 cursor-pointer items-center justify-center rounded text-xs ${
-                                    isToday
-                                      ? "dark:bg-primary-dark bg-primary text-white"
-                                      : isCurrentMonth && dayPosts.length > 0
-                                        ? getYearDayStyle(dayPosts)
-                                        : isCurrentMonth
-                                          ? "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-2"
-                                          : "text-gray-400 dark:text-gray-600"
-                                  }`}
+                                  className={`relative flex h-6 cursor-pointer items-center justify-center rounded text-xs ${isToday
+                                    ? "dark:bg-primary-dark bg-primary text-white"
+                                    : isCurrentMonth && dayPosts.length > 0
+                                      ? getYearDayStyle(dayPosts)
+                                      : isCurrentMonth
+                                        ? "text-dark hover:bg-gray-2 dark:text-white dark:hover:bg-dark-2"
+                                        : "text-gray-400 dark:text-gray-600"
+                                    }`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (isCurrentMonth && dayPosts.length > 0) {
@@ -1698,7 +1689,7 @@ export default function CalendarPage() {
                 value={searchYear}
                 onChange={(e) => setSearchYear(e.target.value)}
               />
-              <Button onClick={handleSearchYear} className="font-medium">
+              <Button onClick={handleSearchYear} className="font-medium bg-primary text-white hover:bg-primary/90 dark:hover:bg-primary/80">
                 <Search className="mr-2 h-4 w-4" />
                 Search
               </Button>
@@ -1771,11 +1762,10 @@ export default function CalendarPage() {
                     <button
                       key={key}
                       onClick={() => toggleStatus(key)}
-                      className={`flex items-center space-x-1 rounded-lg border px-3 py-2 transition-all duration-200 ${
-                        isSelected
-                          ? `${bgColor} ${borderColor} ${color} shadow-sm`
-                          : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-200"
-                      } `}
+                      className={`flex items-center space-x-1 rounded-lg border px-3 py-2 transition-all duration-200 ${isSelected
+                        ? `${bgColor} ${borderColor} ${color} shadow-sm`
+                        : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-200"
+                        } `}
                       title={`Filter by ${label}`}
                     >
                       <Icon className="h-4 w-4" />
@@ -1908,10 +1898,10 @@ export default function CalendarPage() {
 
       {/* Override Client Approval Confirmation Modal */}
       <Dialog open={showOverrideModal} onOpenChange={setShowOverrideModal}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Override Client Approval</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-gray-900 dark:text-white">Override Client Approval</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300">
               Do you want to validate and schedule this post without client
               approval?
             </DialogDescription>
@@ -1923,6 +1913,7 @@ export default function CalendarPage() {
                 setShowOverrideModal(false);
                 setPendingValidationPostId(null);
               }}
+              className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
             >
               Cancel
             </Button>
@@ -1934,6 +1925,7 @@ export default function CalendarPage() {
                 setShowOverrideModal(false);
                 setPendingValidationPostId(null);
               }}
+              className="bg-primary text-white hover:bg-primary/90 dark:hover:bg-primary/80"
             >
               Yes, Override
             </Button>

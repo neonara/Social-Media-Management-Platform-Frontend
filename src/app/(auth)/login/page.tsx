@@ -1,17 +1,17 @@
 "use client"; // Required for React hooks like useState & useRouter
 
-import Image from "next/image";
-import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // For navigation
-import { Eye, EyeOff } from "lucide-react";
-import darkLogo from "@/assets/logos/logo_white.png";
+import { EmailIcon } from "@/assets/icons";
 import logo from "@/assets/logos/logo_black.png";
+import darkLogo from "@/assets/logos/logo_white.png";
 import { Checkbox } from "@/components/ui/FormElements/checkbox";
 import InputGroup from "@/components/ui/FormElements/InputGroup";
-import { EmailIcon } from "@/assets/icons";
 import { loginUser } from "@/services/authService";
 import { checkAuthStatus } from "@/utils/token";
+import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation"; // For navigation
+import { useEffect, useState } from "react";
 
 export default function Login() {
   const [data, setData] = useState({
@@ -82,8 +82,7 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-    console.log("Navigating to /forgot_password");
-    router.push("/forgot_password");
+    router.push("/forgot-password");
   };
 
   return (

@@ -1,27 +1,27 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
 import { getCurrentUser } from "@/services/userService";
 import { getUserRole, type GetUser } from "@/types/user";
 import {
-  clientValidateToken,
   clientSecureLogout,
+  clientValidateToken,
 } from "@/utils/clientAuthWrapper";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 // Define public paths that don't require authentication - static to avoid recreating
 const PUBLIC_PATHS = [
   "/login",
   "/first-reset-password",
   "/password-reset",
-  "/forgot_password",
+  "/forgot-password",
   "/reset-password-confirm",
 ];
 
