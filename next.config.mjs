@@ -38,6 +38,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '1000mb', // Increase this value as needed
       allowedOrigins: [
+        '57.129.79.137',
         '57.129.79.137:8081',  // Nginx proxy production
         '57.129.79.137:3100',  // Direct frontend production  
         'localhost:8081',  // Nginx proxy
