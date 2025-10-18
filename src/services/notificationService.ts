@@ -59,7 +59,7 @@ export async function markAllNotificationsAsRead() {
     }
 
     const response = await fetch(`${API_BASE_URL}/notifications/read-all/`, {
-      method: "PUT",
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
