@@ -2,13 +2,14 @@ import "@/assets/css/lemon-milk.css";
 import "@/assets/css/style.css";
 import "jsvectormap/dist/jsvectormap.css";
 
+import ChatNotifier from "@/components/chat/ChatNotifier";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { UserProvider } from "@/context/UserContext";
 import type { Metadata } from "next";
+import { ThemeProvider } from "next-themes";
 import NextTopLoader from "nextjs-toploader";
 import type { PropsWithChildren } from "react";
-import { ThemeProvider } from "next-themes";
 import { Toaster } from "react-hot-toast";
-import { UserProvider } from "@/context/UserContext";
-import { NotificationProvider } from "@/context/NotificationContext";
 
 export const metadata: Metadata = {
   title: {
@@ -28,6 +29,8 @@ export default function RootLayout({ children }: PropsWithChildren) {
             <NotificationProvider>
               <NextTopLoader color="#5750F1" showSpinner={false} />
               {children}
+              {/* Site-wide chat notifier: listens for incoming messages when the user is not on /chat */}
+              <ChatNotifier />
               <Toaster
                 position="top-right"
                 reverseOrder={false}

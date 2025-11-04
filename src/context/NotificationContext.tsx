@@ -87,11 +87,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     setType(type);
     setTitle(
       title ||
-      (type === "success"
-        ? "Success"
-        : type === "error"
-          ? "Error"
-          : "Warning"),
+        (type === "success"
+          ? "Success"
+          : type === "error"
+            ? "Error"
+            : "Warning"),
     );
     setShowAlert(true);
     // Auto-hide after 5 seconds

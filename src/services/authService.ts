@@ -68,11 +68,12 @@ export async function loginUser(
     const cookieStore = await cookies();
 
     // Check if we need secure cookies - either in production or when using HTTPS (like ngrok)
-    const headers = await import('next/headers');
+    const headers = await import("next/headers");
     const headersList = headers.headers ? await headers.headers() : null;
-    const isHttps = headersList?.get('x-forwarded-proto') === 'https' || 
-                    headersList?.get('x-forwarded-protocol') === 'https' ||
-                    process.env.NODE_ENV === "production";
+    const isHttps =
+      headersList?.get("x-forwarded-proto") === "https" ||
+      headersList?.get("x-forwarded-protocol") === "https" ||
+      process.env.NODE_ENV === "production";
 
     // Set access token cookie (HTTP-only, Secure when using HTTPS)
     cookieStore.set("access_token", accessToken, {

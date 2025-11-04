@@ -215,7 +215,7 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
               const adminResponse = await getAllClientsForAdmin();
               console.log("Admin response:", adminResponse);
               // Extract clients from the admin response structure
-              clientsArray = adminResponse.clients.map(client => ({
+              clientsArray = adminResponse.clients.map((client) => ({
                 id: client.id,
                 name: client.full_name || client.email.split("@")[0],
                 email: client.email,
@@ -849,8 +849,10 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                 <SelectTrigger className="w-full max-w-md">
                   <SelectValue
                     placeholder={
-                      isLoadingClients ? "Loading..." :
-                        role === "administrator" || role === "super_administrator"
+                      isLoadingClients
+                        ? "Loading..."
+                        : role === "administrator" ||
+                            role === "super_administrator"
                           ? "Select a Client"
                           : "Select a Client (Optional)"
                     }
@@ -858,11 +860,12 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no-client">
-                    {isLoadingClients ? "Loading..." :
-                      role === "administrator" || role === "super_administrator"
+                    {isLoadingClients
+                      ? "Loading..."
+                      : role === "administrator" ||
+                          role === "super_administrator"
                         ? "Select a Client"
-                        : "Create Personal Post"
-                    }
+                        : "Create Personal Post"}
                   </SelectItem>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id.toString()}>
@@ -1080,10 +1083,11 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                         key={page.id}
                         type="button"
                         onClick={() => togglePlatform(page.platform)}
-                        className={`flex flex-col items-center justify-center gap-1 rounded-md px-3 py-2 ${formData.selectedPlatforms.includes(page.platform)
-                          ? "border-primary bg-secondary text-white"
-                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                          }`}
+                        className={`flex flex-col items-center justify-center gap-1 rounded-md px-3 py-2 ${
+                          formData.selectedPlatforms.includes(page.platform)
+                            ? "border-primary bg-secondary text-white"
+                            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        }`}
                       >
                         <span className="flex items-center justify-items-start gap-2 font-semibold capitalize">
                           {getPlatformIconWithSize(page.platform, "h-6 w-6")}
@@ -1092,10 +1096,11 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
 
                         {page.page_name && (
                           <span
-                            className={`text-blue-900 dark:text-white ${formData.selectedPlatforms.includes(page.platform)
-                              ? "border-primary text-white"
-                              : "text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                              }`}
+                            className={`text-blue-900 dark:text-white ${
+                              formData.selectedPlatforms.includes(page.platform)
+                                ? "border-primary text-white"
+                                : "text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            }`}
                           >
                             {page.page_name}
                           </span>
@@ -1116,10 +1121,11 @@ const PostForm: React.FC<PostFormProps> = ({ mode, postId, clientId }) => {
                         key={platform}
                         type="button"
                         onClick={() => togglePlatform(platform)}
-                        className={`flex items-center justify-center rounded-md px-4 py-2 ${formData.selectedPlatforms.includes(platform)
-                          ? "border-primary bg-primary text-white"
-                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                          }`}
+                        className={`flex items-center justify-center rounded-md px-4 py-2 ${
+                          formData.selectedPlatforms.includes(platform)
+                            ? "border-primary bg-primary text-white"
+                            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        }`}
                       >
                         <span className="h-6 w-6">
                           {getPlatformIconWithSize(platform, "h-6 w-6")}
@@ -1325,7 +1331,7 @@ const DraggableItem = ({
         style={{ zIndex: 1 }}
       >
         {media.preview.startsWith("data:video") ||
-          /\.(mp4|mov)$/i.test(media.preview) ? (
+        /\.(mp4|mov)$/i.test(media.preview) ? (
           <video controls preload="auto" className="h-full w-full object-cover">
             <source src={media.preview} type="video/mp4" />
             Your browser does not support the video tag.

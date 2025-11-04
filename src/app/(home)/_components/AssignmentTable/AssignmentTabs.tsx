@@ -69,7 +69,7 @@ export default function AssignmentTabs() {
     useState<User | null>(null);
   // Removed unused selectedCMToAssignToClient state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [onConfirm, setOnConfirm] = useState<() => void>(() => () => { });
+  const [onConfirm, setOnConfirm] = useState<() => void>(() => () => {});
   const { role } = useUser();
 
   // WebSocket for real-time user data updates
@@ -212,13 +212,13 @@ export default function AssignmentTabs() {
     activeTab === "All"
       ? users
       : users.filter((user) => {
-        const formattedRole = user.role
-          ? user.role === "community_manager"
-            ? "Community Manager"
-            : user.role.charAt(0).toUpperCase() + user.role.slice(1)
-          : "";
-        return formattedRole === activeTab;
-      });
+          const formattedRole = user.role
+            ? user.role === "community_manager"
+              ? "Community Manager"
+              : user.role.charAt(0).toUpperCase() + user.role.slice(1)
+            : "";
+          return formattedRole === activeTab;
+        });
 
   const filteredByName = filteredByRole.filter((user) => {
     const q = searchQuery.trim().toLowerCase();
@@ -436,12 +436,12 @@ export default function AssignmentTabs() {
               prevUsers.map((user) =>
                 user.id === change.userId
                   ? {
-                    ...user,
-                    assigned_communitymanagers:
-                      user.assigned_communitymanagers
-                        ? `${user.assigned_communitymanagers}, ${change.assignedName}`
-                        : change.assignedName,
-                  }
+                      ...user,
+                      assigned_communitymanagers:
+                        user.assigned_communitymanagers
+                          ? `${user.assigned_communitymanagers}, ${change.assignedName}`
+                          : change.assignedName,
+                    }
                   : user,
               ),
             );
@@ -534,38 +534,38 @@ export default function AssignmentTabs() {
 
   const sortedFilteredUsers = sortColumn
     ? [...filteredByName].sort((a, b) => {
-      let valueA: string | null | undefined;
-      let valueB: string | null | undefined;
-      if (sortColumn === "name") {
-        valueA = a.full_name?.toLowerCase();
-        valueB = b.full_name?.toLowerCase();
-      } else if (sortColumn === "assignedClient") {
-        valueA = a.assigned_client?.toLowerCase() ?? "";
-        valueB = b.assigned_client?.toLowerCase() ?? "";
-      } else if (sortColumn === "assignedModerators") {
-        valueA = a.assigned_moderator?.toLowerCase() ?? "";
-        valueB = b.assigned_moderator?.toLowerCase() ?? "";
-      } else if (sortColumn === "assignedCMs") {
-        const getCMs = (user: ExtendedUser): string => {
-          if (user.role == "client" && user.clientAssignedCommunityManagers) {
-            return user.clientAssignedCommunityManagers
-              .map((cm) => cm.full_name)
-              .join(", ")
-              .toLowerCase();
-          } else if (user.assigned_communitymanagers) {
-            return user.assigned_communitymanagers.toLowerCase();
-          }
-          return "";
-        };
-        valueA = getCMs(a);
-        valueB = getCMs(b);
-      }
-      const safeValueA = valueA ?? "";
-      const safeValueB = valueB ?? "";
-      return sortDirection === "asc"
-        ? safeValueA.localeCompare(safeValueB)
-        : safeValueB.localeCompare(safeValueA);
-    })
+        let valueA: string | null | undefined;
+        let valueB: string | null | undefined;
+        if (sortColumn === "name") {
+          valueA = a.full_name?.toLowerCase();
+          valueB = b.full_name?.toLowerCase();
+        } else if (sortColumn === "assignedClient") {
+          valueA = a.assigned_client?.toLowerCase() ?? "";
+          valueB = b.assigned_client?.toLowerCase() ?? "";
+        } else if (sortColumn === "assignedModerators") {
+          valueA = a.assigned_moderator?.toLowerCase() ?? "";
+          valueB = b.assigned_moderator?.toLowerCase() ?? "";
+        } else if (sortColumn === "assignedCMs") {
+          const getCMs = (user: ExtendedUser): string => {
+            if (user.role == "client" && user.clientAssignedCommunityManagers) {
+              return user.clientAssignedCommunityManagers
+                .map((cm) => cm.full_name)
+                .join(", ")
+                .toLowerCase();
+            } else if (user.assigned_communitymanagers) {
+              return user.assigned_communitymanagers.toLowerCase();
+            }
+            return "";
+          };
+          valueA = getCMs(a);
+          valueB = getCMs(b);
+        }
+        const safeValueA = valueA ?? "";
+        const safeValueB = valueB ?? "";
+        return sortDirection === "asc"
+          ? safeValueA.localeCompare(safeValueB)
+          : safeValueB.localeCompare(safeValueA);
+      })
     : filteredByName;
 
   return (
@@ -579,10 +579,11 @@ export default function AssignmentTabs() {
           {tabs.map((tab) => (
             <button
               key={tab}
-              className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${activeTab === tab
-                ? "bg-primary text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                }`}
+              className={`rounded-full px-4 py-2 font-medium transition-colors duration-200 ${
+                activeTab === tab
+                  ? "bg-primary text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              }`}
               onClick={() => setActiveTab(tab)}
             >
               {tab}
@@ -741,7 +742,7 @@ export default function AssignmentTabs() {
                       : user.role === "super_administrator"
                         ? "Super Administrator"
                         : user.role.charAt(0).toUpperCase() +
-                        user.role.slice(1).replace(/_/g, " ")
+                          user.role.slice(1).replace(/_/g, " ")
                     : "No Role"}
                 </td>
 
@@ -861,8 +862,8 @@ export default function AssignmentTabs() {
                       <div className="space-y-3">
                         <div>
                           {user.role === "client" &&
-                            user.clientAssignedCommunityManagers &&
-                            user.clientAssignedCommunityManagers.length > 0 ? (
+                          user.clientAssignedCommunityManagers &&
+                          user.clientAssignedCommunityManagers.length > 0 ? (
                             <ul className="list-inside list-disc divide-y divide-gray-200 dark:divide-gray-600">
                               {user.clientAssignedCommunityManagers.map(
                                 (cm) => (
@@ -965,46 +966,46 @@ export default function AssignmentTabs() {
                             pendingRemoval.cmNameToRemove) ||
                           (user.role === "client" &&
                             pendingClientCMRemoval?.type ===
-                            "remove_client_cm" &&
+                              "remove_client_cm" &&
                             pendingClientCMRemoval.cmNameToRemoveFromClient) ||
                           (user.role === "client" &&
                             pendingCMToClient?.type === "cm_to_client")) && (
-                            <>
-                              <hr className="mx-[-16px] border-gray-300 dark:border-gray-600" />
-                              <div className="space-y-1">
-                                {pending?.type === "cm" && (
-                                  <span className="block font-semibold text-yellow-600 dark:text-yellow-400">
-                                    Pending: {pending.assignedName}
+                          <>
+                            <hr className="mx-[-16px] border-gray-300 dark:border-gray-600" />
+                            <div className="space-y-1">
+                              {pending?.type === "cm" && (
+                                <span className="block font-semibold text-yellow-600 dark:text-yellow-400">
+                                  Pending: {pending.assignedName}
+                                </span>
+                              )}
+                              {pendingRemoval?.type === "cm" &&
+                                pendingRemoval.cmNameToRemove && (
+                                  <span className="block font-semibold text-red-600 dark:text-red-400">
+                                    Pending Removal:{" "}
+                                    {pendingRemoval.cmNameToRemove}
                                   </span>
                                 )}
-                                {pendingRemoval?.type === "cm" &&
-                                  pendingRemoval.cmNameToRemove && (
-                                    <span className="block font-semibold text-red-600 dark:text-red-400">
-                                      Pending Removal:{" "}
-                                      {pendingRemoval.cmNameToRemove}
-                                    </span>
-                                  )}
-                                {user.role === "client" &&
-                                  pendingClientCMRemoval?.type ===
+                              {user.role === "client" &&
+                                pendingClientCMRemoval?.type ===
                                   "remove_client_cm" &&
-                                  pendingClientCMRemoval.cmNameToRemoveFromClient && (
-                                    <span className="block font-semibold text-red-600 dark:text-red-400">
-                                      Pending Removal:{" "}
-                                      {
-                                        pendingClientCMRemoval.cmNameToRemoveFromClient
-                                      }
-                                    </span>
-                                  )}
-                                {user.role === "client" &&
-                                  pendingCMToClient?.type === "cm_to_client" && (
-                                    <span className="block font-semibold text-yellow-600 dark:text-yellow-400">
-                                      Pending CM:{" "}
-                                      {pendingCMToClient.cmToAssignToClientName}
-                                    </span>
-                                  )}
-                              </div>
-                            </>
-                          )}
+                                pendingClientCMRemoval.cmNameToRemoveFromClient && (
+                                  <span className="block font-semibold text-red-600 dark:text-red-400">
+                                    Pending Removal:{" "}
+                                    {
+                                      pendingClientCMRemoval.cmNameToRemoveFromClient
+                                    }
+                                  </span>
+                                )}
+                              {user.role === "client" &&
+                                pendingCMToClient?.type === "cm_to_client" && (
+                                  <span className="block font-semibold text-yellow-600 dark:text-yellow-400">
+                                    Pending CM:{" "}
+                                    {pendingCMToClient.cmToAssignToClientName}
+                                  </span>
+                                )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </td>
                   )}

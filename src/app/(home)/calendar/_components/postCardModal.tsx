@@ -94,7 +94,7 @@ export default function PostCardModal({
 
   return (
     <Dialog open={true} onOpenChange={() => setSelectedPost(null)}>
-      <DialogContent className="mx-2 my-2 max-h-[95vh] w-[calc(100vw-1rem)] bg-white dark:bg-gray-800 max-w-sm overflow-hidden dark:border-gray-700 sm:mx-4 sm:my-4 sm:w-full sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl">
+      <DialogContent className="mx-2 my-2 max-h-[95vh] w-[calc(100vw-1rem)] max-w-sm overflow-hidden bg-white dark:border-gray-700 dark:bg-gray-800 sm:mx-4 sm:my-4 sm:w-full sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -149,53 +149,57 @@ export default function PostCardModal({
                 </div>
                 {/* Status */}
                 <div
-                  className={`flex items-center gap-2 rounded-lg border p-3 md:gap-3 ${selectedPost.status === "published"
-                    ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
-                    : selectedPost.status === "rejected"
-                      ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
-                      : selectedPost.status === "pending"
-                        ? "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30"
-                        : "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30"
-                    }`}
+                  className={`flex items-center gap-2 rounded-lg border p-3 md:gap-3 ${
+                    selectedPost.status === "published"
+                      ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
+                      : selectedPost.status === "rejected"
+                        ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
+                        : selectedPost.status === "pending"
+                          ? "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30"
+                          : "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30"
+                  }`}
                 >
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-white md:h-10 md:w-10 ${selectedPost.status === "published"
-                      ? "bg-green-500"
-                      : selectedPost.status === "rejected"
-                        ? "bg-red-500"
-                        : selectedPost.status === "pending"
-                          ? "bg-yellow-500"
-                          : "bg-purple-500"
-                      }`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-white md:h-10 md:w-10 ${
+                      selectedPost.status === "published"
+                        ? "bg-green-500"
+                        : selectedPost.status === "rejected"
+                          ? "bg-red-500"
+                          : selectedPost.status === "pending"
+                            ? "bg-yellow-500"
+                            : "bg-purple-500"
+                    }`}
                   >
                     <Loader className="h-4 w-4 md:h-5 md:w-5" />
                   </div>
                   <div className="flex-1">
                     <div
-                      className={`text-xs font-medium ${selectedPost.status === "published"
-                        ? "text-green-600 dark:text-green-400"
-                        : selectedPost.status === "rejected"
-                          ? "text-red-600 dark:text-red-400"
-                          : selectedPost.status === "pending"
-                            ? "text-yellow-600 dark:text-yellow-400"
-                            : "text-purple-600 dark:text-purple-400"
-                        }`}
+                      className={`text-xs font-medium ${
+                        selectedPost.status === "published"
+                          ? "text-green-600 dark:text-green-400"
+                          : selectedPost.status === "rejected"
+                            ? "text-red-600 dark:text-red-400"
+                            : selectedPost.status === "pending"
+                              ? "text-yellow-600 dark:text-yellow-400"
+                              : "text-purple-600 dark:text-purple-400"
+                      }`}
                     >
                       Status
                     </div>
                     <div
-                      className={`font-semibold ${selectedPost.status === "published"
-                        ? "text-green-900 dark:text-green-100"
-                        : selectedPost.status === "rejected"
-                          ? "text-red-900 dark:text-red-100"
-                          : selectedPost.status === "pending"
-                            ? "text-yellow-900 dark:text-yellow-100"
-                            : "text-purple-900 dark:text-purple-100"
-                        }`}
+                      className={`font-semibold ${
+                        selectedPost.status === "published"
+                          ? "text-green-900 dark:text-green-100"
+                          : selectedPost.status === "rejected"
+                            ? "text-red-900 dark:text-red-100"
+                            : selectedPost.status === "pending"
+                              ? "text-yellow-900 dark:text-yellow-100"
+                              : "text-purple-900 dark:text-purple-100"
+                      }`}
                     >
                       {selectedPost.status
                         ? selectedPost.status.charAt(0).toUpperCase() +
-                        selectedPost.status.slice(1)
+                          selectedPost.status.slice(1)
                         : "Unknown"}
                     </div>
                   </div>
@@ -283,9 +287,9 @@ export default function PostCardModal({
                           <div className="font-semibold text-green-900 dark:text-green-100">
                             {selectedPost.client_approved_at
                               ? format(
-                                new Date(selectedPost.client_approved_at),
-                                "PPp",
-                              )
+                                  new Date(selectedPost.client_approved_at),
+                                  "PPp",
+                                )
                               : "Recently approved"}
                           </div>
                         </div>
@@ -309,9 +313,9 @@ export default function PostCardModal({
                           <div className="font-semibold text-red-900 dark:text-red-100">
                             {selectedPost.client_rejected_at
                               ? format(
-                                new Date(selectedPost.client_rejected_at),
-                                "PPp",
-                              )
+                                  new Date(selectedPost.client_rejected_at),
+                                  "PPp",
+                                )
                               : "Recently rejected"}
                           </div>
                         </div>
@@ -368,9 +372,9 @@ export default function PostCardModal({
                           <div className="font-semibold text-blue-900 dark:text-blue-100">
                             {selectedPost.moderator_validated_at
                               ? format(
-                                new Date(selectedPost.moderator_validated_at),
-                                "PPp",
-                              )
+                                  new Date(selectedPost.moderator_validated_at),
+                                  "PPp",
+                                )
                               : "Recently validated"}
                           </div>
                         </div>
@@ -391,9 +395,9 @@ export default function PostCardModal({
                           <div className="font-semibold text-red-900 dark:text-red-100">
                             {selectedPost.moderator_rejected_at
                               ? format(
-                                new Date(selectedPost.moderator_rejected_at),
-                                "PPp",
-                              )
+                                  new Date(selectedPost.moderator_rejected_at),
+                                  "PPp",
+                                )
                               : "Recently rejected"}
                           </div>
                         </div>
@@ -481,7 +485,7 @@ export default function PostCardModal({
                 Post Preview
               </h3>
 
-              <div className="rounded-lg border dark:border-gray-700 bg-gray-50 p-3 dark:bg-gray-900/50 md:p-4">
+              <div className="rounded-lg border bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50 md:p-4">
                 {renderPreview ? (
                   renderPreview()
                 ) : (
@@ -593,7 +597,7 @@ export default function PostCardModal({
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
                 placeholder="Explain why this post is rejected and what to change..."
-                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-none rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring bg-background ring-offset-background w-full resize-none rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 rows={2}
               />
             </div>

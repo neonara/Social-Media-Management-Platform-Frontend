@@ -1,7 +1,7 @@
-import { Sidebar } from "@/components/Layouts/sidebar";
 import { Header } from "@/components/Layouts/header";
-import type { PropsWithChildren } from "react";
+import { Sidebar } from "@/components/Layouts/sidebar";
 import { SidebarProvider } from "@/components/Layouts/sidebar/sidebar-context";
+import type { PropsWithChildren } from "react";
 
 export default function HomeLayout({ children }: PropsWithChildren) {
   return (
@@ -10,7 +10,7 @@ export default function HomeLayout({ children }: PropsWithChildren) {
         <Sidebar />
         <div className="w-full bg-gray-1 dark:bg-[#020d1a]">
           <Header />
-          <main className="mx-auto w-full max-w-screen-3xl overflow-hidden p-2 md:p-4 2xl:p-6">
+          <main className="mx-auto w-full max-w-screen-3xl overflow-hidden p-2 md:p-4 2xl:p-4">
             {children}
           </main>
         </div>
