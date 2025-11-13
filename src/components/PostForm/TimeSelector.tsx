@@ -145,11 +145,6 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {label}
-        {isRequired && <span className="ml-1 text-red-500">*</span>}
-      </label>
-
       <div className="flex gap-2">
         {/* Hour Selector */}
         <Select

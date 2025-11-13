@@ -75,13 +75,18 @@ export async function loginUser(
       headersList?.get("x-forwarded-protocol") === "https" ||
       process.env.NODE_ENV === "production";
 
+    // Calculate max age based on remember flag
+    // If remember is true: 30 days, otherwise use default (12 hours)
+    const tokenMaxAge = remember ? 30 * 24 * 60 * 60 : 12 * 60 * 60;
+    const refreshMaxAge = remember ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
+
     // Set access token cookie (HTTP-only, Secure when using HTTPS)
     cookieStore.set("access_token", accessToken, {
       httpOnly: true,
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax", // Use "none" for HTTPS cross-origin, "lax" for HTTP
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     // Set refresh token cookie (HTTP-only, Secure when using HTTPS)
@@ -90,7 +95,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: refreshMaxAge,
     });
 
     cookieStore.set("is_superadministrator", String(isSuperAdmin), {
@@ -98,7 +103,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     // Set role cookies
@@ -107,7 +112,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     cookieStore.set("is_moderator", String(isModerator), {
@@ -115,7 +120,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     cookieStore.set("is_community_manager", String(isCommunityManager), {
@@ -123,7 +128,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     cookieStore.set("is_client", String(isClient), {
@@ -131,7 +136,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     // Return the tokens and user role for client-side storage

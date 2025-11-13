@@ -1,28 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
-import { format } from "date-fns";
-import { useRouter } from "next/navigation";
-import {
-  X,
-  Edit3,
-  Trash2,
-  Check,
-  XCircle,
-  MessageSquare,
-  CalendarClock,
-  UserCheck,
-  Building2,
-  PenTool,
-  RotateCcw,
-  Loader,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
-} from "lucide-react";
+import * as postService from "@/services/postService";
 import { ScheduledPost } from "@/types/post";
 import { User as UserType } from "@/types/user";
-import * as postService from "@/services/postService";
+import { getApprovalStatus, getValidationStatus } from "@/utils/postWorkflow";
+import { format } from "date-fns";
+import {
+  AlertTriangle,
+  Building2,
+  CalendarClock,
+  Check,
+  CheckCircle,
+  Clock,
+  Edit3,
+  Loader,
+  MessageSquare,
+  PenTool,
+  RotateCcw,
+  Trash2,
+  UserCheck,
+  X,
+  XCircle,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { Button } from "../../../../components/ui/button";
 import {
   Dialog,
@@ -30,7 +31,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../../components/ui/dialog";
-import { getApprovalStatus, getValidationStatus } from "@/utils/postWorkflow";
 
 interface PostCardModalProps {
   selectedPost: ScheduledPost;
@@ -94,7 +94,7 @@ export default function PostCardModal({
 
   return (
     <Dialog open={true} onOpenChange={() => setSelectedPost(null)}>
-      <DialogContent className="mx-2 my-2 max-h-[95vh] w-[calc(100vw-1rem)] max-w-sm overflow-hidden bg-white dark:border-gray-700 dark:bg-gray-800 sm:mx-4 sm:my-4 sm:w-full sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl">
+      <DialogContent className="mx-2 my-1 max-h-[95vh] w-[calc(100vw-1rem)] max-w-sm overflow-hidden overflow-y-scroll bg-white dark:border-gray-700 dark:bg-gray-800 sm:mx-4 sm:my-4 sm:w-full sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -485,7 +485,7 @@ export default function PostCardModal({
                 Post Preview
               </h3>
 
-              <div className="rounded-lg border bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50 md:p-4">
+              <div className="max-h-[500px] overflow-y-scroll rounded-lg border bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50 md:p-4">
                 {renderPreview ? (
                   renderPreview()
                 ) : (
@@ -548,7 +548,7 @@ export default function PostCardModal({
                       <Button
                         size="sm"
                         onClick={handleApprove}
-                        className="gap-2 bg-green-600 hover:bg-green-700"
+                        className="gap-2 bg-green-600 text-white hover:bg-green-700"
                       >
                         <Check className="h-4 w-4" />
                         {currentUser?.is_client ? "Approve" : "Validate"}
