@@ -1,8 +1,8 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { API_BASE_URL } from "../config/api";
 import { SocialPage } from "../types/social-page";
-import { cookies } from "next/headers";
 
 export interface ConnectResponse {
   success: boolean;
@@ -34,17 +34,22 @@ export async function getAllPages() {
 
     const data = await response.json();
 
-    // Convert string dates to Date objects
-    data.forEach((page: SocialPage) => {
-      if (page.created_at) {
-        page.created_at = new Date(page.created_at);
-      }
-      if (page.updated_at) {
-        page.updated_at = new Date(page.updated_at);
-      }
-    });
+    // Check if response has pages property (structured response)
+    const pages = data.pages || data;
 
-    return data as SocialPage[];
+    // Convert string dates to Date objects
+    if (Array.isArray(pages)) {
+      pages.forEach((page: SocialPage) => {
+        if (page.created_at) {
+          page.created_at = new Date(page.created_at);
+        }
+        if (page.updated_at) {
+          page.updated_at = new Date(page.updated_at);
+        }
+      });
+    }
+
+    return pages as SocialPage[];
   } catch (error) {
     console.error("Failed to fetch social pages:", error);
     return [];

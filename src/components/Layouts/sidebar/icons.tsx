@@ -1,3 +1,4 @@
+import { ScrollText } from "lucide-react";
 import { SVGProps } from "react";
 
 export type PropsType = SVGProps<SVGSVGElement>;
@@ -194,4 +195,8 @@ export function MessageIcon(props: PropsType) {
       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
   );
+}
+
+export function ReportIcon(props: PropsType) {
+  return <ScrollText {...props} />;
 }

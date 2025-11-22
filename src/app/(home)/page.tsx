@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import AssignmentTabs from "@/app/(home)/_components/AssignmentTable/AssignmentTabs";
-import ModeratorTable from "@/app/(home)/_components/AssignmentTable/ModeratorAssignments";
-import CmAssignmentsTable from "@/app/(home)/_components/AssignmentTable/CmAssignments";
 import ClientAssignmentsTable from "@/app/(home)/_components/AssignmentTable/ClientAssignments";
+import CmAssignmentsTable from "@/app/(home)/_components/AssignmentTable/CmAssignments";
+import ModeratorTable from "@/app/(home)/_components/AssignmentTable/ModeratorAssignments";
+import ClientStats from "@/app/(home)/_components/ClientStats";
 import { useUser } from "@/context/UserContext";
 import { getClientAssignments } from "@/services/clientService";
 import { User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const UserAssignmentPage = () => {
   const { userProfile, isLoading, role } = useUser();
@@ -93,11 +94,14 @@ const UserAssignmentPage = () => {
                   Welcome to Your Dashboard
                 </h2>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Here you can view your assigned team members who will help
-                  manage your social media content.
+                  View your social media performance and team members below.
                 </p>
               </div>
               <ClientAssignmentsTable />
+              {/* Stats Dashboard */}
+              <div className="mt-6">
+                <ClientStats />
+              </div>
             </>
           ) : (
             <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
