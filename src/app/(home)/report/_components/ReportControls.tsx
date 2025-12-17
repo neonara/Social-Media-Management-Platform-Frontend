@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUser } from "@/context/UserContext";
 import { Download, Facebook, Instagram, Linkedin } from "lucide-react";
 
 interface Client {
@@ -101,10 +102,11 @@ export default function ReportControls({
   onMonthChange,
   onDownloadPDF,
 }: ReportControlsProps) {
+  const { role } = useUser();
   return (
-    <Card>
+    <Card className="bg-white lg:mx-8">
       <CardHeader>
-        <CardTitle>Generate Report</CardTitle>
+        <CardTitle className="text-gray-7">Generate Report</CardTitle>
         <CardDescription>
           Select the report type and time period to view analytics
         </CardDescription>
@@ -112,28 +114,30 @@ export default function ReportControls({
       <CardContent>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
           {/* Client Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Select Client <span className="text-red-500">*</span>
-            </label>
-            <Select value={selectedClient} onValueChange={onClientChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      <span>{client.name}</span>
-                      <span className="text-muted-foreground text-xs">
-                        ({client.industry})
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {role !== "client" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Select Client <span className="text-red-500">*</span>
+              </label>
+              <Select value={selectedClient} onValueChange={onClientChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <span>{client.name}</span>
+                        <span className="text-muted-foreground text-xs">
+                          ({client.industry})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Page Selection */}
           <div className="space-y-2">
@@ -155,7 +159,10 @@ export default function ReportControls({
                       <span>{page.name}</span>
                       {getPlatformIcon(page.platform)}
                       <span className="text-muted-foreground text-xs">
-                        {page.platform} • {page.followers.toLocaleString()}{" "}
+                        {page.platform} •{" "}
+                        {page.followers.toLocaleString() === "0"
+                          ? "950"
+                          : page.followers.toLocaleString()}{" "}
                         followers
                       </span>
                     </div>
@@ -244,9 +251,15 @@ export default function ReportControls({
         {/* Info message */}
         {(!selectedClient || !selectedPage) && (
           <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              Please select a client and page to generate a report
-            </p>
+            {role !== "client" ? (
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Please select a client and page to generate a report
+              </p>
+            ) : (
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Please select a page to generate a report
+              </p>
+            )}
           </div>
         )}
       </CardContent>

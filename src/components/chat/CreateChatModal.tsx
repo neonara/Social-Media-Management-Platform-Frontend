@@ -1,10 +1,13 @@
 "use client";
 
 import { chatService } from "@/services/chatService";
+import { getClientAssignments } from "@/services/clientService";
+import { getClientAssignedCommunityManagersServerAction } from "@/services/userService";
 import type { GetUser } from "@/types/user";
-import { apiClient } from "@/utils/apiClient";
 import { X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { FaRegMessage } from "react-icons/fa6";
+import { GrGroup } from "react-icons/gr";
 
 interface CreateChatModalProps {
   isOpen: boolean;
@@ -29,6 +32,9 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
   const [users, setUsers] = useState<GetUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [existingDirectPartnerIds, setExistingDirectPartnerIds] = useState<
+    Set<number>
+  >(new Set());
 
   // Load users when modal opens
   useEffect(() => {
@@ -55,37 +61,67 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
+      console.debug("CreateChatModal: loading users for", currentUserId);
       // Fetch available users and existing chat rooms in parallel so we can
       // filter out users that already have a direct message room with the
       // current user.
-      const [usersResp, roomsData] = await Promise.all([
-        apiClient.get("/users/chat/"),
-        chatService.getChatRooms(),
-      ]);
+      const [assignedCMsResult, roomsData, clientAssignmentsResult] =
+        await Promise.all([
+          // assigned CMs for this client (server action)
+          getClientAssignedCommunityManagersServerAction(currentUserId),
+          chatService.getChatRooms(),
+          // client assignments (moderator + community managers) — used in dashboard
+          getClientAssignments(),
+        ] as const);
 
-      const allUsers = Array.isArray(usersResp.data) ? usersResp.data : [];
+      console.debug("CreateChatModal: loadUsers results:", {
+        assignedCMsResult,
+        roomsData,
+        clientAssignmentsResult,
+      });
 
       // Build a set of user IDs who already have a direct DM with current user
-      const existingDirectPartnerIds = new Set<number>();
+      const dmPartnerIds = new Set<number>();
       if (Array.isArray(roomsData)) {
         for (const r of roomsData) {
           if (r.room_type === "direct" && Array.isArray(r.member_details)) {
-            // member_details contains member objects with id
             const other = r.member_details.find(
               (m: any) => m.id !== currentUserId,
             );
-            if (other && other.id) existingDirectPartnerIds.add(other.id);
+            if (other && other.id) dmPartnerIds.add(other.id);
           }
         }
       }
 
-      // Filter out current user and any users who already have a direct room
-      setUsers(
-        allUsers.filter(
-          (user: GetUser) =>
-            user.id !== currentUserId && !existingDirectPartnerIds.has(user.id),
-        ),
+      setExistingDirectPartnerIds(dmPartnerIds);
+
+      const assignedCMs = Array.isArray(assignedCMsResult)
+        ? (assignedCMsResult as GetUser[])
+        : [];
+
+      // Extract community managers and moderator from client assignments
+      let clientCMs: GetUser[] = [];
+      let clientModerator: GetUser | null = null;
+      if (clientAssignmentsResult && !("error" in clientAssignmentsResult)) {
+        clientModerator = clientAssignmentsResult?.moderator || null;
+        clientCMs = Array.isArray(clientAssignmentsResult?.community_managers)
+          ? clientAssignmentsResult.community_managers
+          : [];
+      }
+
+      // Merge assigned CMs (server action) with client-assigned CMs and include moderator
+      const combinedMap = new Map<number, GetUser>();
+      for (const u of [...assignedCMs, ...clientCMs]) {
+        if (u && u.id) combinedMap.set(u.id, u);
+      }
+      if (clientModerator && clientModerator.id)
+        combinedMap.set(clientModerator.id, clientModerator);
+
+      const combined = Array.from(combinedMap.values()).filter(
+        (user) => user.id !== currentUserId,
       );
+
+      setUsers(combined);
     } catch (error) {
       console.error("Failed to load users:", error);
     } finally {
@@ -128,6 +164,11 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
 
   const toggleUserSelection = useCallback(
     (userId: number) => {
+      // Prevent selecting a user for direct messages if a DM already exists
+      if (roomType === "direct" && existingDirectPartnerIds.has(userId)) {
+        return;
+      }
+
       setSelectedUsers((prev) => {
         if (roomType === "direct") {
           // For direct messages, only allow one selection
@@ -140,7 +181,7 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
         }
       });
     },
-    [roomType],
+    [roomType, existingDirectPartnerIds],
   );
 
   if (!isOpen) return null;
@@ -173,7 +214,17 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
               Conversation Type
             </label>
             <div className="flex space-x-4">
-              <label className="flex items-center">
+              <label
+                onClick={() => {
+                  setRoomType("direct");
+                  setSelectedUsers([]);
+                }}
+                className={`flex items-center rounded-xl border p-2 dark:border-gray-600 dark:hover:border-blue-400 ${
+                  roomType === "direct"
+                    ? "border-blue-500 bg-blue-50 text-gray-800"
+                    : "border-gray-300 hover:border-blue-400"
+                }`}
+              >
                 <input
                   type="radio"
                   value="direct"
@@ -182,11 +233,22 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
                     setRoomType(e.target.value as "direct");
                     setSelectedUsers([]); // Reset selections when changing type
                   }}
-                  className="mr-2"
+                  className="sr-only"
                 />
+                <FaRegMessage className="mr-2" />
                 Direct Message
               </label>
-              <label className="flex items-center">
+              <label
+                onClick={() => {
+                  setRoomType("team");
+                  setSelectedUsers([]);
+                }}
+                className={`flex items-center rounded-xl border p-2 dark:border-gray-600 dark:hover:border-blue-400 ${
+                  roomType === "team"
+                    ? "border-indigo-500 bg-indigo-50 text-gray-800"
+                    : "border-gray-300 hover:border-blue-400"
+                }`}
+              >
                 <input
                   type="radio"
                   value="team"
@@ -195,8 +257,9 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
                     setRoomType(e.target.value as "team");
                     setSelectedUsers([]); // Reset selections when changing type
                   }}
-                  className="mr-2"
+                  className="sr-only"
                 />
+                <GrGroup className="mr-2" />
                 Team Chat
               </label>
             </div>
@@ -230,34 +293,47 @@ export const CreateChatModal: React.FC<CreateChatModalProps> = ({
               </div>
             ) : (
               <div className="max-h-48 overflow-y-auto rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-700">
-                {users.map((user) => (
-                  <label
-                    key={user.id}
-                    className="flex cursor-pointer items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <input
-                      type={roomType === "direct" ? "radio" : "checkbox"}
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={() => toggleUserSelection(user.id)}
-                      className="mr-3"
-                    />
-                    <div className="flex items-center">
-                      <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-sm font-medium text-white">
-                        {user.first_name?.[0] || user.email[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {user.first_name && user.last_name
-                            ? `${user.first_name} ${user.last_name}`
-                            : user.email}
+                {users.map((user) => {
+                  const disabledForDirect =
+                    roomType === "direct" &&
+                    existingDirectPartnerIds.has(user.id);
+                  return (
+                    <label
+                      key={user.id}
+                      className={`flex cursor-pointer items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                        disabledForDirect ? "opacity-60" : ""
+                      }`}
+                    >
+                      <input
+                        type={roomType === "direct" ? "radio" : "checkbox"}
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={() => toggleUserSelection(user.id)}
+                        className="mr-3"
+                        disabled={disabledForDirect}
+                      />
+                      <div className="flex items-center">
+                        <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-sm font-medium text-white">
+                          {user.first_name?.[0] || user.email[0].toUpperCase()}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {user.email}
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {user.full_name?.trim() ||
+                              `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+                              user.email}
+                            {disabledForDirect && (
+                              <span className="ml-2 text-xs text-gray-500">
+                                (DM exists)
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {user.email}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -174,7 +174,7 @@ export const Chat: React.FC<ChatProps> = ({ currentUserId, className }) => {
 
   // Mark messages as viewed (clicking the messages area)
   const handleMessagesViewed = useCallback(async () => {
-    if (!selectedRoom) return;
+    if (!selectedRoom || !selectedRoom.id) return;
     try {
       const messagesData = await chatService.getRoomMessages(selectedRoom.id);
       // Normalize and refresh local messages (also marks messages as read on server)
@@ -217,7 +217,7 @@ export const Chat: React.FC<ChatProps> = ({ currentUserId, className }) => {
   const handleRoomSelect = useCallback(
     (roomId: number) => {
       const room = rooms.find((r) => r.id === roomId);
-      if (room) {
+      if (room && room.id) {
         // Leave previous room
         if (selectedRoom) {
           leaveRoom(selectedRoom.id);
@@ -243,25 +243,24 @@ export const Chat: React.FC<ChatProps> = ({ currentUserId, className }) => {
           members: [...members, currentUserId], // Include current user
         });
 
-        // Check if this room is already in the list (e.g., existing DM returned by backend)
-        const existingRoom = rooms.find((r) => r.id === newRoom.id);
-        if (!existingRoom) {
-          // Add the new room to the list
-          setRooms((prev) => [newRoom, ...prev]);
-        }
+        // Reload all rooms to get complete data with member_details
+        await loadRooms();
 
-        // Select the room (whether new or existing)
+        // Select the room after reload
         setSelectedRoom(newRoom);
-        loadMessages(newRoom.id);
 
-        // Join the room via WebSocket
-        joinRoom(newRoom.id);
+        // Load messages only after room is set
+        if (newRoom.id) {
+          loadMessages(newRoom.id);
+          // Join the room via WebSocket
+          joinRoom(newRoom.id);
+        }
       } catch (error) {
         console.error("Failed to create chat room:", error);
         throw error; // Re-throw to let the modal handle the error
       }
     },
-    [currentUserId, loadMessages, joinRoom, rooms],
+    [currentUserId, loadMessages, joinRoom, loadRooms],
   );
 
   // Handle sending message
@@ -322,6 +321,7 @@ export const Chat: React.FC<ChatProps> = ({ currentUserId, className }) => {
           <ChatList
             rooms={rooms}
             selectedRoomId={selectedRoom?.id}
+            currentUserId={currentUserId}
             onRoomSelect={handleRoomSelect}
             loading={loading}
           />

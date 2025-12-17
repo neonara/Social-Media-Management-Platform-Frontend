@@ -50,6 +50,7 @@ interface Client {
   logo: string;
   status: string;
   joinedDate: string;
+  email?: string;
 }
 
 interface Page {
@@ -146,10 +147,7 @@ export default function ReportPreview({
                 {clients.find((c) => c.id === parseInt(selectedClient))?.name}
               </p>
               <p className="text-muted-foreground text-sm">
-                {
-                  clients.find((c) => c.id === parseInt(selectedClient))
-                    ?.industry
-                }
+                {clients.find((c) => c.id === parseInt(selectedClient))?.email}
               </p>
             </div>
             <div className="rounded-lg border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-4 dark:border-purple-900 dark:from-purple-950 dark:to-pink-950">
@@ -158,8 +156,7 @@ export default function ReportPreview({
                 {pages.find((p) => p.id === parseInt(selectedPage))?.name}
               </p>
               <p className="text-muted-foreground text-sm">
-                {pages.find((p) => p.id === parseInt(selectedPage))?.platform} •{" "}
-                {pages.find((p) => p.id === parseInt(selectedPage))?.handle}
+                {pages.find((p) => p.id === parseInt(selectedPage))?.platform}
               </p>
             </div>
             <div className="rounded-lg border border-green-100 bg-gradient-to-br from-green-50 to-teal-50 p-4 dark:border-green-900 dark:from-green-950 dark:to-teal-950">
@@ -187,16 +184,14 @@ export default function ReportPreview({
               <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900">
                 <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
               </div>
-              <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
+              <CardTitle className="text-lg font-medium">Total Posts</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
               {reportData.totalPosts}
             </div>
-            <p className="text-muted-foreground text-xs">
-              Published this {reportType}
-            </p>
+            <p className="text-muted-foreground">Published this {reportType}</p>
           </CardContent>
         </Card>
 
@@ -206,18 +201,16 @@ export default function ReportPreview({
               <div className="w-fit rounded-full bg-red-100 p-2 dark:bg-red-900">
                 <Heart className="h-4 w-4 text-red-600 dark:text-red-300" />
               </div>
-              <CardTitle className="w-fit text-sm font-medium">
+              <CardTitle className="w-fit text-lg font-medium">
                 Total Engagement
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">
               {reportData.totalEngagement.toLocaleString()}
             </div>
-            <p className="text-muted-foreground text-xs">
-              Likes, comments & shares
-            </p>
+            <p className="text-muted-foreground">Likes, comments & shares</p>
           </CardContent>
         </Card>
 
@@ -227,14 +220,14 @@ export default function ReportPreview({
               <div className="rounded-full bg-purple-100 p-2 dark:bg-purple-900">
                 <Eye className="h-4 w-4 text-purple-600 dark:text-purple-300" />
               </div>
-              <CardTitle className="text-sm font-medium">Total Reach</CardTitle>
+              <CardTitle className="text-lg font-medium">Total Reach</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
               {reportData.totalReach.toLocaleString()}
             </div>
-            <p className="text-muted-foreground text-xs">People reached</p>
+            <p className="text-muted-foreground">People reached</p>
           </CardContent>
         </Card>
 
@@ -244,16 +237,16 @@ export default function ReportPreview({
               <div className="rounded-full bg-green-100 p-2 dark:bg-green-900">
                 <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-300" />
               </div>
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-lg font-medium">
                 Engagement Rate
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
               {reportData.avgEngagementRate}%
             </div>
-            <p className="text-muted-foreground text-xs">Average rate</p>
+            <p className="text-muted-foreground">Average rate</p>
           </CardContent>
         </Card>
       </div>

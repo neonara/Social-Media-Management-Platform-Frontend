@@ -6,6 +6,7 @@
  */
 
 import { cookies } from "next/headers";
+import { getAllPages } from "./socialMedia";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -36,6 +37,7 @@ export interface Client {
   logo: string;
   status: string;
   joinedDate: string;
+  email?: string;
   pages?: Page[];
 }
 
@@ -156,6 +158,7 @@ async function fetchClients(): Promise<Client[]> {
       logo: client.user_image || "",
       status: client.is_active ? "active" : "inactive",
       joinedDate: client.date_joined || new Date().toISOString().split("T")[0],
+      email: client.email || "",
       pages: [], // Will be fetched separately
     }));
 
@@ -327,20 +330,30 @@ export const hasReportData = async (
 };
 
 /**
- * Format report period for display
+ * Server action to fetch pages for the current user (client) using getAllPages
  */
-export const formatPeriodDisplay = async (
-  reportType: "week" | "month",
-  period: string,
-  weekOptions?: Array<{ value: string; label: string }>,
-  monthOptions?: Array<{ value: string; label: string }>,
-): Promise<string> => {
-  if (reportType === "week" && weekOptions) {
-    const option = weekOptions.find((opt) => opt.value === period);
-    return option?.label || period;
-  } else if (reportType === "month" && monthOptions) {
-    const option = monthOptions.find((opt) => opt.value === period);
-    return option?.label || period;
+export async function fetchOwnPagesServer(clientId: number): Promise<Page[]> {
+  try {
+    const socialPages = await getAllPages();
+
+    // Check if error was returned
+    if (!Array.isArray(socialPages)) {
+      console.error("Failed to fetch pages:", socialPages);
+      return [];
+    }
+
+    // Transform SocialPage[] to Page[]
+    return socialPages.map((page) => ({
+      id: page.id,
+      clientId: clientId,
+      name: page.name || page.page_name || "",
+      platform: page.platform.charAt(0).toUpperCase() + page.platform.slice(1),
+      handle: page.handle || page.page_id || page.name || "",
+      followers: page.followers_count || 0,
+      verified: false, // Not available in SocialPage type
+    }));
+  } catch (error) {
+    console.error(`Error fetching own pages for client ${clientId}:`, error);
+    return [];
   }
-  return period;
-};
+}

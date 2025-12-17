@@ -35,19 +35,16 @@ export const PostSchedulerWithPrediction: React.FC<PostSchedulerProps> = ({
     const scheduledHour = parseInt(hourStr);
 
     try {
-      await predictEngagement(
-        {
-          caption,
-          caption_length: caption.length,
-          hashtag_count: (caption.match(/#/g) || []).length,
-          time_of_day: scheduledHour,
-          day_of_week: now.getDay(),
-          platform,
-          media_type: mediaType,
-          brand_sentiment: 0.7, // Default, you can add UI control
-        },
-        token,
-      );
+      await predictEngagement({
+        caption,
+        caption_length: caption.length,
+        hashtag_count: (caption.match(/#/g) || []).length,
+        time_of_day: scheduledHour.toString(),
+        day_of_week: now.getDay(),
+        platform,
+        media_type: mediaType,
+        brand_sentiment: 0.7, // Default, you can add UI control
+      });
     } catch (err) {
       console.error("Failed to get prediction:", err);
     }

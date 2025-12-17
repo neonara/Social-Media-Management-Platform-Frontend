@@ -2,8 +2,10 @@
 
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
+import { useUser } from "@/context/UserContext";
 import {
   fetchClientsAndPages,
+  fetchOwnPagesServer,
   filterPagesByClient,
   flattenPages,
   generateReport,
@@ -21,6 +23,7 @@ import ReportPreview from "./_components/ReportPreview";
 // API URL is also in the service
 
 export default function ReportPage() {
+  const { userProfile, role } = useUser();
   const [reportType, setReportType] = useState<"week" | "month">("week");
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,37 +68,65 @@ export default function ReportPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("🔍 [CLIENT] Fetching clients and pages...");
-        const data = await fetchClientsAndPages();
-        console.log("📦 [CLIENT] Received data:", data);
-        console.log("📊 [CLIENT] Clients array:", data.clients);
-        console.log(
-          "📊 [CLIENT] Number of clients:",
-          data.clients?.length || 0,
-        );
+        if (role === "client" && userProfile) {
+          // For clients, fetch their own pages using getAllPages
+          console.log("🔍 [CLIENT] Fetching own pages for client user...");
+          const clientId = userProfile.id;
+          const pagesData = await fetchOwnPagesServer(clientId);
 
-        if (!data.clients || data.clients.length === 0) {
-          console.warn("⚠️ [CLIENT] No clients received from server!");
+          setPages(pagesData);
+          setFilteredPages(pagesData);
+          setClients([
+            {
+              id: clientId,
+              name: userProfile.full_name || userProfile.email,
+              industry: "N/A",
+              logo: userProfile.user_image || "",
+              status: "active",
+              joinedDate: new Date().toISOString().split("T")[0],
+              email: userProfile.email,
+            },
+          ]);
+          setSelectedClient(clientId.toString());
+          if (pagesData.length > 0) {
+            setSelectedPage(pagesData[0].id.toString());
+          }
+        } else {
+          // For admins/CMs, fetch all clients and pages
+          console.log("🔍 [CLIENT] Fetching clients and pages...");
+          const data = await fetchClientsAndPages();
+          console.log("📦 [CLIENT] Received data:", data);
+          console.log("📊 [CLIENT] Clients array:", data.clients);
+          console.log(
+            "📊 [CLIENT] Number of clients:",
+            data.clients?.length || 0,
+          );
+
+          if (!data.clients || data.clients.length === 0) {
+            console.warn("⚠️ [CLIENT] No clients received from server!");
+          }
+
+          setClients(data.clients);
+
+          // Flatten all pages from all clients
+          const allPages = await flattenPages(data.clients);
+          console.log("📄 [CLIENT] All pages:", allPages);
+          setPages(allPages);
         }
-
-        setClients(data.clients);
-
-        // Flatten all pages from all clients
-        const allPages = await flattenPages(data.clients);
-        console.log("📄 [CLIENT] All pages:", allPages);
-        setPages(allPages);
       } catch (error) {
         console.error("❌ [CLIENT] Error fetching clients and pages:", error);
       }
     };
 
-    fetchData();
-  }, []);
+    if (role) {
+      fetchData();
+    }
+  }, [role, userProfile]);
 
   // Filter pages when client changes
   useEffect(() => {
     const filterPages = async () => {
-      if (selectedClient) {
+      if (role !== "client" && selectedClient) {
         const filtered = await filterPagesByClient(pages, selectedClient);
         setFilteredPages(filtered);
         // Automatically select first page if available
@@ -104,14 +135,14 @@ export default function ReportPage() {
         } else {
           setSelectedPage("");
         }
-      } else {
+      } else if (role !== "client") {
         setFilteredPages([]);
         setSelectedPage("");
       }
     };
 
     filterPages();
-  }, [selectedClient, pages]);
+  }, [selectedClient, pages, role]);
 
   // Generate report data from backend using service
   const generateReportData = async () => {

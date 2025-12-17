@@ -8,6 +8,7 @@ import React from "react";
 interface ChatListProps {
   rooms: ChatRoom[];
   selectedRoomId?: number;
+  currentUserId?: number;
   onRoomSelect: (roomId: number) => void;
   loading?: boolean;
 }
@@ -15,6 +16,7 @@ interface ChatListProps {
 export const ChatList: React.FC<ChatListProps> = ({
   rooms,
   selectedRoomId,
+  currentUserId,
   onRoomSelect,
   loading = false,
 }) => {
@@ -28,7 +30,7 @@ export const ChatList: React.FC<ChatListProps> = ({
         <div className="animate-pulse space-y-3">
           {[...Array(5)].map((_, i) => (
             <div
-              key={i}
+              key={`loading-${i}`}
               className="h-16 rounded-lg bg-gray-200 dark:bg-gray-700"
             ></div>
           ))}
@@ -51,9 +53,10 @@ export const ChatList: React.FC<ChatListProps> = ({
               key={room.id}
               onClick={() => onRoomSelect(room.id)}
               className={cn(
-                "cursor-pointer p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700",
-                selectedRoomId === room.id &&
-                  "border-r-2 border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900",
+                "cursor-pointer p-4 transition-colors hover:bg-blue-50 dark:hover:bg-gray-700",
+                selectedRoomId === room.id
+                  ? "border-r-2 border-blue-500 bg-blue-100 dark:border-blue-400 dark:bg-blue-900"
+                  : "bg-gray-50",
               )}
             >
               <div className="flex items-center justify-between">
@@ -66,11 +69,11 @@ export const ChatList: React.FC<ChatListProps> = ({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                    <p className="truncate font-medium text-gray-900 dark:text-white">
                       {room.name ||
                         (room.room_type === "direct"
-                          ? room.member_details
-                              .filter((m) => m.id !== selectedRoomId)
+                          ? (room.member_details || [])
+                              .filter((m) => m.id !== (currentUserId ?? -1))
                               .map((m) =>
                                 getDisplayNameFromParts(m.name, m.email),
                               )

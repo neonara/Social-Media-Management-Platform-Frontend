@@ -191,18 +191,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           </div>
         ) : (
-          <div>
-            <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">
-              Participant
-            </h4>
+          <div className="flex flex-col items-center">
             {room.member_details
               .filter((m) => m.id !== currentUserId)
               .map((m) => (
                 <div key={m.id} className="space-y-1">
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="text-lg font-medium text-gray-900 dark:text-white">
                     {getDisplayNameFromParts(m.name, m.email)}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-gray-500 dark:text-gray-400">
                     {m.email}
                   </div>
                   {/* additional fields like phone or role could be added if available */}
