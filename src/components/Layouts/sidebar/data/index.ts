@@ -63,6 +63,18 @@ export const NAV_DATA: { label: string; items: NavItem[] }[] = [
         icon: Icons.Calendar,
         items: [],
       },
+      {
+        title: "Chat",
+        url: "/chat",
+        icon: Icons.MessageIcon,
+        items: [],
+      },
+      {
+        title: "Reports",
+        url: "/report",
+        icon: Icons.ReportIcon,
+        items: [],
+      },
     ],
   },
   // {

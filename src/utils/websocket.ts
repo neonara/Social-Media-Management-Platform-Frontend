@@ -96,6 +96,13 @@ export function getUserDataWebSocketUrl(token: string): string {
 }
 
 /**
+ * Get the WebSocket URL for chat
+ */
+export function getChatWebSocketUrl(token: string): string {
+  return getWebSocketUrl(`/ws/chat/?token=${token}`);
+}
+
+/**
  * WebSocket connection with retry logic
  */
 export class ReconnectingWebSocket {

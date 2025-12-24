@@ -1,14 +1,14 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
+import { Alert } from "@/components/ui-elements/alert";
 import React, {
   createContext,
-  useContext,
-  useState,
   ReactNode,
+  useContext,
   useEffect,
+  useState,
 } from "react";
-import { Alert } from "@/components/ui-elements/alert";
 import { createPortal } from "react-dom";
 
 type NotificationType = "success" | "error" | "warning";
@@ -50,8 +50,6 @@ const NotificationPortal = ({
   title: string;
   type: NotificationType;
 }) => {
-  if (!showAlert) return null;
-
   // Only render on the client
   const [mounted, setMounted] = useState(false);
 
@@ -60,7 +58,8 @@ const NotificationPortal = ({
     return () => setMounted(false);
   }, []);
 
-  if (!mounted) return null;
+  // Don't render anything during SSR or if alert is not shown
+  if (!mounted || !showAlert) return null;
 
   // Create a portal to render the notification at the document root
   return createPortal(

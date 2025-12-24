@@ -126,7 +126,7 @@ export default function ResetPasswordConfirmPage() {
           <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
             Go back to{" "}
             <Link
-              href="/auth/forgot-password"
+              href="/forgot-password"
               className="text-primary hover:underline"
             >
               Forgot Password

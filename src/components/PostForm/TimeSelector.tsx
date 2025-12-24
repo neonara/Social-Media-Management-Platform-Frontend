@@ -34,9 +34,14 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
       const currentMinute = Math.ceil(now.getMinutes() / 5) * 5; // Round to next 5-minute interval
 
       return {
-        hour: currentHour === 0 ? 12 : currentHour > 12 ? currentHour - 12 : currentHour,
+        hour:
+          currentHour === 0
+            ? 12
+            : currentHour > 12
+              ? currentHour - 12
+              : currentHour,
         minute: currentMinute >= 60 ? 0 : currentMinute,
-        period: currentHour < 12 ? "AM" : "PM"
+        period: currentHour < 12 ? "AM" : "PM",
       };
     }
 
@@ -47,24 +52,31 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
     return {
       hour: hour12,
       minute: minutes,
-      period: period
+      period: period,
     };
   }, []);
 
   // Convert 12-hour format back to 24-hour format
-  const formatTo24Hour = useCallback((hour: number, minute: number, period: string): string => {
-    let hour24 = hour;
+  const formatTo24Hour = useCallback(
+    (hour: number, minute: number, period: string): string => {
+      let hour24 = hour;
 
-    if (period === "AM" && hour === 12) {
-      hour24 = 0;
-    } else if (period === "PM" && hour !== 12) {
-      hour24 = hour + 12;
-    }
+      if (period === "AM" && hour === 12) {
+        hour24 = 0;
+      } else if (period === "PM" && hour !== 12) {
+        hour24 = hour + 12;
+      }
 
-    return `${hour24.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-  }, []);
+      return `${hour24.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+    },
+    [],
+  );
 
-  const { hour: initialHour, minute: initialMinute, period: initialPeriod } = parseTime(value);
+  const {
+    hour: initialHour,
+    minute: initialMinute,
+    period: initialPeriod,
+  } = parseTime(value);
 
   const [selectedHour, setSelectedHour] = useState(initialHour);
   const [selectedMinute, setSelectedMinute] = useState(initialMinute);
@@ -79,53 +91,60 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   }, [value, parseTime]);
 
   // Handle changes and update parent component
-  const handleTimeChange = useCallback((hour: number, minute: number, period: string) => {
-    const time24Hour = formatTo24Hour(hour, minute, period);
-    onChange(time24Hour);
-  }, [onChange, formatTo24Hour]);
+  const handleTimeChange = useCallback(
+    (hour: number, minute: number, period: string) => {
+      const time24Hour = formatTo24Hour(hour, minute, period);
+      onChange(time24Hour);
+    },
+    [onChange, formatTo24Hour],
+  );
 
-  const handleHourChange = useCallback((newHour: string) => {
-    const hour = Number(newHour);
-    setSelectedHour(hour);
-    handleTimeChange(hour, selectedMinute, selectedPeriod);
-  }, [selectedMinute, selectedPeriod, handleTimeChange]);
+  const handleHourChange = useCallback(
+    (newHour: string) => {
+      const hour = Number(newHour);
+      setSelectedHour(hour);
+      handleTimeChange(hour, selectedMinute, selectedPeriod);
+    },
+    [selectedMinute, selectedPeriod, handleTimeChange],
+  );
 
-  const handleMinuteChange = useCallback((newMinute: string) => {
-    const minute = Number(newMinute);
-    setSelectedMinute(minute);
-    handleTimeChange(selectedHour, minute, selectedPeriod);
-  }, [selectedHour, selectedPeriod, handleTimeChange]);
+  const handleMinuteChange = useCallback(
+    (newMinute: string) => {
+      const minute = Number(newMinute);
+      setSelectedMinute(minute);
+      handleTimeChange(selectedHour, minute, selectedPeriod);
+    },
+    [selectedHour, selectedPeriod, handleTimeChange],
+  );
 
-  const handlePeriodChange = useCallback((newPeriod: string) => {
-    setSelectedPeriod(newPeriod);
-    handleTimeChange(selectedHour, selectedMinute, newPeriod);
-  }, [selectedHour, selectedMinute, handleTimeChange]);
+  const handlePeriodChange = useCallback(
+    (newPeriod: string) => {
+      setSelectedPeriod(newPeriod);
+      handleTimeChange(selectedHour, selectedMinute, newPeriod);
+    },
+    [selectedHour, selectedMinute, handleTimeChange],
+  );
 
   // Generate hour options (1-12)
   const hourOptions = Array.from({ length: 12 }, (_, i) => ({
     value: (i + 1).toString(),
-    label: (i + 1).toString()
+    label: (i + 1).toString(),
   }));
 
   // Generate minute options (5-minute intervals)
   const minuteOptions = Array.from({ length: 12 }, (_, i) => ({
     value: (i * 5).toString(),
-    label: (i * 5).toString().padStart(2, "0")
+    label: (i * 5).toString().padStart(2, "0"),
   }));
 
   // Period options
   const periodOptions = [
     { value: "AM", label: "AM" },
-    { value: "PM", label: "PM" }
+    { value: "PM", label: "PM" },
   ];
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {label}
-        {isRequired && <span className="ml-1 text-red-500">*</span>}
-      </label>
-
       <div className="flex gap-2">
         {/* Hour Selector */}
         <Select
@@ -145,7 +164,9 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
           </SelectContent>
         </Select>
 
-        <span className="flex items-center text-gray-500 dark:text-gray-400">:</span>
+        <span className="flex items-center text-gray-500 dark:text-gray-400">
+          :
+        </span>
 
         {/* Minute Selector */}
         <Select

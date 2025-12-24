@@ -2,9 +2,7 @@ import type { Config } from "tailwindcss";
 import defaultTheme from "tailwindcss/defaultTheme";
 
 const config: Config = {
-  content: [
-    "./src/**/*.{js,jsx,tsx}",
-  ],
+  content: ["./src/**/*.{js,jsx,tsx}"],
   darkMode: ["class"],
   theme: {
     extend: {
@@ -369,6 +367,18 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(100%)" },
           "50%": { transform: "translateY(0)" },
         },
+        "slide-in-right": {
+          "0%": { transform: "translate3d(100%, 0, 0)", opacity: "0" },
+          "100%": { transform: "translate3d(0, 0, 0)", opacity: "1" },
+        },
+        "slide-in-left": {
+          "0%": { transform: "translate3d(-100%, 0, 0)", opacity: "0" },
+          "100%": { transform: "translate3d(0, 0, 0)", opacity: "1" },
+        },
+        "expand-right": {
+          "0%": { maxWidth: "0px", opacity: "0" },
+          "100%": { maxWidth: "320px", opacity: "1" },
+        },
       },
       animation: {
         linspin: "linspin 1568.2353ms linear infinite",
@@ -387,6 +397,12 @@ const config: Config = {
         line1: "line 10s infinite linear",
         line2: "line-revert 8s infinite linear",
         line3: "line 7s infinite linear",
+        "slide-in-right":
+          "slide-in-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        "slide-in-left":
+          "slide-in-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        "expand-right":
+          "expand-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both",
       },
     },
   },

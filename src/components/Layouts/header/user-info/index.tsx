@@ -17,6 +17,7 @@ import { getImageUrl } from "@/utils/image-url";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { userProfile, refreshUserProfile } = useUser();
   const isInitialMount = useRef(true);
   const isRefreshing = useRef(false);
@@ -32,6 +33,11 @@ export function UserInfo() {
       });
     }
   }, [refreshUserProfile]);
+
+  // Reset image error when user profile changes
+  useEffect(() => {
+    setImageError(false);
+  }, [userProfile?.user_image]);
 
   // Separate effect to handle profile updates from event listeners
   useEffect(() => {
@@ -63,17 +69,20 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-3">
           <Image
-            src={getImageUrl(userProfile?.user_image)}
+            src={
+              imageError
+                ? "/avatar_placeholder.svg"
+                : getImageUrl(userProfile?.user_image)
+            }
             className="size-12 rounded-full object-cover"
             alt={`Avatar of ${userProfile?.full_name || "user"}`}
             role="presentation"
             width={200}
             height={200}
             priority
-            onError={(e) => {
-              console.error("Error loading user image:", e);
-              // Fallback to default image if there's an error
-              e.currentTarget.src = "/avatar_placeholder.svg";
+            onError={() => {
+              console.error("Error loading user image", userProfile?.full_name);
+              setImageError(true);
             }}
           />
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
@@ -101,19 +110,22 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-2.5 px-3 py-3.5">
           <Image
-            src={getImageUrl(userProfile?.user_image)}
+            src={
+              imageError
+                ? "/avatar_placeholder.svg"
+                : getImageUrl(userProfile?.user_image)
+            }
             className="size-12 rounded-full"
             alt={`Avatar for ${userProfile?.full_name || "user"}`}
             role="presentation"
             width={200}
             height={200}
-            onError={(e) => {
+            onError={() => {
               console.error(
                 "Error loading avatar image in UserInfo dropdown:",
-                e,
+                userProfile?.full_name,
               );
-              // Fallback to default image if there's a loading error
-              e.currentTarget.src = "/images/user/user-03.png";
+              setImageError(true);
             }}
           />
 

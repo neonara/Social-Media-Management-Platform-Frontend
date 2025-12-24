@@ -68,11 +68,17 @@ export async function loginUser(
     const cookieStore = await cookies();
 
     // Check if we need secure cookies - either in production or when using HTTPS (like ngrok)
-    const headers = await import('next/headers');
+    const headers = await import("next/headers");
     const headersList = headers.headers ? await headers.headers() : null;
-    const isHttps = headersList?.get('x-forwarded-proto') === 'https' || 
-                    headersList?.get('x-forwarded-protocol') === 'https' ||
-                    process.env.NODE_ENV === "production";
+    const isHttps =
+      headersList?.get("x-forwarded-proto") === "https" ||
+      headersList?.get("x-forwarded-protocol") === "https" ||
+      process.env.NODE_ENV === "production";
+
+    // Calculate max age based on remember flag
+    // If remember is true: 30 days, otherwise use default (12 hours)
+    const tokenMaxAge = remember ? 30 * 24 * 60 * 60 : 12 * 60 * 60;
+    const refreshMaxAge = remember ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
     // Set access token cookie (HTTP-only, Secure when using HTTPS)
     cookieStore.set("access_token", accessToken, {
@@ -80,7 +86,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax", // Use "none" for HTTPS cross-origin, "lax" for HTTP
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     // Set refresh token cookie (HTTP-only, Secure when using HTTPS)
@@ -89,7 +95,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: refreshMaxAge,
     });
 
     cookieStore.set("is_superadministrator", String(isSuperAdmin), {
@@ -97,7 +103,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     // Set role cookies
@@ -106,7 +112,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     cookieStore.set("is_moderator", String(isModerator), {
@@ -114,7 +120,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     cookieStore.set("is_community_manager", String(isCommunityManager), {
@@ -122,7 +128,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: isHttps ? "none" : "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     cookieStore.set("is_client", String(isClient), {
@@ -130,7 +136,7 @@ export async function loginUser(
       secure: isHttps,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: tokenMaxAge,
     });
 
     // Return the tokens and user role for client-side storage
@@ -225,6 +231,28 @@ export async function logout() {
     console.error("Logout error:", error);
     redirect("/login");
   }
+}
+
+export async function firstResetPassword(payload: {
+  email: string;
+  password: string; // temporary password
+  new_password: string;
+  csrfToken?: string | null;
+}) {
+  const { csrfToken, ...body } = payload as any;
+
+  const res = await fetch(`${API_BASE_URL}/auth/first-time-password-change/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken || "",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
 }
 
 export async function forgotPassword(

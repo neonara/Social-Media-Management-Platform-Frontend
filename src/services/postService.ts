@@ -853,7 +853,11 @@ export async function getPostById(postId: number): Promise<DraftPost | null> {
 export async function updatePost(
   postId: number,
   formData: FormData,
-): Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: Record<string, unknown>;
+  error?: string;
+}> {
   try {
     const token = await getAuthToken();
     const csrfToken = await getCsrfToken();

@@ -1,18 +1,36 @@
 "use client";
 
-import React from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
+import { useThemedToast } from "@/hooks/useThemedToast";
+import { analyzeMoodAndTone, improveCaption } from "@/services/aiService";
+import { formatCaptionWithHashtags } from "@/utils/captionFormatter";
 import Link from "@tiptap/extension-link";
-import { Bold, Italic, List, Link2 } from "lucide-react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Bold, Italic, Link2, List, Loader, Sparkles } from "lucide-react";
+import React, { useState } from "react";
 
 interface SimpleWysiwygProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  caption?: string;
 }
 
-const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
+const MenuBar = ({
+  editor,
+  onImproveCaption,
+  onAnalyzeMood,
+  caption,
+  improvingCaption,
+  analyzingMood,
+}: {
+  editor: ReturnType<typeof useEditor>;
+  onImproveCaption?: () => void;
+  onAnalyzeMood?: () => void;
+  caption: string;
+  improvingCaption?: boolean;
+  analyzingMood?: boolean;
+}) => {
   if (!editor) {
     return null;
   }
@@ -79,11 +97,41 @@ const MenuBar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
       >
         <Link2 size={16} />
       </button>
+
+      <div className="ml-auto flex gap-2">
+        {/* Improve Caption */}
+        {onImproveCaption && (
+          <button
+            type="button"
+            onClick={onImproveCaption}
+            disabled={improvingCaption || !caption.trim()}
+            className="flex items-center justify-center gap-2 rounded-md bg-green-500 px-3 py-2 font-medium text-white hover:bg-green-600 disabled:bg-gray-400 dark:hover:bg-green-600"
+          >
+            {improvingCaption ? (
+              <>
+                <Loader size={16} className="animate-spin" />
+                Improving...
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                Improve Caption
+              </>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
 
-export const SimpleWysiwyg = ({ value, onChange }: SimpleWysiwygProps) => {
+export const SimpleWysiwyg = ({
+  value,
+  onChange,
+  caption = value,
+}: SimpleWysiwygProps) => {
+  const [improvingCaption, setImprovingCaption] = useState(false);
+  const [analyzingMood, setAnalyzingMood] = useState(false);
   const editor = useEditor({
     immediatelyRender: false, // Prevent SSR hydration mismatches
     extensions: [
@@ -117,9 +165,64 @@ export const SimpleWysiwyg = ({ value, onChange }: SimpleWysiwygProps) => {
     }
   }, [editor, value]);
 
+  const themedToast = useThemedToast();
+
+  const handleImproveCaption = async () => {
+    if (!caption.trim()) {
+      themedToast.error("Please write a caption first");
+      return;
+    }
+
+    setImprovingCaption(true);
+    try {
+      const response = await improveCaption(caption, "instagram");
+      if (response.improved_caption) {
+        const formattedCaption = formatCaptionWithHashtags(
+          response.improved_caption,
+        );
+        onChange(formattedCaption);
+        themedToast.success("Caption improved successfully!");
+      } else {
+        themedToast.error("Failed to improve caption");
+      }
+    } catch (error) {
+      console.error("Failed to improve caption:", error);
+      themedToast.error("Failed to improve caption. Please try again.");
+    } finally {
+      setImprovingCaption(false);
+    }
+  };
+
+  const handleAnalyzeMood = async () => {
+    if (!caption.trim()) {
+      themedToast.error("Please write a caption first");
+      return;
+    }
+
+    setAnalyzingMood(true);
+    try {
+      const response = await analyzeMoodAndTone(caption);
+      themedToast.success(
+        `Mood: ${response.mood} | Tone: ${response.tone} (${Math.round(response.confidence * 100)}% confident)`,
+      );
+    } catch (error) {
+      console.error("Failed to analyze mood:", error);
+      themedToast.error("Failed to analyze mood. Please try again.");
+    } finally {
+      setAnalyzingMood(false);
+    }
+  };
+
   return (
     <div className="overflow-hidden rounded-md border border-gray-300 dark:border-gray-600">
-      <MenuBar editor={editor} />
+      <MenuBar
+        editor={editor}
+        caption={caption}
+        onImproveCaption={handleImproveCaption}
+        onAnalyzeMood={handleAnalyzeMood}
+        improvingCaption={improvingCaption}
+        analyzingMood={analyzingMood}
+      />
       <EditorContent editor={editor} className="min-h-[120px]" />
     </div>
   );
