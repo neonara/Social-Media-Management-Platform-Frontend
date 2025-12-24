@@ -233,6 +233,28 @@ export async function logout() {
   }
 }
 
+export async function firstResetPassword(payload: {
+  email: string;
+  password: string; // temporary password
+  new_password: string;
+  csrfToken?: string | null;
+}) {
+  const { csrfToken, ...body } = payload as any;
+
+  const res = await fetch(`${API_BASE_URL}/auth/first-time-password-change/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken || "",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
 export async function forgotPassword(
   email: string,
 ): Promise<{ success: boolean; message?: string; error?: string }> {

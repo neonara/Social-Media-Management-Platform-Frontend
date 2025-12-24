@@ -358,7 +358,7 @@ export async function connectLinkedIn(): Promise<ConnectResponse> {
     // The backend handles redirection directly to LinkedIn OAuth
     // We need to include the auth token as a URL parameter
     // since direct redirection doesn't maintain headers
-    const connectUrl = `${API_BASE_URL}/linkedin/connect/?token=${encodeURIComponent(token)}`;
+    const connectUrl = `http://localhost:8000/api/linkedin/connect/?token=${encodeURIComponent(token)}`;
 
     // We'll return this URL directly for the frontend to navigate to
     // This way the token will be included as a query parameter

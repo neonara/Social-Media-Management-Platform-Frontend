@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { firstResetPassword } from "@/services/authService";
 
 export default function FirstResetPasswordWrapper() {
   return (
@@ -43,33 +44,28 @@ function FirstResetPassword() {
     setError(""); // Clear errors before making the API call
 
     try {
-      console.log("Sending request:", {
-        email, // Ensure email is included
-        password: tempPassword, // Match backend field name
-        new_password: password, // Match backend field name
+      console.log("Calling authService.firstResetPassword", {
+        email,
+        password: tempPassword,
+        new_password: password,
       });
 
-      const response = await fetch(
-        "http://localhost:8000/api/auth/first-time-password-change/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email, // ✅ Backend expects 'email'
-            password: tempPassword, // ✅ Backend expects 'password'
-            new_password: password, // ✅ Backend expects 'new_password'
-          }),
-        },
-      );
+      // If you have a CSRF token available in your app, pass it here
+      const csrfToken = (window as any)?.csrfToken ?? null;
 
-      const data = await response.json();
+      const result = await firstResetPassword({
+        email,
+        password: tempPassword,
+        new_password: password,
+        csrfToken,
+      });
 
-      if (!response.ok) {
-        console.error("Response error:", data);
+      if (!result.ok) {
+        console.error("Response error:", result.data);
         setError(
-          data.password?.[0] || data.email?.[0] || "Something went wrong",
+          result.data.password?.[0] ||
+            result.data.email?.[0] ||
+            "Something went wrong",
         );
         return;
       }
